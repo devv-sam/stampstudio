@@ -26,7 +26,7 @@ function createArcCornerRender(corner: CornerKey) {
     void fabricObject
     const radius = 14
     ctx.save()
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)'
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)'
     ctx.lineWidth = 2
     ctx.lineCap = 'round'
 
@@ -110,7 +110,8 @@ export function applyStampResizeHandles(stamp: Rect) {
     cornerSize: 28,
     touchCornerSize: 36,
     transparentCorners: true,
-    borderColor: 'rgba(255,255,255,0.35)',
+    hasBorders: false,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
     borderDashArray: [6, 4],
     lockRotation: true,
   })
@@ -123,8 +124,8 @@ export function createInitialStampRect() {
     top: 120,
     width: 420,
     height: 300,
-    rx: 28,
-    ry: 28,
+    rx: 0,
+    ry: 0,
     fill: '#ffffff',
     stroke: 'rgba(15, 15, 20, 0.08)',
     strokeWidth: 1,
