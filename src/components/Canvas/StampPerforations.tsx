@@ -10,25 +10,24 @@ interface StampPerforationsProps {
   } | null
   /** Number of holes per edge. Only changes on slider settle, never mid-drag. */
   count: number
-  /** Stamp fill color — must match the Fabric rect fill for correct export. */
-  color: string
 }
 
 /**
- * SVG overlay that renders postage-stamp perforations via the painter's algorithm:
- *   1. Fill the stamp area with `color`.
- *   2. Draw circles in CANVAS_BG at each edge position — these visually "punch" holes.
+ * SVG overlay that punches postage-stamp perforations along the stamp's edges.
  *
- * No masking is needed. The circle count is fixed by `count`, so geometry only
- * recomputes when the slider settles. During live resize, React just re-positions
- * the same circle count at new coordinates — cheap diffing, no per-frame calculation.
+ * Painter's algorithm: paint canvas-bg-coloured circles centred on each edge so
+ * that half of each circle overlaps the Fabric stamp underneath, creating the
+ * illusion of a punched hole. The stamp body itself is rendered by the Fabric
+ * `Rect` (solid colour or image-pattern fill) — this overlay never paints body
+ * pixels, so any Fabric content (background image, frame elements) shows
+ * through correctly.
  *
  * Geometry:
  *   hSpacing = width  / (count + 1)  →  evenly distributed along top/bottom
  *   vSpacing = height / (count + 1)  →  evenly distributed along left/right
  *   r        = min(hSpacing, vSpacing) * 0.38  →  proportional, scales with stamp
  */
-export function StampPerforations({ rect, count, color }: StampPerforationsProps) {
+export function StampPerforations({ rect, count }: StampPerforationsProps) {
   if (!rect || count === 0) return null
 
   const { left, top, width, height } = rect
@@ -47,10 +46,6 @@ export function StampPerforations({ rect, count, color }: StampPerforationsProps
         viewBox={`0 0 ${width} ${height}`}
         className="absolute inset-0 overflow-visible"
       >
-        {/* 1 — stamp body */}
-        <rect width={width} height={height} fill={color} />
-
-        {/* 2 — perforation holes (canvas bg color painted over edges) */}
         {Array.from({ length: count }, (_, i) => (
           <circle key={`t${i}`} cx={hSpacing * (i + 1)} cy={0} r={r} fill={CANVAS_BG} />
         ))}

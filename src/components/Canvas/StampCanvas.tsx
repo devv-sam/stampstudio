@@ -72,7 +72,7 @@ export function StampCanvas() {
   })
 
   const { width, height } = useCanvasSize(wrapRef)
-  const { register, unregister, perforationCount, stampColor } = useStampEditor()
+  const { register, unregister, perforationCount } = useStampEditor()
 
   useEffect(() => {
     const el = canvasElRef.current
@@ -120,7 +120,10 @@ export function StampCanvas() {
     fabricCanvas.requestRenderAll()
 
     const showChrome = () => {
-      if (fabricCanvas.getActiveObject() !== stamp) {
+      const currentActive = fabricCanvas.getActiveObject()
+      // Don't steal focus from frame images that the user has selected.
+      if (currentActive && currentActive !== stamp) return
+      if (currentActive !== stamp) {
         fabricCanvas.setActiveObject(stamp)
       }
       const next = readChromeFromStamp(stamp)
@@ -129,7 +132,11 @@ export function StampCanvas() {
     }
 
     const hideChrome = () => {
-      fabricCanvas.discardActiveObject()
+      // Only deselect the stamp itself — leave frame elements alone so the
+      // user keeps their selection when the cursor wanders outside the stamp.
+      if (fabricCanvas.getActiveObject() === stamp) {
+        fabricCanvas.discardActiveObject()
+      }
       setChromeRect(null)
       fabricCanvas.requestRenderAll()
     }
@@ -202,7 +209,7 @@ export function StampCanvas() {
         className="relative h-full min-h-0 w-full overflow-hidden bg-[#141416]"
       >
         <canvas ref={canvasElRef} className="block h-full w-full" />
-        <StampPerforations rect={stampRect} count={perforationCount} color={stampColor} />
+        <StampPerforations rect={stampRect} count={perforationCount} />
         <StampResizeChromeOverlay rect={chromeRect} />
       </div>
     </div>
