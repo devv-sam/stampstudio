@@ -6,10 +6,10 @@ import { useCanvasSize } from '../../hooks/useCanvas'
 import { useStampEditor } from '../../hooks/useStampEditor'
 import {
   applyStampResizeHandles,
-  centerStampInCanvas,
-  clampStampMinSizeAndCenter,
+  clampStampBoundsAndCenter,
   createInitialStampRect,
 } from '../../utils/fabricHelpers'
+import { StampPerforations } from './StampPerforations'
 import {
   StampResizeChromeOverlay,
   type ChromeRect,
@@ -64,11 +64,16 @@ export function StampCanvas() {
   )
 
   const [chromeRect, setChromeRect] = useState<ChromeRect | null>(null)
+  const [stampRect, setStampRect] = useState<{ left: number; top: number; width: number; height: number } | null>({
+    left: 100,
+    top: 100,
+    width: 420,
+    height: 300
+  })
 
   const { width, height } = useCanvasSize(wrapRef)
-  const { register, unregister } = useStampEditor()
+  const { register, unregister, perforationCount, stampColor } = useStampEditor()
 
-  // Fabric canvas is created once; dimensions are updated in a separate effect.
   useEffect(() => {
     const el = canvasElRef.current
     if (!el) return
@@ -78,19 +83,23 @@ export function StampCanvas() {
       height,
       backgroundColor: '#141416',
       preserveObjectStacking: true,
-      /** Scale from the stamp’s center to reduce positional drift while resizing */
       centeredScaling: true,
-      /** Independent width/height scaling from corners (Shift still toggles proportional in Fabric) */
       uniformScaling: false,
     })
 
     const stamp = createInitialStampRect()
     applyStampResizeHandles(stamp)
-    centerStampInCanvas(fabricCanvas, stamp)
+    clampStampBoundsAndCenter(fabricCanvas, stamp)
 
-    fabricCanvas.add(stamp)
-    fabricCanvas.discardActiveObject()
-    fabricCanvas.requestRenderAll()
+    const updateStampRect = () => {
+      const bounds = stamp.getBoundingRect()
+      setStampRect({
+        left: bounds.left,
+        top: bounds.top,
+        width: bounds.width,
+        height: bounds.height,
+      })
+    }
 
     const syncChromeIfActive = () => {
       if (fabricCanvas.getActiveObject() !== stamp) return
@@ -99,9 +108,16 @@ export function StampCanvas() {
     }
 
     const onScaleOrModify = () => {
-      clampStampMinSizeAndCenter(fabricCanvas, stamp)
+      clampStampBoundsAndCenter(fabricCanvas, stamp)
       syncChromeIfActive()
+      updateStampRect()
+      fabricCanvas.requestRenderAll()
     }
+
+    fabricCanvas.add(stamp)
+    fabricCanvas.discardActiveObject()
+    updateStampRect()
+    fabricCanvas.requestRenderAll()
 
     const showChrome = () => {
       if (fabricCanvas.getActiveObject() !== stamp) {
@@ -164,7 +180,14 @@ export function StampCanvas() {
     const s = stampRef.current
     if (!c || !s) return
     c.setDimensions({ width, height })
-    clampStampMinSizeAndCenter(c, s)
+    clampStampBoundsAndCenter(c, s)
+    const bounds = s.getBoundingRect()
+    setStampRect({
+      left: bounds.left,
+      top: bounds.top,
+      width: bounds.width,
+      height: bounds.height,
+    })
     c.requestRenderAll()
     if (c.getActiveObject() === s) {
       const next = readChromeFromStamp(s)
@@ -173,18 +196,14 @@ export function StampCanvas() {
   }, [width, height])
 
   return (
-    <div
-      ref={wrapRef}
-      className="relative flex h-full min-h-[420px] w-full flex-col"
-    >
-      <div className="flex min-h-0 flex-1 items-stretch justify-stretch p-4">
-        <div
-          ref={stageRef}
-          className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-zinc-800/60 bg-zinc-900/30 shadow-inner"
-        >
-          <canvas ref={canvasElRef} className="block h-full w-full" />
-          <StampResizeChromeOverlay rect={chromeRect} />
-        </div>
+    <div ref={wrapRef} className="relative h-full min-h-0 w-full min-w-0 flex-1">
+      <div
+        ref={stageRef}
+        className="relative h-full min-h-0 w-full overflow-hidden bg-[#141416]"
+      >
+        <canvas ref={canvasElRef} className="block h-full w-full" />
+        <StampPerforations rect={stampRect} count={perforationCount} color={stampColor} />
+        <StampResizeChromeOverlay rect={chromeRect} />
       </div>
     </div>
   )

@@ -9,8 +9,8 @@ export type ChromeRect = {
   rx: number
 }
 
-const L = 14
-const stroke = '2px solid rgba(255, 255, 255, 0.55)'
+const L = 18
+const stroke = '2px solid rgba(255, 255, 255, 0.32)'
 
 const cornerBase: CSSProperties = {
   position: 'absolute',
@@ -20,8 +20,7 @@ const cornerBase: CSSProperties = {
 }
 
 function cornerRadius(rx: number) {
-  if (rx <= 0) return 0
-  return Math.min(6, rx * 0.35)
+  return Math.min(8, Math.max(3, rx * 0.4))
 }
 
 const chromeVariants = {
@@ -55,9 +54,10 @@ export function StampResizeChromeOverlay({ rect }: { rect: ChromeRect | null }) 
               width: rect.width,
               height: rect.height,
               borderRadius: rect.rx,
-              borderWidth: 1.5,
-              borderStyle: 'dashed',
-              borderColor: 'rgba(255, 255, 255, 0.42)',
+              // TODO(snap-sizing): re-enable dashed border once snap-to-size grid is wired up
+              // borderWidth: 1.5,
+              // borderStyle: 'dashed',
+              // borderColor: 'rgba(255, 255, 255, 0.35)',
             }}
           >
             <span
