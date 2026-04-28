@@ -11,10 +11,12 @@ export function AppLayout({ header }: { header?: ReactNode }) {
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex shrink-0 items-center justify-between border-b border-zinc-800/80 px-5 py-3">
         <div className="flex items-baseline gap-2">
-          <h1 className="text-lg font-semibold tracking-tight text-white">
-            StampStudio
+          <h1 className="font-display text-xl font-normal tracking-tight text-white lowercase">
+            stampstudio
           </h1>
-          <span className="text-xs text-zinc-500">Canvas editor</span>
+          <span className="text-xs font-normal text-zinc-500">
+            Canvas editor
+          </span>
         </div>
         {header}
       </header>

@@ -9,6 +9,13 @@ import {
 /** Fabric object name used to identify the stamp artboard */
 export const STAMP_NAME = 'stampstudio-stamp'
 
+/** Default stamp size (local width / height before scale). */
+export const STAMP_BASE_WIDTH = 420
+export const STAMP_BASE_HEIGHT = 300
+
+/** Minimum scaled width and height on the canvas. */
+export const STAMP_MIN_SIDE = 90
+
 type CornerKey = 'tl' | 'tr' | 'bl' | 'br'
 
 /**
@@ -26,7 +33,7 @@ function createArcCornerRender(corner: CornerKey) {
     void fabricObject
     const radius = 14
     ctx.save()
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)'
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)'
     ctx.lineWidth = 2
     ctx.lineCap = 'round'
 
@@ -110,7 +117,8 @@ export function applyStampResizeHandles(stamp: Rect) {
     cornerSize: 28,
     touchCornerSize: 36,
     transparentCorners: true,
-    borderColor: 'rgba(255,255,255,0.35)',
+    hasBorders: false,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
     borderDashArray: [6, 4],
     lockRotation: true,
   })
@@ -119,12 +127,12 @@ export function applyStampResizeHandles(stamp: Rect) {
 export function createInitialStampRect() {
   return new Rect({
     name: STAMP_NAME,
-    left: 200,
-    top: 120,
-    width: 420,
-    height: 300,
-    rx: 28,
-    ry: 28,
+    left: 0,
+    top: 0,
+    width: STAMP_BASE_WIDTH,
+    height: STAMP_BASE_HEIGHT,
+    rx: 0,
+    ry: 0,
     fill: '#ffffff',
     stroke: 'rgba(15, 15, 20, 0.08)',
     strokeWidth: 1,
@@ -133,7 +141,43 @@ export function createInitialStampRect() {
     selectable: true,
     evented: true,
     objectCaching: false,
+    lockMovementX: true,
+    lockMovementY: true,
   })
+}
+
+/** Place the stamp rect in the middle of the canvas (top-left origin). */
+export function centerStampInCanvas(canvas: Canvas, stamp: Rect) {
+  const w = (stamp.width ?? 0) * (stamp.scaleX || 1)
+  const h = (stamp.height ?? 0) * (stamp.scaleY || 1)
+  const cw = canvas.getWidth()
+  const ch = canvas.getHeight()
+  stamp.set({
+    left: (cw - w) / 2,
+    top: (ch - h) / 2,
+  })
+  stamp.setCoords()
+}
+
+/**
+ * Ensures scaled width and height are each at least `minSide`, then re-centers so the stamp does not drift.
+ */
+export function clampStampMinSizeAndCenter(
+  canvas: Canvas,
+  stamp: Rect,
+  minSide = STAMP_MIN_SIDE,
+) {
+  const w = stamp.width || 1
+  const h = stamp.height || 1
+  const sx = stamp.scaleX || 1
+  const sy = stamp.scaleY || 1
+  const nextSx = Math.max(sx, minSide / w)
+  const nextSy = Math.max(sy, minSide / h)
+  if (nextSx !== sx || nextSy !== sy) {
+    stamp.set({ scaleX: nextSx, scaleY: nextSy })
+  }
+  centerStampInCanvas(canvas, stamp)
+  stamp.setCoords()
 }
 
 export function getStampBoundsOnCanvas(_canvas: Canvas, stamp: Rect) {

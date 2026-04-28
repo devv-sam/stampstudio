@@ -7,7 +7,8 @@ const variantClass: Record<Variant, string> = {
     'bg-white text-zinc-950 hover:bg-zinc-100 border border-transparent shadow-sm',
   secondary:
     'bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border border-zinc-700',
-  ghost: 'bg-transparent text-zinc-300 hover:bg-zinc-800/80 border border-transparent',
+  ghost:
+    'bg-transparent text-zinc-300 hover:bg-zinc-800/80 border border-transparent',
 }
 
 export function Button({
