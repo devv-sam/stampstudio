@@ -17,8 +17,9 @@ export function PropertiesPanel() {
         </dd>
       </dl>
       <p className="mt-3 text-xs text-zinc-500">
-        Rounded rectangle is the export region. Hover it to show resize handles;
-        move away to hide.
+        The white rectangle is the export region (min 90×90 px, stays centered
+        when resized, no drag). Hover to show resize handles; move away to
+        hide.
       </p>
     </Panel>
   )

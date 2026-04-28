@@ -1,4 +1,4 @@
-import { Canvas } from 'fabric'
+import { Canvas, Point, type FabricObject } from 'fabric'
 import type { Rect } from 'fabric'
 import { useEffect, useRef, useState } from 'react'
 
@@ -6,30 +6,14 @@ import { useCanvasSize } from '../../hooks/useCanvas'
 import { useStampEditor } from '../../hooks/useStampEditor'
 import {
   applyStampResizeHandles,
+  centerStampInCanvas,
+  clampStampMinSizeAndCenter,
   createInitialStampRect,
 } from '../../utils/fabricHelpers'
 import {
   StampResizeChromeOverlay,
   type ChromeRect,
 } from './StampResizeChromeOverlay'
-
-const HOVER_PAD = 56
-/** Short debounce when leaving the expanded bbox (not the stage) to avoid flicker near handles */
-const LEAVE_MS = 12
-
-function expandedContains(
-  b: { left: number; top: number; width: number; height: number },
-  x: number,
-  y: number,
-  pad: number,
-) {
-  return (
-    x >= b.left - pad &&
-    x <= b.left + b.width + pad &&
-    y >= b.top - pad &&
-    y <= b.top + b.height + pad
-  )
-}
 
 function readChromeFromStamp(stamp: Rect): ChromeRect {
   const box = stamp.getBoundingRect()
@@ -61,6 +45,15 @@ function chromeEqual(a: ChromeRect | null, b: ChromeRect | null) {
   )
 }
 
+function pointerOnStamp(
+  stamp: Rect,
+  opt: { scenePoint: { x: number; y: number }; target?: FabricObject },
+) {
+  if (opt.target === stamp) return true
+  const { x, y } = opt.scenePoint
+  return stamp.containsPoint(new Point(x, y))
+}
+
 export function StampCanvas() {
   const wrapRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
@@ -69,19 +62,11 @@ export function StampCanvas() {
   const stampRef = useRef<ReturnType<typeof createInitialStampRect> | null>(
     null,
   )
-  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [chromeRect, setChromeRect] = useState<ChromeRect | null>(null)
 
   const { width, height } = useCanvasSize(wrapRef)
   const { register, unregister } = useStampEditor()
-
-  const clearLeaveTimer = () => {
-    if (leaveTimerRef.current != null) {
-      clearTimeout(leaveTimerRef.current)
-      leaveTimerRef.current = null
-    }
-  }
 
   // Fabric canvas is created once; dimensions are updated in a separate effect.
   useEffect(() => {
@@ -93,10 +78,15 @@ export function StampCanvas() {
       height,
       backgroundColor: '#141416',
       preserveObjectStacking: true,
+      /** Scale from the stamp’s center to reduce positional drift while resizing */
+      centeredScaling: true,
+      /** Independent width/height scaling from corners (Shift still toggles proportional in Fabric) */
+      uniformScaling: false,
     })
 
     const stamp = createInitialStampRect()
     applyStampResizeHandles(stamp)
+    centerStampInCanvas(fabricCanvas, stamp)
 
     fabricCanvas.add(stamp)
     fabricCanvas.discardActiveObject()
@@ -108,8 +98,12 @@ export function StampCanvas() {
       setChromeRect((prev) => (chromeEqual(prev, next) ? prev : next))
     }
 
+    const onScaleOrModify = () => {
+      clampStampMinSizeAndCenter(fabricCanvas, stamp)
+      syncChromeIfActive()
+    }
+
     const showChrome = () => {
-      clearLeaveTimer()
       if (fabricCanvas.getActiveObject() !== stamp) {
         fabricCanvas.setActiveObject(stamp)
       }
@@ -124,32 +118,23 @@ export function StampCanvas() {
       fabricCanvas.requestRenderAll()
     }
 
-    const scheduleHide = () => {
-      clearLeaveTimer()
-      leaveTimerRef.current = setTimeout(() => {
-        leaveTimerRef.current = null
-        hideChrome()
-      }, LEAVE_MS)
-    }
-
-    const onMouseMove = (opt: { scenePoint: { x: number; y: number } }) => {
-      const { x, y } = opt.scenePoint
-      const b = stamp.getBoundingRect()
-      if (expandedContains(b, x, y, HOVER_PAD)) {
+    const onMouseMove = (opt: {
+      scenePoint: { x: number; y: number }
+      target?: FabricObject
+    }) => {
+      if (pointerOnStamp(stamp, opt)) {
         showChrome()
       } else {
-        scheduleHide()
+        hideChrome()
       }
     }
 
     const onStagePointerLeave = () => {
-      clearLeaveTimer()
       hideChrome()
     }
 
-    stamp.on('modified', syncChromeIfActive)
-    stamp.on('scaling', syncChromeIfActive)
-    stamp.on('moving', syncChromeIfActive)
+    stamp.on('modified', onScaleOrModify)
+    stamp.on('scaling', onScaleOrModify)
 
     fabricCanvas.on('mouse:move', onMouseMove)
 
@@ -161,10 +146,8 @@ export function StampCanvas() {
     register({ canvas: fabricCanvas, stamp })
 
     return () => {
-      clearLeaveTimer()
-      stamp.off('modified', syncChromeIfActive)
-      stamp.off('scaling', syncChromeIfActive)
-      stamp.off('moving', syncChromeIfActive)
+      stamp.off('modified', onScaleOrModify)
+      stamp.off('scaling', onScaleOrModify)
       fabricCanvas.off('mouse:move', onMouseMove)
       stage?.removeEventListener('pointerleave', onStagePointerLeave)
       unregister()
@@ -178,9 +161,15 @@ export function StampCanvas() {
 
   useEffect(() => {
     const c = fabricRef.current
-    if (!c) return
+    const s = stampRef.current
+    if (!c || !s) return
     c.setDimensions({ width, height })
+    clampStampMinSizeAndCenter(c, s)
     c.requestRenderAll()
+    if (c.getActiveObject() === s) {
+      const next = readChromeFromStamp(s)
+      setChromeRect((prev) => (chromeEqual(prev, next) ? prev : next))
+    }
   }, [width, height])
 
   return (
