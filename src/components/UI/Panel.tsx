@@ -15,7 +15,7 @@ export function Panel({
       {...props}
     >
       {title ? (
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        <h3 className="mb-3 text-sm font-medium text-zinc-400">
           {title}
         </h3>
       ) : null}

@@ -8,6 +8,10 @@ export type StampEditorContextValue = {
   register: (api: StampCanvasApi) => void
   unregister: () => void
   stampDimensions: StampDimensions
+  perforationCount: number
+  setPerforationCount: (n: number) => void
+  stampColor: string
+  setStampColor: (color: string) => void
   exportPng: (multiplier?: number) => void
   exportJpeg: (options?: { multiplier?: number; quality?: number }) => void
   exportSvg: () => void

@@ -22,6 +22,16 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     width: 420,
     height: 300,
   })
+  const [perforationCount, setPerforationCount] = useState(14)
+  const [stampColor, _setStampColor] = useState('#ffffff')
+
+  const setStampColor = useCallback((color: string) => {
+    _setStampColor(color)
+    const api = apiRef.current
+    if (!api) return
+    api.stamp.set({ fill: color })
+    api.canvas.requestRenderAll()
+  }, [])
 
   const register = useCallback((api: StampCanvasApi) => {
     detachRef.current?.()
@@ -55,37 +65,63 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
   const exportPng = useCallback((multiplier = 2) => {
     const api = apiRef.current
     if (!api) return
-    const dataUrl = exportStampPng(api.canvas, api.stamp, multiplier)
+    const dataUrl = exportStampPng(
+      api.canvas,
+      api.stamp,
+      multiplier,
+      perforationCount,
+      stampColor,
+    )
     downloadDataUrl(dataUrl, 'stamp.png')
-  }, [])
+  }, [perforationCount, stampColor])
 
   const exportJpeg = useCallback(
     (options?: { multiplier?: number; quality?: number }) => {
       const api = apiRef.current
       if (!api) return
-      const dataUrl = exportStampJpeg(api.canvas, api.stamp, options)
+      const dataUrl = exportStampJpeg(
+        api.canvas,
+        api.stamp,
+        options,
+        perforationCount,
+        stampColor,
+      )
       downloadDataUrl(dataUrl, 'stamp.jpg')
     },
-    [],
+    [perforationCount, stampColor],
   )
 
   const exportSvg = useCallback(() => {
     const api = apiRef.current
     if (!api) return
-    const svg = exportStampSvg(api.canvas, api.stamp)
+    const svg = exportStampSvg(api.canvas, api.stamp, perforationCount, stampColor)
     downloadTextFile(svg, 'stamp.svg', 'image/svg+xml;charset=utf-8')
-  }, [])
+  }, [perforationCount, stampColor])
 
   const value = useMemo(
     () => ({
       register,
       unregister,
       stampDimensions,
+      perforationCount,
+      setPerforationCount,
+      stampColor,
+      setStampColor,
       exportPng,
       exportJpeg,
       exportSvg,
     }),
-    [exportJpeg, exportPng, exportSvg, register, unregister, stampDimensions],
+    [
+      exportJpeg,
+      exportPng,
+      exportSvg,
+      register,
+      unregister,
+      stampDimensions,
+      perforationCount,
+      stampColor,
+      setStampColor,
+    ],
   )
 
   return (

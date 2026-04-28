@@ -3,6 +3,7 @@
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Libre Baskerville', ui-serif, Georgia, serif;
+  --text-sm: 0.8125rem; /* 13px */
 }
 
 html,
