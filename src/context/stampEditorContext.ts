@@ -1,6 +1,10 @@
 import { createContext } from 'react'
 
-import type { StampCanvasApi } from '../types/canvas'
+import type {
+  StampCanvasApi,
+  ShaderName,
+  ShaderParamsMap,
+} from '../types/canvas'
 import type { ImageAsset } from '../types/assets'
 
 export type StampDimensions = { width: number; height: number }
@@ -47,7 +51,19 @@ export type StampEditorContextValue = {
   exportPng: (multiplier?: number) => Promise<void>
   exportJpeg: (options?: { multiplier?: number; quality?: number }) => Promise<void>
   exportSvg: () => Promise<void>
+
+  /** Shader applied on the stamp (`null` = normal fill only). Separate from accordion open state in the panel. */
+  activeShader: ShaderName | null
+  setActiveShader: (name: ShaderName | null) => void
+  shaderParams: ShaderParamsMap
+  updateShaderParam: <K extends ShaderName>(
+    shader: K,
+    param: keyof ShaderParamsMap[K],
+    value: ShaderParamsMap[K][keyof ShaderParamsMap[K]],
+  ) => void
 }
+
+export type { ShaderName, ShaderParamsMap }
 
 export const StampEditorContext =
   createContext<StampEditorContextValue | null>(null)

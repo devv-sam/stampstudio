@@ -11,7 +11,11 @@ import {
   StampEditorContext,
   type StampDimensions,
 } from './stampEditorContext'
-import type { StampCanvasApi } from '../types/canvas'
+import type {
+  StampCanvasApi,
+  ShaderName,
+  ShaderParamsMap,
+} from '../types/canvas'
 import type { ImageAsset } from '../types/assets'
 import { getStampBgRect } from '../utils/fabricHelpers'
 import { shortId } from '../utils/imageHelpers'
@@ -31,6 +35,22 @@ import {
 
 export type { StampDimensions }
 
+const defaultShaderParams: ShaderParamsMap = {
+  'halftone-dots': { size: 0.5, type: 'gooey', contrast: 0.4 },
+  'fluted-glass': { size: 0.5, distortion: 0.5, shape: 'lines' },
+  'halftone-cmyk': {
+    size: 0.2,
+    type: 'ink',
+    softness: 1,
+    colorBack: '#fbfaf5',
+    colorC: '#00b4ff',
+    colorM: '#fc519f',
+    colorY: '#ffd800',
+    colorK: '#231f20',
+  },
+  'paper-texture': { roughness: 0.4, crumples: 0.3, folds: 0.65, seed: 5.8 },
+}
+
 export function StampEditorProvider({ children }: { children: ReactNode }) {
   const apiRef = useRef<StampCanvasApi | null>(null)
   const detachRef = useRef<(() => void) | null>(null)
@@ -41,6 +61,30 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
   })
   const [perforationCount, setPerforationCount] = useState(14)
   const [stampColor, _setStampColor] = useState('#ffffff')
+
+  const [activeShader, setActiveShader] = useState<ShaderName | null>(null)
+  const activeShaderRef = useRef<ShaderName | null>(null)
+  useEffect(() => {
+    activeShaderRef.current = activeShader
+  }, [activeShader])
+
+  const [shaderParams, setShaderParams] = useState<ShaderParamsMap>(() => ({
+    ...defaultShaderParams,
+  }))
+
+  const updateShaderParam = useCallback(
+    <K extends ShaderName>(
+      shader: K,
+      param: keyof ShaderParamsMap[K],
+      value: ShaderParamsMap[K][keyof ShaderParamsMap[K]],
+    ) => {
+      setShaderParams((prev) => ({
+        ...prev,
+        [shader]: { ...prev[shader], [param]: value },
+      }))
+    },
+    [],
+  )
   const [imageAssets, setImageAssets] = useState<ImageAsset[]>([])
   /**
    * Bumped whenever the Fabric canvas (re-)registers so reconciliation
@@ -82,6 +126,8 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       // changing the underlying color should NOT clobber that. The color
       // becomes effective again only after the background is cleared.
       if (hasBackground) return
+      // Paper shader shows through transparent rect — don't paint solid over it.
+      if (activeShaderRef.current) return
       const bgRect = getStampBgRect(api.stamp)
       bgRect?.set({ fill: color })
       api.canvas.requestRenderAll()
@@ -97,6 +143,10 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     stampColorRef.current = color
     const api = apiRef.current
     if (!api) return
+    if (activeShaderRef.current) {
+      api.canvas.requestRenderAll()
+      return
+    }
     await applyStampBackground(api.canvas, api.stamp, null, color)
   }, [])
 
@@ -236,8 +286,16 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const api = apiRef.current
     if (!api) return
+    const bgRect = getStampBgRect(api.stamp)
+    if (!bgRect) return
+
     let cancelled = false
     void (async () => {
+      if (activeShader) {
+        bgRect.set({ fill: 'transparent' })
+        if (!cancelled) api.canvas.requestRenderAll()
+        return
+      }
       try {
         await applyStampBackground(
           api.canvas,
@@ -254,9 +312,9 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-    // bgFingerprint + canvasEpoch are the meaningful change signals here.
+    // bgFingerprint + canvasEpoch + activeShader drive stamp fill vs shader layer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bgFingerprint, canvasEpoch])
+  }, [activeShader, bgFingerprint, canvasEpoch])
 
   useEffect(() => {
     const api = apiRef.current
@@ -356,6 +414,10 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       exportPng,
       exportJpeg,
       exportSvg,
+      activeShader,
+      setActiveShader,
+      shaderParams,
+      updateShaderParam,
     }),
     [
       register,
@@ -375,6 +437,9 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       exportPng,
       exportJpeg,
       exportSvg,
+      activeShader,
+      shaderParams,
+      updateShaderParam,
     ],
   )
 
