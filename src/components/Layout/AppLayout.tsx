@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 
 import { StampCanvas } from "../Canvas/StampCanvas";
-import { ExportPanel } from "../Panels/ExportPanel";
 import { PropertiesPanel } from "../Panels/PropertiesPanel";
 import { Toolbar } from "./Toolbar";
+import { HeaderExport } from "./HeaderExport";
 
 export function AppLayout({ header }: { header?: ReactNode }) {
   return (
@@ -14,7 +14,10 @@ export function AppLayout({ header }: { header?: ReactNode }) {
             stampstudio
           </h1>
         </div>
-        {header}
+        <div className="flex items-center gap-4">
+          <HeaderExport />
+          {header}
+        </div>
       </header>
 
       <div className="relative flex min-h-0 flex-1">
@@ -27,7 +30,6 @@ export function AppLayout({ header }: { header?: ReactNode }) {
 
         <aside className="flex w-[320px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-zinc-800/80 bg-[#101010] p-5">
           <PropertiesPanel />
-          <ExportPanel />
         </aside>
       </div>
     </div>

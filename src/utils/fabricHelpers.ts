@@ -1,6 +1,7 @@
 import {
   type Canvas,
   Control,
+  Group,
   type InteractiveFabricObject,
   Rect,
   controlsUtils,
@@ -8,6 +9,8 @@ import {
 
 /** Fabric object name used to identify the stamp artboard */
 export const STAMP_NAME = "stampstudio-stamp";
+/** Fabric object name used to identify the stamp background child. */
+export const STAMP_BG_NAME = "stampstudio-bg";
 
 /** Default stamp size (local width / height before scale). */
 export const STAMP_BASE_WIDTH = 420;
@@ -82,7 +85,7 @@ function createArcCornerRender(corner: CornerKey) {
 /**
  * Corner-only scaling with minimal arc handles (hides mids + rotation).
  */
-export function applyStampResizeHandles(stamp: Rect) {
+export function applyStampResizeHandles(stamp: Group) {
   const defaults = controlsUtils.createObjectDefaultControls();
   const corners: CornerKey[] = ["tl", "tr", "bl", "br"];
 
@@ -127,9 +130,9 @@ export function applyStampResizeHandles(stamp: Rect) {
   });
 }
 
-export function createInitialStampRect() {
-  return new Rect({
-    name: STAMP_NAME,
+export function createStampGroup() {
+  const bgRect = new Rect({
+    name: STAMP_BG_NAME,
     left: 0,
     top: 0,
     width: STAMP_BASE_WIDTH,
@@ -139,25 +142,59 @@ export function createInitialStampRect() {
     fill: "#ffffff",
     stroke: "rgba(15, 15, 20, 0.08)",
     strokeWidth: 1,
-    originX: "left",
-    originY: "top",
+    originX: "center",
+    originY: "center",
+    selectable: false,
+    evented: false,
+    objectCaching: false,
+  });
+
+  const group = new Group([bgRect], {
+    left: 0,
+    top: 0,
+    originX: "center",
+    originY: "center",
     selectable: true,
     evented: true,
+    subTargetCheck: true,
     objectCaching: false,
     lockMovementX: true,
     lockMovementY: true,
+    lockRotation: true,
   });
+  (group as Group & { name?: string }).name = STAMP_NAME;
+
+  group.clipPath = new Rect({
+    left: 0,
+    top: 0,
+    width: STAMP_BASE_WIDTH,
+    height: STAMP_BASE_HEIGHT,
+    originX: "center",
+    originY: "center",
+    rx: 0,
+    ry: 0,
+  });
+
+  return group;
 }
 
-/** Place the stamp rect in the middle of the canvas (top-left origin). */
-export function centerStampInCanvas(canvas: Canvas, stamp: Rect) {
-  const w = (stamp.width ?? 0) * (stamp.scaleX || 1);
-  const h = (stamp.height ?? 0) * (stamp.scaleY || 1);
+export function getStampBgRect(stamp: Group) {
+  return stamp
+    .getObjects()
+    .find(
+      (obj) =>
+        (obj as InteractiveFabricObject & { name?: string }).name ===
+        STAMP_BG_NAME,
+    ) as Rect | undefined;
+}
+
+/** Place the stamp group in the middle of the canvas (center origin). */
+export function centerStampInCanvas(canvas: Canvas, stamp: Group) {
   const cw = canvas.getWidth();
   const ch = canvas.getHeight();
   stamp.set({
-    left: (cw - w) / 2,
-    top: (ch - h) / 2,
+    left: cw / 2,
+    top: ch / 2,
   });
   stamp.setCoords();
 }
@@ -168,12 +205,12 @@ export function centerStampInCanvas(canvas: Canvas, stamp: Rect) {
  */
 export function clampStampBoundsAndCenter(
   canvas: Canvas,
-  stamp: Rect,
+  stamp: Group,
   minSide = STAMP_MIN_SIDE,
   maxFrac = STAMP_MAX_CANVAS_FRACTION,
 ) {
-  const w = stamp.width || 1;
-  const h = stamp.height || 1;
+  const baseW = STAMP_BASE_WIDTH;
+  const baseH = STAMP_BASE_HEIGHT;
   const cw = canvas.getWidth();
   const ch = canvas.getHeight();
   const maxSw = cw * maxFrac;
@@ -182,20 +219,18 @@ export function clampStampBoundsAndCenter(
   const minSwEff = Math.min(minSide, maxSw);
   const minShEff = Math.min(minSide, maxSh);
 
-  const sx = stamp.scaleX || 1;
-  const sy = stamp.scaleY || 1;
-  let sw = w * sx;
-  let sh = h * sy;
+  let sw = stamp.getScaledWidth();
+  let sh = stamp.getScaledHeight();
 
   sw = Math.min(maxSw, Math.max(minSwEff, sw));
   sh = Math.min(maxSh, Math.max(minShEff, sh));
 
-  stamp.set({ scaleX: sw / w, scaleY: sh / h });
+  stamp.set({ scaleX: sw / baseW, scaleY: sh / baseH });
   centerStampInCanvas(canvas, stamp);
   stamp.setCoords();
 }
 
-export function getStampBoundsOnCanvas(_canvas: Canvas, stamp: Rect) {
+export function getStampBoundsOnCanvas(_canvas: Canvas, stamp: Group) {
   const rect = stamp.getBoundingRect();
   return {
     left: Math.max(0, Math.floor(rect.left)),

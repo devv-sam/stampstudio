@@ -10,16 +10,16 @@ export function ExportPanel() {
   const { exportPng, exportJpeg, exportSvg } = useExport()
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('png')
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     switch (selectedFormat) {
       case 'png':
-        exportPng()
+        await exportPng()
         break
       case 'jpeg':
-        exportJpeg()
+        await exportJpeg()
         break
       case 'svg':
-        exportSvg()
+        await exportSvg()
         break
     }
   }
