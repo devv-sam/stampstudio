@@ -10,6 +10,7 @@ import {
   createStampGroup,
 } from '../../utils/fabricHelpers'
 import { FRAME_OBJECT_TAG } from '../../utils/stampImageHelpers'
+import { punchPerforationHoles } from '../../utils/exportHelpers'
 import { StampPerforations } from './StampPerforations'
 import { ShaderLayer } from './ShaderLayer'
 import {
@@ -91,6 +92,7 @@ function readFrameTravelRect(stamp: Group, frame: FabricObject): RectBounds {
 export function StampCanvas() {
   const wrapRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const canvasElRef = useRef<HTMLCanvasElement>(null)
   const fabricRef = useRef<Canvas | null>(null)
   const stampRef = useRef<ReturnType<typeof createStampGroup> | null>(
@@ -105,6 +107,7 @@ export function StampCanvas() {
     height: 300,
   })
   const [frameTravelRect, setFrameTravelRect] = useState<RectBounds | null>(null)
+  const stampRectRef = useRef<RectBounds | null>(stampRect)
 
   const { width, height } = useCanvasSize(wrapRef)
   const {
@@ -115,6 +118,10 @@ export function StampCanvas() {
     shaderParams,
     backgroundAsset,
   } = useStampEditor()
+
+  useEffect(() => {
+    stampRectRef.current = stampRect
+  }, [stampRect])
 
   useEffect(() => {
     const el = canvasElRef.current
@@ -232,7 +239,67 @@ export function StampCanvas() {
 
     fabricRef.current = fabricCanvas
     stampRef.current = stamp
-    register({ canvas: fabricCanvas, stamp })
+    const exportCompositedRaster: NonNullable<
+      Parameters<typeof register>[0]['exportCompositedRaster']
+    > = async ({ format, multiplier, quality }) => {
+      const content = contentRef.current
+      const stage = stageRef.current
+      const stampBounds = stampRectRef.current
+      if (!content || !stage || !stampBounds) return null
+
+      const outW = Math.max(1, Math.round(stampBounds.width * multiplier))
+      const outH = Math.max(1, Math.round(stampBounds.height * multiplier))
+
+      const out = document.createElement('canvas')
+      out.width = outW
+      out.height = outH
+      const ctx = out.getContext('2d')
+      if (!ctx) return null
+
+      if (format === 'jpeg') {
+        ctx.fillStyle = '#141416'
+        ctx.fillRect(0, 0, outW, outH)
+      }
+
+      // 1. Shader canvas (WebGL) — positioned exactly at stamp bounds so the
+      //    whole canvas maps 1:1 to the stamp area. preserveDrawingBuffer is
+      //    forced true at app startup so toDataURL() is always readable.
+      const shaderCanvas = content.querySelector(
+        'canvas:not(.lower-canvas):not(.upper-canvas)',
+      ) as HTMLCanvasElement | null
+      if (shaderCanvas && shaderCanvas.width > 0 && shaderCanvas.height > 0) {
+        ctx.drawImage(shaderCanvas, 0, 0, outW, outH)
+      }
+
+      // 2. Fabric lower-canvas — full stage size; crop to stamp bounds.
+      const fabricCanvas = content.querySelector(
+        'canvas.lower-canvas',
+      ) as HTMLCanvasElement | null
+      if (fabricCanvas && fabricCanvas.width > 0 && fabricCanvas.height > 0) {
+        const scaleX = fabricCanvas.width / stage.clientWidth
+        const scaleY = fabricCanvas.height / stage.clientHeight
+        const sx = Math.max(0, stampBounds.left * scaleX)
+        const sy = Math.max(0, stampBounds.top * scaleY)
+        const sw = Math.min(fabricCanvas.width - sx, stampBounds.width * scaleX)
+        const sh = Math.min(fabricCanvas.height - sy, stampBounds.height * scaleY)
+        if (sw > 0 && sh > 0) {
+          ctx.drawImage(fabricCanvas, sx, sy, sw, sh, 0, 0, outW, outH)
+        }
+      }
+
+      // 3. Punch true transparent perforation holes.
+      ctx.save()
+      ctx.scale(multiplier, multiplier)
+      punchPerforationHoles(ctx, stampBounds.width, stampBounds.height, perforationCount)
+      ctx.restore()
+
+      return out.toDataURL(
+        format === 'jpeg' ? 'image/jpeg' : 'image/png',
+        quality,
+      )
+    }
+
+    register({ canvas: fabricCanvas, stamp, exportCompositedRaster })
 
     return () => {
       stamp.off('modified', onScaleOrModify)
@@ -287,16 +354,32 @@ export function StampCanvas() {
         ref={stageRef}
         className="relative h-full min-h-0 w-full overflow-hidden bg-[#141416]"
       >
-        <ShaderLayer
+        <StampPerforations
+          stageWidth={width}
+          stageHeight={height}
           rect={stampRect}
-          imageSrc={backgroundAsset?.src ?? ''}
-          activeShader={activeShader}
-          shaderParams={shaderParams}
+          count={perforationCount}
         />
-        <div className="relative z-20">
-          <canvas ref={canvasElRef} className="block h-full w-full" />
+        <div
+          ref={contentRef}
+          className="absolute inset-0"
+          style={{
+            clipPath:
+              stampRect && perforationCount > 0
+                ? 'url(#stamp-perf-clip)'
+                : undefined,
+          }}
+        >
+          <ShaderLayer
+            rect={stampRect}
+            imageSrc={backgroundAsset?.src ?? ''}
+            activeShader={activeShader}
+            shaderParams={shaderParams}
+          />
+          <div className="relative z-20">
+            <canvas ref={canvasElRef} className="block h-full w-full" />
+          </div>
         </div>
-        <StampPerforations rect={stampRect} count={perforationCount} />
         {frameTravelRect ? (
           <div
             className="pointer-events-none absolute z-20 border border-red-500/90"

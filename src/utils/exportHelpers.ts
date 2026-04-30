@@ -44,7 +44,7 @@ function getPerforationGeometry(width: number, height: number, count: number) {
   return { count: safeCount, hSpacing, vSpacing, r }
 }
 
-function paintPerforationCircles(
+export function punchPerforationHoles(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
@@ -57,7 +57,10 @@ function paintPerforationCircles(
   )
   if (count === 0) return
 
-  ctx.fillStyle = CANVAS_BG
+  ctx.save()
+  // Punch true alpha holes so PNG exports remain transparent over any backdrop.
+  ctx.globalCompositeOperation = 'destination-out'
+  ctx.fillStyle = 'rgba(0, 0, 0, 1)'
   for (let i = 0; i < count; i += 1) {
     const cxTopBottom = hSpacing * (i + 1)
     const cyLeftRight = vSpacing * (i + 1)
@@ -78,6 +81,7 @@ function paintPerforationCircles(
     ctx.arc(width, cyLeftRight, r, 0, Math.PI * 2)
     ctx.fill()
   }
+  ctx.restore()
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -85,9 +89,7 @@ function paintPerforationCircles(
 //
 // The Fabric Rect's fill (solid color or image-pattern) AND any frame Image
 // objects clipped to the stamp are rendered together via Fabric's own
-// `toDataURL`. We then paint perforation holes on top — those holes are
-// canvas-bg coloured circles, not real transparency, matching the in-app
-// painter's-algorithm rendering exactly.
+// `toDataURL`. We then punch perforation holes using `destination-out`.
 // ────────────────────────────────────────────────────────────────────────────
 
 async function rasteriseStampRegion(
@@ -129,7 +131,7 @@ async function rasteriseStampRegion(
   ctx.drawImage(stampImg, 0, 0, out.width, out.height)
 
   ctx.scale(options.multiplier, options.multiplier)
-  paintPerforationCircles(ctx, width, height, perforationCount)
+  punchPerforationHoles(ctx, width, height, perforationCount)
 
   return out.toDataURL(
     options.format === 'jpeg' ? 'image/jpeg' : 'image/png',

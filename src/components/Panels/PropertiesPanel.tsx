@@ -125,7 +125,7 @@ export function PropertiesPanel() {
               Fill
             </p>{" "}
             <div
-              className="inline-flex shrink-0 rounded-md border border-zinc-700/90 bg-zinc-900/50 p-0.5"
+              className="cursor-pointer inline-flex shrink-0 rounded-md border border-zinc-700/90 bg-zinc-900/50 p-0.5"
               role="group"
               aria-label="Fill type"
             >
@@ -261,6 +261,7 @@ export function PropertiesPanel() {
             assets={imageAssets}
             onPromoteBackground={(id) => setAssetRole(id, "background")}
             onUnuse={(id) => setAssetRole(id, "unused")}
+            onRecrop={(asset) => bgUpload.openRecrop(asset)}
             onDelete={(id) => removeAsset(id)}
           />
         ) : null}
@@ -637,11 +638,13 @@ function AssetStrip({
   assets,
   onPromoteBackground,
   onUnuse,
+  onRecrop,
   onDelete,
 }: {
   assets: ImageAsset[];
   onPromoteBackground: (id: string) => void;
   onUnuse: (id: string) => void;
+  onRecrop: (asset: ImageAsset) => void;
   onDelete: (id: string) => void;
 }) {
   const [openMenu, setOpenMenu] = useState<{
@@ -702,6 +705,7 @@ function AssetStrip({
           asset={openAsset}
           onPromoteBackground={onPromoteBackground}
           onUnuse={onUnuse}
+          onRecrop={onRecrop}
           onDelete={onDelete}
         />
       ) : null}
@@ -715,6 +719,7 @@ function AssetMenuPopover({
   asset,
   onPromoteBackground,
   onUnuse,
+  onRecrop,
   onDelete,
 }: {
   anchor: HTMLElement;
@@ -722,6 +727,7 @@ function AssetMenuPopover({
   asset: ImageAsset;
   onPromoteBackground: (id: string) => void;
   onUnuse: (id: string) => void;
+  onRecrop: (asset: ImageAsset) => void;
   onDelete: (id: string) => void;
 }) {
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -811,6 +817,14 @@ function AssetMenuPopover({
           Hide from stamp
         </MenuItem>
       ) : null}
+      <MenuItem
+        onClick={() => {
+          onRecrop(asset);
+          onClose();
+        }}
+      >
+        Recrop
+      </MenuItem>
       <div className="my-1 h-px bg-zinc-800" />
       <MenuItem
         onClick={() => {

@@ -1,7 +1,6 @@
-/** Background color of the Fabric canvas — must stay in sync with Canvas backgroundColor. */
-const CANVAS_BG = '#141416'
-
 interface StampPerforationsProps {
+  stageWidth: number
+  stageHeight: number
   rect: {
     left: number
     top: number
@@ -12,53 +11,71 @@ interface StampPerforationsProps {
   count: number
 }
 
-/**
- * SVG overlay that punches postage-stamp perforations along the stamp's edges.
- *
- * Painter's algorithm: paint canvas-bg-coloured circles centred on each edge so
- * that half of each circle overlaps the Fabric stamp underneath, creating the
- * illusion of a punched hole. The stamp body itself is rendered by the Fabric
- * `Rect` (solid colour or image-pattern fill) — this overlay never paints body
- * pixels, so any Fabric content (background image, frame elements) shows
- * through correctly.
- *
- * Geometry:
- *   hSpacing = width  / (count + 1)  →  evenly distributed along top/bottom
- *   vSpacing = height / (count + 1)  →  evenly distributed along left/right
- *   r        = min(hSpacing, vSpacing) * 0.38  →  proportional, scales with stamp
- */
-export function StampPerforations({ rect, count }: StampPerforationsProps) {
-  if (!rect || count === 0) return null
+const STAMP_PERF_CLIP_ID = 'stamp-perf-clip'
+
+function buildCirclePath(cx: number, cy: number, r: number) {
+  return [
+    `M ${cx - r} ${cy}`,
+    `A ${r} ${r} 0 1 0 ${cx + r} ${cy}`,
+    `A ${r} ${r} 0 1 0 ${cx - r} ${cy}`,
+    'Z',
+  ].join(' ')
+}
+
+function getPerforationPath(
+  stageWidth: number,
+  stageHeight: number,
+  rect: { left: number; top: number; width: number; height: number },
+  count: number,
+) {
+  const safeCount = Math.max(0, Math.floor(count))
+  if (safeCount === 0) return ''
 
   const { left, top, width, height } = rect
-  const hSpacing = width / (count + 1)
-  const vSpacing = height / (count + 1)
+  const hSpacing = width / (safeCount + 1)
+  const vSpacing = height / (safeCount + 1)
   const r = Math.min(hSpacing, vSpacing) * 0.38
+  const parts: string[] = [
+    `M 0 0 H ${stageWidth} V ${stageHeight} H 0 Z`,
+  ]
+
+  for (let i = 0; i < safeCount; i += 1) {
+    const cxTopBottom = left + hSpacing * (i + 1)
+    const cyLeftRight = top + vSpacing * (i + 1)
+    parts.push(
+      buildCirclePath(cxTopBottom, top, r),
+      buildCirclePath(cxTopBottom, top + height, r),
+      buildCirclePath(left, cyLeftRight, r),
+      buildCirclePath(left + width, cyLeftRight, r),
+    )
+  }
+
+  return parts.join(' ')
+}
+
+export function StampPerforations({
+  stageWidth,
+  stageHeight,
+  rect,
+  count,
+}: StampPerforationsProps) {
+  if (!rect || count === 0) return null
+
+  const d = getPerforationPath(stageWidth, stageHeight, rect, count)
+  if (!d) return null
 
   return (
-    <div
+    <svg
+      width="0"
+      height="0"
+      aria-hidden="true"
       className="pointer-events-none absolute"
-      style={{ left, top, width, height }}
     >
-      <svg
-        width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        className="absolute inset-0 overflow-visible"
-      >
-        {Array.from({ length: count }, (_, i) => (
-          <circle key={`t${i}`} cx={hSpacing * (i + 1)} cy={0} r={r} fill={CANVAS_BG} />
-        ))}
-        {Array.from({ length: count }, (_, i) => (
-          <circle key={`b${i}`} cx={hSpacing * (i + 1)} cy={height} r={r} fill={CANVAS_BG} />
-        ))}
-        {Array.from({ length: count }, (_, i) => (
-          <circle key={`l${i}`} cx={0} cy={vSpacing * (i + 1)} r={r} fill={CANVAS_BG} />
-        ))}
-        {Array.from({ length: count }, (_, i) => (
-          <circle key={`r${i}`} cx={width} cy={vSpacing * (i + 1)} r={r} fill={CANVAS_BG} />
-        ))}
-      </svg>
-    </div>
+      <defs>
+        <clipPath id={STAMP_PERF_CLIP_ID} clipPathUnits="userSpaceOnUse">
+          <path d={d} fillRule="evenodd" />
+        </clipPath>
+      </defs>
+    </svg>
   )
 }

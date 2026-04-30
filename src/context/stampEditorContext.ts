@@ -41,7 +41,19 @@ export type StampEditorContextValue = {
     height: number
     role: 'background' | 'frame'
     fileName?: string
+    originalSrc?: string
   }) => Promise<void>
+  /** Update crop/source dimensions for an existing image asset by id. */
+  updateImageAsset: (
+    id: string,
+    params: {
+      src: string
+      width: number
+      height: number
+      fileName?: string
+      originalSrc?: string
+    },
+  ) => Promise<void>
   /** Re-role an existing asset (frame ↔ background ↔ unused). */
   setAssetRole: (id: string, role: ImageAsset['role']) => Promise<void>
   removeAsset: (id: string) => Promise<void>

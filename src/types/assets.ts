@@ -10,6 +10,11 @@ export type ImageAsset = {
   id: string
   /** Original upload file name (when known), for labels in the UI. */
   fileName?: string
+  /**
+   * Stable recrop source. For uploads this is the original file data URL
+   * before any crop is applied.
+   */
+  originalSrc?: string
   /** Cropped image as a data URL (always base64, no remote fetches). */
   src: string
   /** Cropped image dimensions in pixels (post-crop, pre-render). */
