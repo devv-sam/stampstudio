@@ -1,5 +1,5 @@
 import { Canvas, Point, type FabricObject } from 'fabric'
-import type { Rect } from 'fabric'
+import type { Group } from 'fabric'
 import { useEffect, useRef, useState } from 'react'
 
 import { useCanvasSize } from '../../hooks/useCanvas'
@@ -7,18 +7,20 @@ import { useStampEditor } from '../../hooks/useStampEditor'
 import {
   applyStampResizeHandles,
   clampStampBoundsAndCenter,
-  createInitialStampRect,
+  createStampGroup,
 } from '../../utils/fabricHelpers'
+import { FRAME_OBJECT_TAG } from '../../utils/stampImageHelpers'
 import { StampPerforations } from './StampPerforations'
 import {
   StampResizeChromeOverlay,
   type ChromeRect,
 } from './StampResizeChromeOverlay'
 
-function readChromeFromStamp(stamp: Rect): ChromeRect {
+function readChromeFromStamp(stamp: Group): ChromeRect {
   const box = stamp.getBoundingRect()
   const sx = stamp.scaleX || 1
-  const baseRx = (stamp.rx || 0) * sx
+  const clip = stamp.clipPath as { rx?: number } | undefined
+  const baseRx = (clip?.rx || 0) * sx
   const rx = Math.min(
     Math.max(0, baseRx),
     box.width / 2 - 0.5,
@@ -46,7 +48,7 @@ function chromeEqual(a: ChromeRect | null, b: ChromeRect | null) {
 }
 
 function pointerOnStamp(
-  stamp: Rect,
+  stamp: Group,
   opt: { scenePoint: { x: number; y: number }; target?: FabricObject },
 ) {
   if (opt.target === stamp) return true
@@ -54,22 +56,54 @@ function pointerOnStamp(
   return stamp.containsPoint(new Point(x, y))
 }
 
+type RectBounds = { left: number; top: number; width: number; height: number }
+
+function isFrameObject(
+  obj: FabricObject | undefined | null,
+): obj is FabricObject & { stampstudioTag: typeof FRAME_OBJECT_TAG } {
+  return (
+    !!obj &&
+    (obj as FabricObject & { stampstudioTag?: string }).stampstudioTag ===
+      FRAME_OBJECT_TAG
+  )
+}
+
+/**
+ * Read the selected frame's movement envelope in canvas coordinates.
+ *
+ * For UX clarity, the visible travel boundary is the stamp bounds themselves:
+ * users expect "frame can't leave this red box" to map to the stamp area, not
+ * an inset center-clamp rectangle.
+ */
+function readFrameTravelRect(stamp: Group, frame: FabricObject): RectBounds {
+  stamp.setCoords()
+  const stampBounds = stamp.getBoundingRect()
+  void frame
+  return {
+    left: stampBounds.left,
+    top: stampBounds.top,
+    width: stampBounds.width,
+    height: stampBounds.height,
+  }
+}
+
 export function StampCanvas() {
   const wrapRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const canvasElRef = useRef<HTMLCanvasElement>(null)
   const fabricRef = useRef<Canvas | null>(null)
-  const stampRef = useRef<ReturnType<typeof createInitialStampRect> | null>(
+  const stampRef = useRef<ReturnType<typeof createStampGroup> | null>(
     null,
   )
 
   const [chromeRect, setChromeRect] = useState<ChromeRect | null>(null)
-  const [stampRect, setStampRect] = useState<{ left: number; top: number; width: number; height: number } | null>({
+  const [stampRect, setStampRect] = useState<RectBounds | null>({
     left: 100,
     top: 100,
     width: 420,
-    height: 300
+    height: 300,
   })
+  const [frameTravelRect, setFrameTravelRect] = useState<RectBounds | null>(null)
 
   const { width, height } = useCanvasSize(wrapRef)
   const { register, unregister, perforationCount } = useStampEditor()
@@ -87,7 +121,7 @@ export function StampCanvas() {
       uniformScaling: false,
     })
 
-    const stamp = createInitialStampRect()
+    const stamp = createStampGroup()
     applyStampResizeHandles(stamp)
     clampStampBoundsAndCenter(fabricCanvas, stamp)
 
@@ -107,10 +141,20 @@ export function StampCanvas() {
       setChromeRect((prev) => (chromeEqual(prev, next) ? prev : next))
     }
 
+    const syncFrameTravelOverlay = () => {
+      const active = fabricCanvas.getActiveObject()
+      if (!isFrameObject(active)) {
+        setFrameTravelRect(null)
+        return
+      }
+      setFrameTravelRect(readFrameTravelRect(stamp, active))
+    }
+
     const onScaleOrModify = () => {
       clampStampBoundsAndCenter(fabricCanvas, stamp)
       syncChromeIfActive()
       updateStampRect()
+      syncFrameTravelOverlay()
       fabricCanvas.requestRenderAll()
     }
 
@@ -122,7 +166,7 @@ export function StampCanvas() {
     const showChrome = () => {
       const currentActive = fabricCanvas.getActiveObject()
       // Don't steal focus from frame images that the user has selected.
-      if (currentActive && currentActive !== stamp) return
+      if (isFrameObject(currentActive)) return
       if (currentActive !== stamp) {
         fabricCanvas.setActiveObject(stamp)
       }
@@ -156,10 +200,24 @@ export function StampCanvas() {
       hideChrome()
     }
 
+    const onSelectionChange = () => {
+      syncFrameTravelOverlay()
+    }
+
+    const onObjectTransform = () => {
+      syncFrameTravelOverlay()
+    }
+
     stamp.on('modified', onScaleOrModify)
     stamp.on('scaling', onScaleOrModify)
 
     fabricCanvas.on('mouse:move', onMouseMove)
+    fabricCanvas.on('selection:created', onSelectionChange)
+    fabricCanvas.on('selection:updated', onSelectionChange)
+    fabricCanvas.on('selection:cleared', onSelectionChange)
+    fabricCanvas.on('object:moving', onObjectTransform)
+    fabricCanvas.on('object:scaling', onObjectTransform)
+    fabricCanvas.on('object:modified', onObjectTransform)
 
     const stage = stageRef.current
     stage?.addEventListener('pointerleave', onStagePointerLeave)
@@ -172,12 +230,19 @@ export function StampCanvas() {
       stamp.off('modified', onScaleOrModify)
       stamp.off('scaling', onScaleOrModify)
       fabricCanvas.off('mouse:move', onMouseMove)
+      fabricCanvas.off('selection:created', onSelectionChange)
+      fabricCanvas.off('selection:updated', onSelectionChange)
+      fabricCanvas.off('selection:cleared', onSelectionChange)
+      fabricCanvas.off('object:moving', onObjectTransform)
+      fabricCanvas.off('object:scaling', onObjectTransform)
+      fabricCanvas.off('object:modified', onObjectTransform)
       stage?.removeEventListener('pointerleave', onStagePointerLeave)
       unregister()
       fabricCanvas.dispose()
       fabricRef.current = null
       stampRef.current = null
       setChromeRect(null)
+      setFrameTravelRect(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- init once; width/height handled below
   }, [register, unregister])
@@ -200,6 +265,12 @@ export function StampCanvas() {
       const next = readChromeFromStamp(s)
       setChromeRect((prev) => (chromeEqual(prev, next) ? prev : next))
     }
+    const active = c.getActiveObject()
+    if (isFrameObject(active)) {
+      setFrameTravelRect(readFrameTravelRect(s, active))
+    } else {
+      setFrameTravelRect(null)
+    }
   }, [width, height])
 
   return (
@@ -210,6 +281,18 @@ export function StampCanvas() {
       >
         <canvas ref={canvasElRef} className="block h-full w-full" />
         <StampPerforations rect={stampRect} count={perforationCount} />
+        {frameTravelRect ? (
+          <div
+            className="pointer-events-none absolute z-20 border border-red-500/90"
+            style={{
+              left: frameTravelRect.left,
+              top: frameTravelRect.top,
+              width: Math.max(0, frameTravelRect.width),
+              height: Math.max(0, frameTravelRect.height),
+              boxShadow: '0 0 0 1px rgba(239,68,68,0.22) inset',
+            }}
+          />
+        ) : null}
         <StampResizeChromeOverlay rect={chromeRect} />
       </div>
     </div>

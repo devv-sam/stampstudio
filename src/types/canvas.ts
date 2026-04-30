@@ -1,9 +1,8 @@
-import type { Canvas } from 'fabric'
-import type { Rect } from 'fabric'
+import type { Canvas, Group } from 'fabric'
 
 export type StampCanvasApi = {
   canvas: Canvas
-  stamp: Rect
+  stamp: Group
 }
 
 export type StampCanvasRegistration = {

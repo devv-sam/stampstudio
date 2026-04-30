@@ -23,10 +23,15 @@ export function CropStep({
   src,
   onCancel,
   onConfirm,
+  confirmDisabled = false,
+  confirmLabel = 'Continue',
 }: {
   src: string
   onCancel: () => void
   onConfirm: (dataUrl: string, width: number, height: number) => void
+  /** Combined with cropping state — e.g. while parent persists the asset */
+  confirmDisabled?: boolean
+  confirmLabel?: string
 }) {
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
@@ -128,9 +133,9 @@ export function CropStep({
             <Button
               variant="primary"
               onClick={onApply}
-              disabled={!pixelArea || isCropping}
+              disabled={!pixelArea || isCropping || confirmDisabled}
             >
-              {isCropping ? 'Cropping…' : 'Continue'}
+              {isCropping ? 'Cropping…' : confirmLabel}
             </Button>
           </div>
         </div>

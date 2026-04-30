@@ -1,4 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { ChromePicker } from 'react-color'
 
@@ -7,14 +13,37 @@ import { PerforationSlider } from '../UI/PerforationSlider'
 import { useImageUploadFlow } from '../../hooks/useImageUploadFlow'
 import type { ImageAsset } from '../../types/assets'
 
-const COLOR_PRESETS = ['#ffffff', '#d4d4d4', '#a3a3a3', '#404040', '#0a0a0a']
+/** Original five neutrals plus four mid-steps for a fuller gradient row. */
+const COLOR_PRESETS = [
+  '#ffffff',
+  '#f5f5f5',
+  '#e5e5e5',
+  '#d4d4d4',
+  '#a3a3a3',
+  '#737373',
+  '#262626',
+  '#404040',
+  '#0a0a0a',
+] as const
+
+const PRESET_HEX = new Set(
+  COLOR_PRESETS.map((c) => c.toLowerCase()),
+)
+
+const LIGHT_SWATCH = new Set([
+  '#ffffff',
+  '#f5f5f5',
+  '#e5e5e5',
+  '#d4d4d4',
+  '#a3a3a3',
+])
 
 export function PropertiesPanel() {
   const {
     perforationCount,
     setPerforationCount,
     stampColor,
-    setStampColor,
+    pickSolidStampColor,
     imageAssets,
     backgroundAsset,
     setAssetRole,
@@ -22,51 +51,168 @@ export function PropertiesPanel() {
     clearBackground,
   } = useStampEditor()
 
-  const upload = useImageUploadFlow()
+  const bgUpload = useImageUploadFlow()
 
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
-  const colorPickerDisabled = backgroundAsset !== null
+  const [fillTab, setFillTab] = useState<'solid' | 'image'>('solid')
+  const fillKind: 'solid' | 'image' = backgroundAsset ? 'image' : fillTab
+
+  const onPickPreset = (color: string) => {
+    void pickSolidStampColor(color)
+    setFillTab('solid')
+    setPickerOpen(false)
+  }
+
+  const onSolidTab = () => {
+    if (backgroundAsset) void pickSolidStampColor(stampColor)
+    setFillTab('solid')
+    setPickerOpen(false)
+  }
+
+  const onImageTab = () => {
+    setFillTab('image')
+  }
+
+  const handleClearBg = () => {
+    void clearBackground()
+    setFillTab('solid')
+  }
 
   return (
     <div className="space-y-6">
-      {/* ── Source ───────────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <p className="text-sm font-medium text-zinc-300">Source</p>
-
-        <button
-          type="button"
-          onClick={upload.open}
-          className="w-full rounded-lg border border-dashed border-zinc-700 bg-transparent px-4 py-3 text-sm text-zinc-300 transition-colors hover:border-zinc-500 hover:bg-zinc-900/40"
-        >
-          Upload Image
-        </button>
-
-        {upload.error ? (
-          <p className="text-xs text-red-400">{upload.error}</p>
-        ) : null}
-
-        {backgroundAsset ? (
-          <BackgroundStatus
-            asset={backgroundAsset}
-            onRemove={() => clearBackground()}
-          />
-        ) : null}
-
-        {imageAssets.length > 0 ? (
-          <AssetStrip
-            assets={imageAssets}
-            onPromoteBackground={(id) => setAssetRole(id, 'background')}
-            onPromoteFrame={(id) => setAssetRole(id, 'frame')}
-            onUnuse={(id) => setAssetRole(id, 'unused')}
-            onDelete={(id) => removeAsset(id)}
-          />
-        ) : null}
-      </section>
-
-      {/* ── Stamp ────────────────────────────────────────────────────── */}
       <section className="space-y-4">
         <p className="text-sm font-medium text-zinc-300">Stamp</p>
+
+        {/* Fill: Solid | Image toggle, then presets+picker or compact image — above perforation */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm text-zinc-400">Fill</span>
+            <div
+              className="inline-flex shrink-0 rounded-md border border-zinc-700/90 bg-zinc-900/50 p-0.5"
+              role="group"
+              aria-label="Fill type"
+            >
+              <FillTypeTab
+                pressed={fillKind === 'solid'}
+                onClick={onSolidTab}
+                label="Solid"
+                icon={<IconSolidSwatch />}
+              />
+              <FillTypeTab
+                pressed={fillKind === 'image'}
+                onClick={onImageTab}
+                label="Image"
+                icon={<IconImageFill />}
+              />
+            </div>
+          </div>
+
+          {fillKind === 'solid' ? (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {COLOR_PRESETS.map((color) => {
+                const hex = color.toLowerCase()
+                return (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => onPickPreset(color)}
+                    title={color}
+                    className="h-5 w-5 rounded-full transition-transform hover:scale-110 focus:outline-none"
+                    style={{
+                      background: color,
+                      outline:
+                        stampColor.toLowerCase() === hex
+                          ? '2px solid white'
+                          : '2px solid transparent',
+                      outlineOffset: '1px',
+                      boxShadow: LIGHT_SWATCH.has(hex)
+                        ? 'inset 0 0 0 1px rgba(0,0,0,0.15)'
+                        : undefined,
+                    }}
+                  />
+                )
+              })}
+
+              <div className="relative shrink-0" ref={pickerRef}>
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen((o) => !o)}
+                  title="Custom color"
+                  className="h-5 w-5 rounded-full transition-transform hover:scale-110 focus:outline-none"
+                  style={{
+                    background:
+                      'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
+                    outline:
+                      !PRESET_HEX.has(stampColor.toLowerCase()) && pickerOpen
+                        ? '2px solid white'
+                        : '2px solid transparent',
+                    outlineOffset: '1px',
+                  }}
+                />
+                {pickerOpen ? (
+                  <div
+                    className="absolute right-0 top-7 z-50"
+                    onMouseLeave={() => setPickerOpen(false)}
+                  >
+                    <ChromePicker
+                      color={stampColor}
+                      onChange={(c) => {
+                        void pickSolidStampColor(c.hex)
+                        setFillTab('solid')
+                      }}
+                      disableAlpha
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : backgroundAsset ? (
+            <div className="group flex w-full items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/40 px-2.5 py-1.5">
+              <button
+                type="button"
+                onClick={bgUpload.open}
+                title="Replace background image"
+                className="flex min-w-0 flex-1 items-center gap-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-white/25 rounded-md -m-0.5 p-0.5"
+              >
+                <img
+                  src={backgroundAsset.src}
+                  alt=""
+                  className="h-9 w-9 shrink-0 rounded object-cover"
+                />
+                <span
+                  className="min-w-0 flex-1 truncate text-xs text-zinc-300"
+                  title={
+                    backgroundAsset.fileName ?? 'Background image'
+                  }
+                >
+                  {backgroundAsset.fileName ?? 'Background image'}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={handleClearBg}
+                title="Remove background image"
+                aria-label="Remove background image"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-800 hover:text-zinc-100 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+              >
+                <IconDismiss />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={bgUpload.open}
+              className="w-full rounded-lg border border-dashed border-zinc-700 bg-transparent px-4 py-2.5 text-sm text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-900/40"
+            >
+              Upload image
+            </button>
+          )}
+
+          {bgUpload.error ? (
+            <p className="text-xs text-red-400">{bgUpload.error}</p>
+          ) : null}
+        </div>
 
         <PerforationSlider
           label="Perforation"
@@ -76,141 +222,113 @@ export function PropertiesPanel() {
           onChange={setPerforationCount}
         />
 
-        <div className="flex items-center justify-between">
-          <span
-            className={`text-sm transition-colors ${
-              colorPickerDisabled ? 'text-zinc-600' : 'text-zinc-400'
-            }`}
-            title={
-              colorPickerDisabled
-                ? 'Color is hidden behind the image background'
-                : undefined
-            }
-          >
-            Color
-          </span>
-          <div
-            className={`flex items-center gap-2 transition-opacity ${
-              colorPickerDisabled ? 'pointer-events-none opacity-40' : ''
-            }`}
-            aria-disabled={colorPickerDisabled}
-          >
-            {COLOR_PRESETS.map((color) => (
-              <button
-                key={color}
-                type="button"
-                onClick={() => setStampColor(color)}
-                title={color}
-                className="h-5 w-5 rounded-full transition-transform hover:scale-110 focus:outline-none"
-                style={{
-                  background: color,
-                  outline:
-                    stampColor === color
-                      ? '2px solid white'
-                      : '2px solid transparent',
-                  outlineOffset: '1px',
-                  boxShadow:
-                    color === '#ffffff' || color === '#d4d4d4'
-                      ? 'inset 0 0 0 1px rgba(0,0,0,0.15)'
-                      : undefined,
-                }}
-              />
-            ))}
-
-            <div className="relative" ref={pickerRef}>
-              <button
-                type="button"
-                onClick={() => setPickerOpen((o) => !o)}
-                title="Custom color"
-                className="h-5 w-5 rounded-full transition-transform hover:scale-110 focus:outline-none"
-                style={{
-                  background:
-                    'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
-                  outline:
-                    !COLOR_PRESETS.includes(stampColor) && pickerOpen
-                      ? '2px solid white'
-                      : '2px solid transparent',
-                  outlineOffset: '1px',
-                }}
-              />
-              {pickerOpen && !colorPickerDisabled && (
-                <div
-                  className="absolute right-0 top-7 z-50"
-                  onMouseLeave={() => setPickerOpen(false)}
-                >
-                  <ChromePicker
-                    color={stampColor}
-                    onChange={(c) => setStampColor(c.hex)}
-                    disableAlpha
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        {imageAssets.length > 0 ? (
+          <AssetStrip
+            assets={imageAssets}
+            onPromoteBackground={(id) => setAssetRole(id, 'background')}
+            onUnuse={(id) => setAssetRole(id, 'unused')}
+            onDelete={(id) => removeAsset(id)}
+          />
+        ) : null}
       </section>
 
-      {/* Hidden file input + crop/role modals (mounted once) */}
-      {upload.fileInputElement}
-      {upload.overlayElement}
+      {bgUpload.fileInputElement}
+      {bgUpload.overlayElement}
     </div>
   )
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Background status row — shown when an image bg is active
-// ────────────────────────────────────────────────────────────────────────────
-
-function BackgroundStatus({
-  asset,
-  onRemove,
+function FillTypeTab({
+  pressed,
+  onClick,
+  label,
+  icon,
 }: {
-  asset: ImageAsset
-  onRemove: () => void
+  pressed: boolean
+  onClick: () => void
+  label: string
+  icon: ReactNode
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-2.5 py-1.5">
-      <img
-        src={asset.src}
-        alt=""
-        className="h-7 w-7 shrink-0 rounded object-cover"
-      />
-      <span className="flex-1 text-xs text-zinc-400">Background image</span>
-      <button
-        type="button"
-        onClick={onRemove}
-        className="rounded px-1.5 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-      >
-        Remove
-      </button>
-    </div>
+    <button
+      type="button"
+      role="radio"
+      aria-checked={pressed}
+      onClick={onClick}
+      title={label}
+      className={`flex h-7 items-center gap-1 rounded px-2 text-[11px] font-medium transition-colors ${
+        pressed
+          ? 'bg-zinc-700 text-zinc-100 shadow-sm'
+          : 'text-zinc-500 hover:text-zinc-300'
+      }`}
+    >
+      <span className="flex shrink-0 items-center [&>svg]:block">{icon}</span>
+      <span>{label}</span>
+    </button>
   )
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Asset thumbnails — full uploaded list with a quick role-toggle menu.
-// Multi-image management will get its own dedicated panel later; this is the
-// minimum surface to validate the data model and let the user re-promote.
-// ────────────────────────────────────────────────────────────────────────────
+function IconSolidSwatch() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="h-3.5 w-3.5"
+      fill="currentColor"
+      aria-hidden
+    >
+      <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" opacity={0.92} />
+    </svg>
+  )
+}
+
+function IconImageFill() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="h-3.5 w-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.25"
+      aria-hidden
+    >
+      <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" />
+      <circle cx="6" cy="6" r="1" fill="currentColor" stroke="none" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M2.5 11.5 5.5 9l2 1.5 2.5-2 3.5 2.5"
+      />
+    </svg>
+  )
+}
+
+function IconDismiss() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M4 4l8 8M12 4l-8 8" />
+    </svg>
+  )
+}
 
 function AssetStrip({
   assets,
   onPromoteBackground,
-  onPromoteFrame,
   onUnuse,
   onDelete,
 }: {
   assets: ImageAsset[]
   onPromoteBackground: (id: string) => void
-  onPromoteFrame: (id: string) => void
   onUnuse: (id: string) => void
   onDelete: (id: string) => void
 }) {
-  // Capture both the open asset id AND its trigger element together: the
-  // popover lives in a portal and needs the anchor in viewport coords, but
-  // reading a ref map during render would violate `react-hooks/refs`. By
-  // storing the live element in state, the portal positions deterministically
-  // and reposition listeners always have a fresh reference.
   const [openMenu, setOpenMenu] = useState<{
     id: string
     anchor: HTMLButtonElement
@@ -224,7 +342,7 @@ function AssetStrip({
   return (
     <div className="space-y-2">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-        Uploads ({assets.length})
+        Library ({assets.length})
       </p>
       <div className="grid grid-cols-5 gap-1.5">
         {assets.map((asset) => {
@@ -243,9 +361,9 @@ function AssetStrip({
               className={`relative aspect-square w-full overflow-hidden rounded-md border bg-zinc-900 transition-colors ${
                 asset.role === 'background'
                   ? 'border-white/80'
-                  : asset.role === 'frame'
-                    ? 'border-zinc-500'
-                    : 'border-zinc-800 hover:border-zinc-700'
+                  : asset.role === 'unused'
+                    ? 'border-zinc-800 hover:border-zinc-700'
+                    : 'border-zinc-600'
               }`}
               title={asset.role}
             >
@@ -257,10 +375,6 @@ function AssetStrip({
               {asset.role === 'background' ? (
                 <span className="absolute bottom-0.5 right-0.5 rounded bg-white/90 px-1 text-[8px] font-bold uppercase tracking-wider text-zinc-950">
                   bg
-                </span>
-              ) : asset.role === 'frame' ? (
-                <span className="absolute bottom-0.5 right-0.5 rounded bg-zinc-200/90 px-1 text-[8px] font-medium uppercase tracking-wider text-zinc-900">
-                  fr
                 </span>
               ) : null}
             </button>
@@ -274,7 +388,6 @@ function AssetStrip({
           onClose={close}
           asset={openAsset}
           onPromoteBackground={onPromoteBackground}
-          onPromoteFrame={onPromoteFrame}
           onUnuse={onUnuse}
           onDelete={onDelete}
         />
@@ -283,24 +396,11 @@ function AssetStrip({
   )
 }
 
-/**
- * Portal-rendered popover that positions itself just below an anchor button
- * in viewport coordinates. Living outside the sidebar means it isn't clipped
- * by the sidebar's overflow rules — the previous inline menu got cut off
- * because `overflow-y-auto` on the panel implicitly clips horizontal overflow
- * too.
- *
- * The popover prefers right-aligning to the anchor (matches the previous
- * inline behaviour visually) but flips to left-aligned if that would push it
- * off the left side of the viewport, and clamps to the viewport's right edge
- * if right-alignment would push it off-screen.
- */
 function AssetMenuPopover({
   anchor,
   onClose,
   asset,
   onPromoteBackground,
-  onPromoteFrame,
   onUnuse,
   onDelete,
 }: {
@@ -308,7 +408,6 @@ function AssetMenuPopover({
   onClose: () => void
   asset: ImageAsset
   onPromoteBackground: (id: string) => void
-  onPromoteFrame: (id: string) => void
   onUnuse: (id: string) => void
   onDelete: (id: string) => void
 }) {
@@ -326,14 +425,12 @@ function AssetMenuPopover({
       const ph = popover.offsetHeight
       const margin = 8
 
-      // Prefer right-aligned to the anchor; flip left if it would clip.
       let left = a.right - pw
       if (left < margin) left = a.left
       if (left + pw > window.innerWidth - margin) {
         left = Math.max(margin, window.innerWidth - pw - margin)
       }
 
-      // Below the anchor unless that overflows the viewport, then above.
       let top = a.bottom + 4
       if (top + ph > window.innerHeight - margin) {
         top = Math.max(margin, a.top - ph - 4)
@@ -350,7 +447,6 @@ function AssetMenuPopover({
     }
   }, [anchor])
 
-  // Outside-click + Escape dismiss.
   useEffect(() => {
     const onPointer = (e: MouseEvent) => {
       const popover = popoverRef.current
@@ -379,7 +475,6 @@ function AssetMenuPopover({
       style={{
         left: position?.left ?? -9999,
         top: position?.top ?? -9999,
-        // Hide until measured to avoid a one-frame flash at -9999.
         visibility: position ? 'visible' : 'hidden',
       }}
     >
@@ -390,16 +485,7 @@ function AssetMenuPopover({
         }}
         disabled={asset.role === 'background'}
       >
-        Set as background
-      </MenuItem>
-      <MenuItem
-        onClick={() => {
-          onPromoteFrame(asset.id)
-          onClose()
-        }}
-        disabled={asset.role === 'frame'}
-      >
-        Add as frame
+        Use as background
       </MenuItem>
       {asset.role !== 'unused' ? (
         <MenuItem
@@ -419,7 +505,7 @@ function AssetMenuPopover({
         }}
         danger
       >
-        Delete upload
+        Delete
       </MenuItem>
     </div>
   )

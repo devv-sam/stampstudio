@@ -1,4 +1,4 @@
-import type { Canvas, Rect } from 'fabric'
+import type { Canvas, Group } from 'fabric'
 
 import { getStampBoundsOnCanvas } from './fabricHelpers'
 import { loadHtmlImage } from './imageHelpers'
@@ -92,7 +92,7 @@ function paintPerforationCircles(
 
 async function rasteriseStampRegion(
   canvas: Canvas,
-  stamp: Rect,
+  stamp: Group,
   perforationCount: number,
   options: { format: 'png' | 'jpeg'; multiplier: number; quality?: number },
 ): Promise<string> {
@@ -139,7 +139,7 @@ async function rasteriseStampRegion(
 
 export async function exportStampPng(
   canvas: Canvas,
-  stamp: Rect,
+  stamp: Group,
   multiplier = 2,
   perforationCount = 0,
 ): Promise<string> {
@@ -151,7 +151,7 @@ export async function exportStampPng(
 
 export async function exportStampJpeg(
   canvas: Canvas,
-  stamp: Rect,
+  stamp: Group,
   options?: { multiplier?: number; quality?: number },
   perforationCount = 0,
 ): Promise<string> {
@@ -174,7 +174,7 @@ export async function exportStampJpeg(
 
 export async function exportStampSvg(
   canvas: Canvas,
-  stamp: Rect,
+  stamp: Group,
   perforationCount = 0,
 ): Promise<string> {
   const { left, top, width, height } = getStampBoundsOnCanvas(canvas, stamp)

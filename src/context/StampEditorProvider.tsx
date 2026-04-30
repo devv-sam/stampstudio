@@ -13,11 +13,11 @@ import {
 } from './stampEditorContext'
 import type { StampCanvasApi } from '../types/canvas'
 import type { ImageAsset } from '../types/assets'
+import { getStampBgRect } from '../utils/fabricHelpers'
 import { shortId } from '../utils/imageHelpers'
 import {
   addFrameImage,
   applyStampBackground,
-  refreshFrameClipPaths,
   removeAllFrames,
   removeFrameByAssetId,
 } from '../utils/stampImageHelpers'
@@ -82,11 +82,23 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       // changing the underlying color should NOT clobber that. The color
       // becomes effective again only after the background is cleared.
       if (hasBackground) return
-      api.stamp.set({ fill: color })
+      const bgRect = getStampBgRect(api.stamp)
+      bgRect?.set({ fill: color })
       api.canvas.requestRenderAll()
     },
     [hasBackground],
   )
+
+  const pickSolidStampColor = useCallback(async (color: string) => {
+    setImageAssets((prev) =>
+      prev.map((a) => (a.role === 'background' ? { ...a, role: 'unused' } : a)),
+    )
+    _setStampColor(color)
+    stampColorRef.current = color
+    const api = apiRef.current
+    if (!api) return
+    await applyStampBackground(api.canvas, api.stamp, null, color)
+  }, [])
 
   // ────────────────────────────────────────────────────────────────────────
   // Canvas registration — wires Fabric events into provider state
@@ -109,17 +121,8 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       })
     }
 
-    /**
-     * Whenever the stamp moves or resizes, every frame's clipPath needs to
-     * follow — otherwise frames keep clipping against the *old* stamp bounds.
-     */
-    const syncFrameClips = () => {
-      refreshFrameClipPaths(api.canvas, api.stamp)
-    }
-
     const onStampChange = () => {
       syncDimensions()
-      syncFrameClips()
     }
 
     syncDimensions()
@@ -138,7 +141,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     detachRef.current?.()
     detachRef.current = null
     if (apiRef.current) {
-      removeAllFrames(apiRef.current.canvas)
+      removeAllFrames(apiRef.current.canvas, apiRef.current.stamp)
     }
     apiRef.current = null
     mountedFrameIdsRef.current = new Set()
@@ -159,11 +162,13 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       width,
       height,
       role,
+      fileName,
     }: {
       src: string
       width: number
       height: number
       role: 'background' | 'frame'
+      fileName?: string
     }) => {
       setImageAssets((prev) => {
         const next: ImageAsset[] = prev.map((a) =>
@@ -179,6 +184,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
           height,
           role,
           createdAt: new Date().toISOString(),
+          ...(fileName ? { fileName } : {}),
         })
         return next
       })
@@ -262,7 +268,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     // Remove frames whose assets are gone or no longer have role === 'frame'.
     for (const id of mounted) {
       if (!desired.has(id)) {
-        removeFrameByAssetId(api.canvas, id)
+        removeFrameByAssetId(api.canvas, api.stamp, id)
         mounted.delete(id)
       }
     }
@@ -339,6 +345,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       setPerforationCount,
       stampColor,
       setStampColor,
+      pickSolidStampColor,
       imageAssets,
       backgroundAsset,
       frameAssets,
@@ -357,6 +364,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       perforationCount,
       stampColor,
       setStampColor,
+      pickSolidStampColor,
       imageAssets,
       backgroundAsset,
       frameAssets,

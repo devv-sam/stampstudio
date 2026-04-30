@@ -13,6 +13,11 @@ export type StampEditorContextValue = {
   setPerforationCount: (n: number) => void
   stampColor: string
   setStampColor: (color: string) => void
+  /**
+   * Pick solid background color — demotes any image background first so solid
+   * fill always wins atomically with image-or-color mutual exclusivity.
+   */
+  pickSolidStampColor: (color: string) => Promise<void>
 
   /** Full list of uploaded image assets, ordered by upload time. */
   imageAssets: ImageAsset[]
@@ -31,6 +36,7 @@ export type StampEditorContextValue = {
     width: number
     height: number
     role: 'background' | 'frame'
+    fileName?: string
   }) => Promise<void>
   /** Re-role an existing asset (frame ↔ background ↔ unused). */
   setAssetRole: (id: string, role: ImageAsset['role']) => Promise<void>
