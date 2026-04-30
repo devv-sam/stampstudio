@@ -11,6 +11,7 @@ import {
 } from '../../utils/fabricHelpers'
 import { FRAME_OBJECT_TAG } from '../../utils/stampImageHelpers'
 import { StampPerforations } from './StampPerforations'
+import { ShaderLayer } from './ShaderLayer'
 import {
   StampResizeChromeOverlay,
   type ChromeRect,
@@ -106,7 +107,14 @@ export function StampCanvas() {
   const [frameTravelRect, setFrameTravelRect] = useState<RectBounds | null>(null)
 
   const { width, height } = useCanvasSize(wrapRef)
-  const { register, unregister, perforationCount } = useStampEditor()
+  const {
+    register,
+    unregister,
+    perforationCount,
+    activeShader,
+    shaderParams,
+    backgroundAsset,
+  } = useStampEditor()
 
   useEffect(() => {
     const el = canvasElRef.current
@@ -115,7 +123,7 @@ export function StampCanvas() {
     const fabricCanvas = new Canvas(el, {
       width,
       height,
-      backgroundColor: '#141416',
+      backgroundColor: undefined,
       preserveObjectStacking: true,
       centeredScaling: true,
       uniformScaling: false,
@@ -279,7 +287,15 @@ export function StampCanvas() {
         ref={stageRef}
         className="relative h-full min-h-0 w-full overflow-hidden bg-[#141416]"
       >
-        <canvas ref={canvasElRef} className="block h-full w-full" />
+        <ShaderLayer
+          rect={stampRect}
+          imageSrc={backgroundAsset?.src ?? ''}
+          activeShader={activeShader}
+          shaderParams={shaderParams}
+        />
+        <div className="relative z-20">
+          <canvas ref={canvasElRef} className="block h-full w-full" />
+        </div>
         <StampPerforations rect={stampRect} count={perforationCount} />
         {frameTravelRect ? (
           <div
