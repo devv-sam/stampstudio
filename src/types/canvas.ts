@@ -3,6 +3,11 @@ import type { Canvas, Group } from 'fabric'
 export type StampCanvasApi = {
   canvas: Canvas
   stamp: Group
+  exportCompositedRaster?: (options: {
+    format: 'png' | 'jpeg'
+    multiplier: number
+    quality?: number
+  }) => Promise<string | null>
 }
 
 export type StampCanvasRegistration = {

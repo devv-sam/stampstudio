@@ -213,12 +213,14 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       height,
       role,
       fileName,
+      originalSrc,
     }: {
       src: string
       width: number
       height: number
       role: 'background' | 'frame'
       fileName?: string
+      originalSrc?: string
     }) => {
       setImageAssets((prev) => {
         const next: ImageAsset[] = prev.map((a) =>
@@ -235,9 +237,41 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
           role,
           createdAt: new Date().toISOString(),
           ...(fileName ? { fileName } : {}),
+          ...(originalSrc ? { originalSrc } : {}),
         })
         return next
       })
+    },
+    [],
+  )
+
+  const updateImageAsset = useCallback(
+    async (
+      id: string,
+      params: {
+        src: string
+        width: number
+        height: number
+        fileName?: string
+        originalSrc?: string
+      },
+    ) => {
+      setImageAssets((prev) =>
+        prev.map((asset) =>
+          asset.id === id
+            ? {
+                ...asset,
+                src: params.src,
+                width: params.width,
+                height: params.height,
+                ...(params.fileName ? { fileName: params.fileName } : {}),
+                ...(params.originalSrc
+                  ? { originalSrc: params.originalSrc }
+                  : {}),
+              }
+            : asset,
+        ),
+      )
     },
     [],
   )
@@ -280,7 +314,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
 
   /** Memoise the bg src/id so the effect runs only on real changes. */
   const bgFingerprint = backgroundAsset
-    ? `${backgroundAsset.id}:${backgroundAsset.src.length}`
+    ? `${backgroundAsset.id}:${backgroundAsset.src}`
     : null
 
   useEffect(() => {
@@ -355,42 +389,95 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
   // Exports — async because we now rasterise the live Fabric region first
   // ────────────────────────────────────────────────────────────────────────
 
+  const withExportFallbackFill = useCallback(
+    async <T,>(run: () => Promise<T>): Promise<T> => {
+      const api = apiRef.current
+      if (!api) throw new Error('Canvas API unavailable')
+      const bgRect = getStampBgRect(api.stamp)
+      if (!bgRect || !activeShaderRef.current) return run()
+
+      const prevFill = bgRect.fill
+      // Shader layers live in DOM, not Fabric snapshots. During export we
+      // temporarily project the stamp body into Fabric so exports include
+      // real image/color content instead of an empty transparent body.
+      await applyStampBackground(
+        api.canvas,
+        api.stamp,
+        backgroundAsset?.src ?? null,
+        stampColorRef.current,
+      )
+      api.canvas.requestRenderAll()
+      try {
+        return await run()
+      } finally {
+        bgRect.set({ fill: prevFill })
+        api.canvas.requestRenderAll()
+      }
+    },
+    [backgroundAsset],
+  )
+
   const exportPng = useCallback(
     async (multiplier = 2) => {
       const api = apiRef.current
       if (!api) return
-      const dataUrl = await exportStampPng(
-        api.canvas,
-        api.stamp,
-        multiplier,
-        perforationCount,
+      if (api.exportCompositedRaster) {
+        try {
+          const dataUrl = await api.exportCompositedRaster({
+            format: 'png',
+            multiplier,
+          })
+          if (dataUrl) {
+            downloadDataUrl(dataUrl, 'stamp.png')
+            return
+          }
+        } catch {
+          // Fallback to Fabric export below.
+        }
+      }
+      const dataUrl = await withExportFallbackFill(() =>
+        exportStampPng(api.canvas, api.stamp, multiplier, perforationCount),
       )
       downloadDataUrl(dataUrl, 'stamp.png')
     },
-    [perforationCount],
+    [perforationCount, withExportFallbackFill],
   )
 
   const exportJpeg = useCallback(
     async (options?: { multiplier?: number; quality?: number }) => {
       const api = apiRef.current
       if (!api) return
-      const dataUrl = await exportStampJpeg(
-        api.canvas,
-        api.stamp,
-        options,
-        perforationCount,
+      if (api.exportCompositedRaster) {
+        try {
+          const dataUrl = await api.exportCompositedRaster({
+            format: 'jpeg',
+            multiplier: options?.multiplier ?? 2,
+            quality: options?.quality ?? 0.92,
+          })
+          if (dataUrl) {
+            downloadDataUrl(dataUrl, 'stamp.jpg')
+            return
+          }
+        } catch {
+          // Fallback to Fabric export below.
+        }
+      }
+      const dataUrl = await withExportFallbackFill(() =>
+        exportStampJpeg(api.canvas, api.stamp, options, perforationCount),
       )
       downloadDataUrl(dataUrl, 'stamp.jpg')
     },
-    [perforationCount],
+    [perforationCount, withExportFallbackFill],
   )
 
   const exportSvg = useCallback(async () => {
     const api = apiRef.current
     if (!api) return
-    const svg = await exportStampSvg(api.canvas, api.stamp, perforationCount)
+    const svg = await withExportFallbackFill(() =>
+      exportStampSvg(api.canvas, api.stamp, perforationCount),
+    )
     downloadTextFile(svg, 'stamp.svg', 'image/svg+xml;charset=utf-8')
-  }, [perforationCount])
+  }, [perforationCount, withExportFallbackFill])
 
   // ────────────────────────────────────────────────────────────────────────
 
@@ -408,6 +495,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       backgroundAsset,
       frameAssets,
       addImageAsset,
+      updateImageAsset,
       setAssetRole,
       removeAsset,
       clearBackground,
@@ -431,6 +519,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       backgroundAsset,
       frameAssets,
       addImageAsset,
+      updateImageAsset,
       setAssetRole,
       removeAsset,
       clearBackground,

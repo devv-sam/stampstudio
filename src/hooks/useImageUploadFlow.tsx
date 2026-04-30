@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 
 import { CropStep } from '../components/Upload/CropStep'
+import type { ImageAsset } from '../types/assets'
 import { readFileAsDataUrl } from '../utils/imageHelpers'
 import { useStampEditor } from './useStampEditor'
 
@@ -20,19 +21,31 @@ export function useImageUploadFlow() {
   const [step, setStep] = useState<Step>('idle')
   const [sourceUrl, setSourceUrl] = useState<string | null>(null)
   const pendingFileNameRef = useRef<string | null>(null)
+  const recropAssetIdRef = useRef<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
-  const { addImageAsset } = useStampEditor()
+  const { addImageAsset, updateImageAsset } = useStampEditor()
 
   const open = useCallback(() => {
+    recropAssetIdRef.current = null
     fileInputRef.current?.click()
+  }, [])
+
+  const openRecrop = useCallback((asset: ImageAsset) => {
+    recropAssetIdRef.current = asset.id
+    pendingFileNameRef.current = asset.fileName ?? null
+    // Always recrop from original source when available to avoid crop compounding.
+    setSourceUrl(asset.originalSrc ?? asset.src)
+    setStep('crop')
+    setError(null)
   }, [])
 
   const reset = useCallback(() => {
     setStep('idle')
     setSourceUrl(null)
     pendingFileNameRef.current = null
+    recropAssetIdRef.current = null
     setError(null)
   }, [])
 
@@ -44,6 +57,7 @@ export function useImageUploadFlow() {
     }
     setError(null)
     try {
+      recropAssetIdRef.current = null
       pendingFileNameRef.current = file.name
       const dataUrl = await readFileAsDataUrl(file)
       setSourceUrl(dataUrl)
@@ -59,20 +73,32 @@ export function useImageUploadFlow() {
     async (dataUrl: string, width: number, height: number) => {
       setIsProcessing(true)
       try {
+        const recropId = recropAssetIdRef.current
         const name = pendingFileNameRef.current
-        await addImageAsset({
-          src: dataUrl,
-          width,
-          height,
-          role: 'background',
-          ...(name ? { fileName: name } : {}),
-        })
+        if (recropId) {
+          await updateImageAsset(recropId, {
+            src: dataUrl,
+            width,
+            height,
+            ...(name ? { fileName: name } : {}),
+            ...(sourceUrl ? { originalSrc: sourceUrl } : {}),
+          })
+        } else {
+          await addImageAsset({
+            src: dataUrl,
+            width,
+            height,
+            role: 'background',
+            ...(name ? { fileName: name } : {}),
+            ...(sourceUrl ? { originalSrc: sourceUrl } : {}),
+          })
+        }
         reset()
       } finally {
         setIsProcessing(false)
       }
     },
-    [addImageAsset, reset],
+    [addImageAsset, reset, sourceUrl, updateImageAsset],
   )
 
   const fileInputElement = (
@@ -98,5 +124,5 @@ export function useImageUploadFlow() {
       />
     ) : null
 
-  return { open, error, fileInputElement, overlayElement }
+  return { open, openRecrop, error, fileInputElement, overlayElement }
 }
