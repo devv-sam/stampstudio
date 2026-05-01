@@ -20,7 +20,7 @@ export type ShaderName =
   | 'halftone-dots'
   | 'fluted-glass'
   | 'halftone-cmyk'
-  | 'paper-texture'
+  | 'image-dithering'
 
 /** Matches @paper-design/shaders HalftoneDotsType */
 export type HalftoneDotsStyle = 'classic' | 'gooey' | 'holes' | 'soft'
@@ -54,16 +54,18 @@ export type HalftoneCmykUiParams = {
   colorK: string
 }
 
-export type PaperTextureUiParams = {
-  roughness: number
-  crumples: number
-  folds: number
-  seed: number
+/** Preset names exposed in the dithering UI. 'natural' is the silent default. */
+export type DitheringPresetName = 'natural' | 'default' | 'noise' | 'retro'
+
+export type ImageDitheringUiParams = {
+  preset: DitheringPresetName
+  /** Pixel grid size (0.5 – 20). Overrides the preset's default size. */
+  size: number
 }
 
 export type ShaderParamsMap = {
   'halftone-dots': HalftoneDotsUiParams
   'fluted-glass': FlutedGlassUiParams
   'halftone-cmyk': HalftoneCmykUiParams
-  'paper-texture': PaperTextureUiParams
+  'image-dithering': ImageDitheringUiParams
 }

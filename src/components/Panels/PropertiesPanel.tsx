@@ -489,61 +489,53 @@ export function PropertiesPanel() {
         </ShaderAccordionRow>
 
         <ShaderAccordionRow
-          title="Paper texture"
-          expanded={expandedShader === "paper-texture"}
-          dimmed={expandedShader !== null && expandedShader !== "paper-texture"}
-          onToggle={() => openShaderAccordion("paper-texture")}
+          title="Dithering"
+          expanded={expandedShader === "image-dithering"}
+          dimmed={expandedShader !== null && expandedShader !== "image-dithering"}
+          onToggle={() => openShaderAccordion("image-dithering")}
         >
           <div className="space-y-3 pt-1">
             <PerforationSlider
-              key={`pt-rough-${shaderParams["paper-texture"].roughness}`}
-              label="Roughness"
-              defaultValue={Math.round(
-                shaderParams["paper-texture"].roughness * 100,
-              )}
-              minValue={0}
-              maxValue={100}
+              key={`dither-size-${shaderParams["image-dithering"].size}`}
+              label="Size"
+              defaultValue={shaderParams["image-dithering"].size}
+              minValue={1}
+              maxValue={10}
               onChange={(v) =>
-                updateShaderParam("paper-texture", "roughness", v / 100)
+                updateShaderParam("image-dithering", "size", v)
               }
             />
-            <PerforationSlider
-              key={`pt-crumple-${shaderParams["paper-texture"].crumples}`}
-              label="Crumples"
-              defaultValue={Math.round(
-                shaderParams["paper-texture"].crumples * 100,
-              )}
-              minValue={0}
-              maxValue={100}
-              onChange={(v) =>
-                updateShaderParam("paper-texture", "crumples", v / 100)
-              }
-            />
-            <PerforationSlider
-              key={`pt-folds-${shaderParams["paper-texture"].folds}`}
-              label="Folds"
-              defaultValue={Math.round(
-                shaderParams["paper-texture"].folds * 100,
-              )}
-              minValue={0}
-              maxValue={100}
-              onChange={(v) =>
-                updateShaderParam("paper-texture", "folds", v / 100)
-              }
-            />
-            <button
-              type="button"
-              onClick={() =>
-                updateShaderParam(
-                  "paper-texture",
-                  "seed",
-                  Math.round(Math.random() * 1000 * 10) / 10,
-                )
-              }
-              className="w-full rounded-md border border-zinc-700 bg-zinc-900/60 py-2 text-xs font-medium text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-800"
+            <div className="space-y-1.5">
+            <span className="text-[11px] text-zinc-500">Preset</span>
+            <div
+              className="flex flex-wrap gap-1"
+              role="group"
+              aria-label="Dithering preset"
             >
-              Randomize texture
-            </button>
+              {(
+                [
+                  ["default", "Default"],
+                  ["noise", "Noise"],
+                  ["retro", "Retro"],
+                ] as const
+              ).map(([value, label]) => (
+                <SegmentTab
+                  key={value}
+                  pressed={shaderParams["image-dithering"].preset === value}
+                  onClick={() =>
+                    updateShaderParam(
+                      "image-dithering",
+                      "preset",
+                      shaderParams["image-dithering"].preset === value
+                        ? "natural"
+                        : value,
+                    )
+                  }
+                  label={label}
+                />
+              ))}
+            </div>
+            </div>
           </div>
         </ShaderAccordionRow>
       </section>

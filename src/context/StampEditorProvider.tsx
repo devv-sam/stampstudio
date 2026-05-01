@@ -48,7 +48,7 @@ const defaultShaderParams: ShaderParamsMap = {
     colorY: '#ffd800',
     colorK: '#231f20',
   },
-  'paper-texture': { roughness: 0.4, crumples: 0.3, folds: 0.65, seed: 5.8 },
+  'image-dithering': { preset: 'natural', size: 2 },
 }
 
 export function StampEditorProvider({ children }: { children: ReactNode }) {
