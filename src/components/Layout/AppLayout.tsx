@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { StampCanvas } from "../Canvas/StampCanvas";
+import { TextFloatBar } from "../Canvas/TextFloatBar";
 import { PropertiesPanel } from "../Panels/PropertiesPanel";
 import { Toolbar } from "./Toolbar";
 import { HeaderExport } from "./HeaderExport";
@@ -23,6 +24,7 @@ export function AppLayout({ header }: { header?: ReactNode }) {
       <div className="relative flex min-h-0 flex-1">
         <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[#141416]">
           <StampCanvas />
+          <TextFloatBar />
           <div className="pointer-events-none absolute bottom-4 left-4 z-10">
             <Toolbar />
           </div>

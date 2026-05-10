@@ -17,6 +17,8 @@ import type {
   ShaderParamsMap,
 } from '../types/canvas'
 import type { ImageAsset } from '../types/assets'
+import type { TextLayer } from '../types/text'
+import { STAMP_FONTS } from '../types/text'
 import { getStampBgRect } from '../utils/fabricHelpers'
 import { shortId } from '../utils/imageHelpers'
 import {
@@ -25,6 +27,13 @@ import {
   removeAllFrames,
   removeFrameByAssetId,
 } from '../utils/stampImageHelpers'
+import {
+  addTextObject,
+  findTextByLayerId,
+  removeTextByLayerId,
+  removeAllTextObjects,
+  updateTextObject,
+} from '../utils/textHelpers'
 import {
   downloadDataUrl,
   downloadTextFile,
@@ -156,12 +165,21 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
 
   /** Track which frame asset ids are currently mounted on the canvas. */
   const mountedFrameIdsRef = useRef<Set<string>>(new Set())
+  /** Track which text layer ids have a Fabric object mounted. */
+  const mountedTextLayerIdsRef = useRef<Set<string>>(new Set())
+
+  const [textLayers, setTextLayers] = useState<TextLayer[]>([])
+  const [selectedTextId, setSelectedTextId] = useState<string | null>(null)
+  const [textPlacementActive, setTextPlacementActive] = useState(false)
+  /** Scene coordinates for newly added text (consumed once in reconciliation). */
+  const pendingTextSceneRef = useRef(new Map<string, { x: number; y: number }>())
 
   const register = useCallback((api: StampCanvasApi) => {
     detachRef.current?.()
     apiRef.current = api
     // Fresh canvas → no frames mounted yet, regardless of what state thinks.
     mountedFrameIdsRef.current = new Set()
+    mountedTextLayerIdsRef.current = new Set()
     setCanvasEpoch((n) => n + 1)
 
     const syncDimensions = () => {
@@ -192,9 +210,13 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     detachRef.current = null
     if (apiRef.current) {
       removeAllFrames(apiRef.current.canvas, apiRef.current.stamp)
+      removeAllTextObjects(apiRef.current.canvas, apiRef.current.stamp)
     }
     apiRef.current = null
     mountedFrameIdsRef.current = new Set()
+    mountedTextLayerIdsRef.current = new Set()
+    pendingTextSceneRef.current.clear()
+    setTextPlacementActive(false)
   }, [])
 
   // ────────────────────────────────────────────────────────────────────────
@@ -301,6 +323,60 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     )
   }, [])
 
+  const toggleTextPlacementActive = useCallback(() => {
+    setTextPlacementActive((a) => !a)
+  }, [])
+
+  const addTextLayerAtScene = useCallback((sceneX: number, sceneY: number) => {
+    const id = shortId()
+    const f0 = STAMP_FONTS[0]!
+    pendingTextSceneRef.current.set(id, { x: sceneX, y: sceneY })
+    setTextPlacementActive(false)
+    setSelectedTextId(id)
+    setTextLayers((prev) => [
+      ...prev,
+      {
+        id,
+        content: 'Text',
+        fontFamily: f0.family,
+        fontWeight: f0.weights[0] ?? 400,
+        fontSize: 28,
+        color: '#000000',
+      },
+    ])
+  }, [])
+
+  const updateTextLayer = useCallback(
+    (
+      id: string,
+      patch: Partial<TextLayer>,
+      options?: { syncToFabric?: boolean },
+    ) => {
+      const syncToFabric = options?.syncToFabric !== false
+      setTextLayers((prev) => {
+        const idx = prev.findIndex((t) => t.id === id)
+        if (idx < 0) return prev
+        const merged: TextLayer = { ...prev[idx], ...patch }
+        const next = [...prev]
+        next[idx] = merged
+
+        if (syncToFabric) {
+          const api = apiRef.current
+          if (api?.stamp && findTextByLayerId(api.stamp, id)) {
+            updateTextObject(api.canvas, api.stamp, merged)
+          }
+        }
+        return next
+      })
+    },
+    [],
+  )
+
+  const removeTextLayer = useCallback((id: string) => {
+    setTextLayers((prev) => prev.filter((t) => t.id !== id))
+    setSelectedTextId((cur) => (cur === id ? null : cur))
+  }, [])
+
   // ────────────────────────────────────────────────────────────────────────
   // Reconcile asset state → Fabric canvas (side effects)
   //
@@ -384,6 +460,46 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       cancelled = true
     }
   }, [frameAssets, canvasEpoch])
+
+  useEffect(() => {
+    const api = apiRef.current
+    if (!api) return
+
+    const desired = new Set(textLayers.map((t) => t.id))
+    const mounted = mountedTextLayerIdsRef.current
+
+    for (const id of [...mounted]) {
+      if (!desired.has(id)) {
+        removeTextByLayerId(api.canvas, api.stamp, id)
+        mounted.delete(id)
+      }
+    }
+
+    let cancelled = false
+    void (async () => {
+      for (const layer of textLayers) {
+        if (cancelled) return
+        if (mounted.has(layer.id)) continue
+        try {
+          const scenePt = pendingTextSceneRef.current.get(layer.id)
+          addTextObject(
+            api.canvas,
+            api.stamp,
+            layer,
+            scenePt ? { x: scenePt.x, y: scenePt.y } : undefined,
+          )
+          if (scenePt) pendingTextSceneRef.current.delete(layer.id)
+          mounted.add(layer.id)
+        } catch (err) {
+          console.error('[stampstudio] text add failed', err)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [textLayers, canvasEpoch])
 
   // ────────────────────────────────────────────────────────────────────────
   // Exports — async because we now rasterise the live Fabric region first
@@ -499,6 +615,15 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       setAssetRole,
       removeAsset,
       clearBackground,
+      textLayers,
+      selectedTextId,
+      setSelectedTextId,
+      textPlacementActive,
+      setTextPlacementActive,
+      toggleTextPlacementActive,
+      addTextLayerAtScene,
+      updateTextLayer,
+      removeTextLayer,
       exportPng,
       exportJpeg,
       exportSvg,
@@ -523,6 +648,14 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       setAssetRole,
       removeAsset,
       clearBackground,
+      textLayers,
+      selectedTextId,
+      textPlacementActive,
+      setTextPlacementActive,
+      toggleTextPlacementActive,
+      addTextLayerAtScene,
+      updateTextLayer,
+      removeTextLayer,
       exportPng,
       exportJpeg,
       exportSvg,

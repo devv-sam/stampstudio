@@ -10,6 +10,8 @@ import { createPortal } from "react-dom";
 import { ChromePicker } from "react-color";
 
 import { useStampEditor } from "../../hooks/useStampEditor";
+
+import { ActiveTextTypography } from "./ActiveTextTypography";
 import { PerforationSlider } from "../UI/PerforationSlider";
 import { useImageUploadFlow } from "../../hooks/useImageUploadFlow";
 import type { ImageAsset } from "../../types/assets";
@@ -34,20 +36,33 @@ const CMYK_INK_ORDER: readonly { key: CmykInkKey; aria: string }[] = [
   { key: "colorK", aria: "Black ink" },
 ];
 
-/** Original five neutrals plus four mid-steps for a fuller gradient row. */
-const COLOR_PRESETS = [
+/**
+ * Stamp solid fill — paper / postage tones (not the same as typography neutrals).
+ */
+const FILL_COLOR_PRESETS = [
   "#ffffff",
-  "#f5f5f5",
-  "#e5e5e5",
-  "#d4d4d4",
-  "#a3a3a3",
-  "#737373",
-  "#262626",
-  "#404040",
-  "#0a0a0a",
+  "#f7f5f0",
+  "#ebe6dc",
+  "#d4e8f2",
+  "#f2e8f5",
+  "#e6f2ea",
+  "#c9b8a4",
+  "#6b7d8c",
+  "#2a2520",
 ] as const;
 
-const PRESET_HEX = new Set(COLOR_PRESETS.map((c) => c.toLowerCase()));
+const FILL_PRESET_HEX = new Set(
+  FILL_COLOR_PRESETS.map((c) => c.toLowerCase()),
+);
+
+const FILL_LIGHT_SWATCH = new Set([
+  "#ffffff",
+  "#f7f5f0",
+  "#ebe6dc",
+  "#d4e8f2",
+  "#f2e8f5",
+  "#e6f2ea",
+]);
 
 const LIGHT_SWATCH = new Set([
   "#ffffff",
@@ -146,7 +161,7 @@ export function PropertiesPanel() {
 
           {fillKind === "solid" ? (
             <div className="flex flex-wrap items-center justify-end gap-2">
-              {COLOR_PRESETS.map((color) => {
+              {FILL_COLOR_PRESETS.map((color) => {
                 const hex = color.toLowerCase();
                 return (
                   <button
@@ -162,7 +177,7 @@ export function PropertiesPanel() {
                           ? "2px solid white"
                           : "2px solid transparent",
                       outlineOffset: "1px",
-                      boxShadow: LIGHT_SWATCH.has(hex)
+                      boxShadow: FILL_LIGHT_SWATCH.has(hex)
                         ? "inset 0 0 0 1px rgba(0,0,0,0.15)"
                         : undefined,
                     }}
@@ -180,7 +195,8 @@ export function PropertiesPanel() {
                     background:
                       "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)",
                     outline:
-                      !PRESET_HEX.has(stampColor.toLowerCase()) && pickerOpen
+                      !FILL_PRESET_HEX.has(stampColor.toLowerCase()) &&
+                      pickerOpen
                         ? "2px solid white"
                         : "2px solid transparent",
                     outlineOffset: "1px",
@@ -266,6 +282,8 @@ export function PropertiesPanel() {
           />
         ) : null}
       </section>
+
+      <ActiveTextTypography />
 
       <section className="space-y-3 border-t border-zinc-800 pt-5">
         <div className="flex items-center justify-between gap-2">
