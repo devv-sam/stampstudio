@@ -1,4 +1,4 @@
-# StampStudio
+# stampstudio
 
 Canvas-based stamp editor (React + TypeScript + Vite + Fabric.js + Tailwind CSS).
 
@@ -9,5 +9,3 @@ npm install
 npm run dev
 npm run build
 ```
-
-Project path: `~/Desktop/stampstudio`.
