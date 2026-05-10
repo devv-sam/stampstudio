@@ -156,11 +156,15 @@ export function createStampGroup() {
     originY: "center",
     selectable: true,
     evented: true,
+    /** Required (Fabric 6+) so pointer hit-testing returns nested text/frame objects, not only the group. */
     subTargetCheck: true,
+    interactive: true,
     objectCaching: false,
     lockMovementX: true,
     lockMovementY: true,
     lockRotation: true,
+    hoverCursor: "default",
+    moveCursor: "default",
   });
   (group as Group & { name?: string }).name = STAMP_NAME;
 
@@ -200,22 +204,24 @@ export function centerStampInCanvas(canvas: Canvas, stamp: Group) {
 }
 
 /**
- * Clamp scaled size to [effectiveMinSide, canvas*STAMP_MAX_CANVAS_FRACTION] per axis, then center.
- * If canvas is tiny, effective minimum is capped so scale never exceeds canvas max bounds.
+ * Clamp scaled size to [effectiveMinSide, stage*STAMP_MAX_CANVAS_FRACTION] per axis, then center.
+ * Resizes the Fabric canvas to exactly the stamp's display size (stage-sized canvas is no longer used).
  */
 export function clampStampBoundsAndCenter(
   canvas: Canvas,
   stamp: Group,
+  stageW: number,
+  stageH: number,
   minSide = STAMP_MIN_SIDE,
   maxFrac = STAMP_MAX_CANVAS_FRACTION,
 ) {
   const baseW = STAMP_BASE_WIDTH;
   const baseH = STAMP_BASE_HEIGHT;
-  const cw = canvas.getWidth();
-  const ch = canvas.getHeight();
+  const cw = Math.max(1, stageW);
+  const ch = Math.max(1, stageH);
   const maxSw = cw * maxFrac;
   const maxSh = ch * maxFrac;
-  /** Floor for each axis: at most `minSide`, but never forces width past canvas width */
+  /** Floor for each axis: at most `minSide`, but never forces width past stage width */
   const minSwEff = Math.min(minSide, maxSw);
   const minShEff = Math.min(minSide, maxSh);
 
@@ -225,7 +231,11 @@ export function clampStampBoundsAndCenter(
   sw = Math.min(maxSw, Math.max(minSwEff, sw));
   sh = Math.min(maxSh, Math.max(minShEff, sh));
 
-  stamp.set({ scaleX: sw / baseW, scaleY: sh / baseH });
+  const rw = Math.max(1, Math.round(sw));
+  const rh = Math.max(1, Math.round(sh));
+
+  stamp.set({ scaleX: rw / baseW, scaleY: rh / baseH });
+  canvas.setDimensions({ width: rw, height: rh });
   centerStampInCanvas(canvas, stamp);
   stamp.setCoords();
 }

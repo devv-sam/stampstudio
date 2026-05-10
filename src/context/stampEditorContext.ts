@@ -6,6 +6,7 @@ import type {
   ShaderParamsMap,
 } from '../types/canvas'
 import type { ImageAsset } from '../types/assets'
+import type { TextLayer } from '../types/text'
 
 export type StampDimensions = { width: number; height: number }
 
@@ -59,6 +60,22 @@ export type StampEditorContextValue = {
   removeAsset: (id: string) => Promise<void>
   /** Clear the current background (revert to solid `stampColor`). */
   clearBackground: () => Promise<void>
+
+  /** Text layers on the stamp (Fabric-backed). */
+  textLayers: TextLayer[]
+  selectedTextId: string | null
+  setSelectedTextId: (id: string | null) => void
+  /** Press T or the text tool, then click the stamp canvas to append a layer. */
+  textPlacementActive: boolean
+  setTextPlacementActive: (active: boolean) => void
+  toggleTextPlacementActive: () => void
+  addTextLayerAtScene: (sceneX: number, sceneY: number) => void
+  updateTextLayer: (
+    id: string,
+    patch: Partial<TextLayer>,
+    options?: { syncToFabric?: boolean },
+  ) => void
+  removeTextLayer: (id: string) => void
 
   exportPng: (multiplier?: number) => Promise<void>
   exportJpeg: (options?: { multiplier?: number; quality?: number }) => Promise<void>
