@@ -482,12 +482,21 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
         if (mounted.has(layer.id)) continue
         try {
           const scenePt = pendingTextSceneRef.current.get(layer.id)
-          addTextObject(
-            api.canvas,
-            api.stamp,
-            layer,
-            scenePt ? { x: scenePt.x, y: scenePt.y } : undefined,
-          )
+          const layerId = layer.id
+          addTextObject(api.canvas, api.stamp, layer, {
+            scenePoint: scenePt ? { x: scenePt.x, y: scenePt.y } : undefined,
+            /**
+             * Mirror live in-place edits back to React state without
+             * re-applying to Fabric (which would fight the active editor).
+             */
+            onContentChange: (nextContent) => {
+              updateTextLayer(
+                layerId,
+                { content: nextContent },
+                { syncToFabric: false },
+              )
+            },
+          })
           if (scenePt) pendingTextSceneRef.current.delete(layer.id)
           mounted.add(layer.id)
         } catch (err) {
@@ -499,7 +508,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [textLayers, canvasEpoch])
+  }, [textLayers, canvasEpoch, updateTextLayer])
 
   // ────────────────────────────────────────────────────────────────────────
   // Exports — async because we now rasterise the live Fabric region first

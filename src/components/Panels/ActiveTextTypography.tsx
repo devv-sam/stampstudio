@@ -185,6 +185,17 @@ export function ActiveTextTypography() {
     if (!visible) setPickerOpen(false);
   }, [visible]);
 
+  // Warm up the browser's FontFaceSet for every stamp font so dropdown
+  // previews render in the correct typeface instead of falling back to serif.
+  useEffect(() => {
+    if (typeof document === "undefined" || !document.fonts) return;
+    for (const f of STAMP_FONTS) {
+      for (const w of f.weights) {
+        document.fonts.load(`${w} 16px "${f.family}"`).catch(() => {});
+      }
+    }
+  }, []);
+
   const commitSizeDraft = useCallback(() => {
     if (!selected) return;
     const parsed = parseSizeInput(sizeDraft);
@@ -394,7 +405,7 @@ export function ActiveTextTypography() {
             <div
               className={`flex overflow-hidden rounded-md border border-zinc-700/90 bg-zinc-900/50 transition-colors hover:border-zinc-600 ${sizeDropdownOpen ? "border-zinc-600" : ""}`}
             >
-              <div className="flex min-w-0 flex-1 items-center px-2 py-1.5">
+              <div className="flex min-w-0 flex-1 items-center px-2.5 py-2">
                 <input
                   type="text"
                   inputMode="numeric"

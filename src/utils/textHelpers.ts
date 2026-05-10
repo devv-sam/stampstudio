@@ -46,6 +46,12 @@ export function readTextLayerId(
 
 export type TextScenePlacement = { x: number; y: number }
 
+export type AddTextOptions = {
+  scenePoint?: TextScenePlacement
+  /** Called whenever the user edits the IText in-place so React state can mirror it. */
+  onContentChange?: (next: string) => void
+}
+
 /**
  * Create Fabric IText inside the stamp. With `scenePoint`, positions the object's
  * center at that Fabric scene coordinate (after `stamp.add`, via `setXY`);
@@ -55,7 +61,7 @@ export function addTextObject(
   canvas: Canvas,
   stamp: Group,
   layer: TextLayer,
-  scenePoint?: TextScenePlacement,
+  options: AddTextOptions = {},
 ): IText {
   stamp.setCoords()
 
@@ -66,6 +72,8 @@ export function addTextObject(
     fill: layer.color,
     selectable: true,
     evented: true,
+    /** IText caches a rendered bitmap; while typing/font-swapping we need fresh paints. */
+    objectCaching: false,
   })
   configureTextObject(text)
   ;(text as FabricObject & { stampstudioTag?: string }).stampstudioTag =
@@ -74,12 +82,21 @@ export function addTextObject(
     layer.id
   text.on('moving', () => constrainTextInGroup(text))
   text.on('scaling', () => constrainTextInGroup(text))
+  if (options.onContentChange) {
+    const cb = options.onContentChange
+    /** Fires on every keystroke during in-place editing. */
+    text.on('changed', () => cb(text.text ?? ''))
+  }
 
   stamp.add(text)
 
   /** Scene XY must run after child is grouped — setXY relies on invertTransform(group). */
-  if (scenePoint) {
-    text.setXY(new Point(scenePoint.x, scenePoint.y), 'center', 'center')
+  if (options.scenePoint) {
+    text.setXY(
+      new Point(options.scenePoint.x, options.scenePoint.y),
+      'center',
+      'center',
+    )
   } else {
     text.setXY(stamp.getCenterPoint(), 'center', 'center')
   }
@@ -88,6 +105,13 @@ export function addTextObject(
   stamp.setCoords()
   canvas.setActiveObject(text)
   canvas.requestRenderAll()
+  reRenderAfterFontLoad(
+    canvas,
+    text,
+    layer.fontFamily,
+    layer.fontWeight,
+    layer.fontSize,
+  )
   return text
 }
 
@@ -143,6 +167,38 @@ export function removeAllTextObjects(canvas: Canvas, stamp: Group) {
   canvas.requestRenderAll()
 }
 
+/**
+ * Ask the browser to load a font into its FontFaceSet, then re-measure and
+ * re-render the IText so the newly-selected typeface actually appears.
+ * Canvas2D only picks up a font once it is in document.fonts, AND Fabric's
+ * IText caches glyph metrics from the first paint — without `initDimensions`
+ * + `dirty` the text keeps the fallback font's width/height and renders
+ * incorrectly even after the real font loads.
+ */
+function reRenderAfterFontLoad(
+  canvas: Canvas,
+  text: IText,
+  fontFamily: string,
+  fontWeight: number,
+  fontSize: number,
+): void {
+  if (typeof document === 'undefined' || !document.fonts) return
+  const spec = `${fontWeight} ${fontSize}px "${fontFamily}"`
+  document.fonts
+    .load(spec)
+    .then(() => {
+      // Family may have changed again before the promise resolved (rapid clicks);
+      // re-check current state instead of trusting captured args.
+      if (text.fontFamily !== fontFamily) return
+      text.initDimensions()
+      text.set('dirty', true)
+      canvas.requestRenderAll()
+    })
+    .catch(() => {
+      /* font unavailable — initial render already shows fallback */
+    })
+}
+
 export function updateTextObject(
   canvas: Canvas,
   stamp: Group,
@@ -150,15 +206,31 @@ export function updateTextObject(
 ): IText | null {
   const text = findTextByLayerId(stamp, layer.id)
   if (!text) return null
-  text.set({
-    text: layer.content,
+  /**
+   * Only overwrite `text` when the React-side `content` actually changed —
+   * otherwise a typography update (font/size/weight/color) would clobber
+   * an in-progress in-place edit on the canvas with stale state.
+   */
+  const next: Partial<IText> = {
     fontFamily: layer.fontFamily,
     fontWeight: String(layer.fontWeight),
     fontSize: layer.fontSize,
     fill: layer.color,
-  })
+  }
+  if (text.text !== layer.content) next.text = layer.content
+  text.set(next)
+  /** Force re-measurement so stale glyph metrics from the previous font don't stick. */
+  text.initDimensions()
+  text.set('dirty', true)
   constrainTextInGroup(text)
   stamp.setCoords()
   canvas.requestRenderAll()
+  reRenderAfterFontLoad(
+    canvas,
+    text,
+    layer.fontFamily,
+    layer.fontWeight,
+    layer.fontSize,
+  )
   return text
 }
