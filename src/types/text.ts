@@ -15,18 +15,29 @@ export type StampFont = {
 
 export const STAMP_FONTS: StampFont[] = [
   { family: 'Inter', label: 'Inter', weights: [400, 500, 600] },
+  { family: 'DM Serif Display', label: 'DM Serif Display', weights: [400] },
+  { family: 'Playfair Display', label: 'Playfair Display', weights: [400, 700] },
+  { family: 'Space Grotesk', label: 'Space Grotesk', weights: [400, 500, 700] },
+  { family: 'Bebas Neue', label: 'Bebas Neue', weights: [400] },
+  {
+    family: 'Cormorant Garamond',
+    label: 'Cormorant Garamond',
+    weights: [400, 500, 600, 700],
+  },
+  { family: 'Syne', label: 'Syne', weights: [400, 500, 600, 700, 800] },
+  { family: 'IBM Plex Mono', label: 'IBM Plex Mono', weights: [400, 500, 600, 700] },
+  { family: 'Fraunces', label: 'Fraunces', weights: [400, 600, 700] },
+  { family: 'Archivo Black', label: 'Archivo Black', weights: [400] },
   {
     family: 'Libre Baskerville',
     label: 'Libre Baskerville',
     weights: [400, 700],
   },
-  { family: 'Special Elite', label: 'Special Elite', weights: [400] },
-  { family: 'Playfair Display', label: 'Playfair Display', weights: [400, 700] },
-  { family: 'Bebas Neue', label: 'Bebas Neue', weights: [400] },
-  { family: 'Oswald', label: 'Oswald', weights: [300, 400, 500, 600] },
-  { family: 'Courier Prime', label: 'Courier Prime', weights: [400, 700] },
-  { family: 'Space Grotesk', label: 'Space Grotesk', weights: [400, 500, 700] },
-  { family: 'IM Fell English', label: 'IM Fell English', weights: [400] },
+  {
+    family: 'Unbounded',
+    label: 'Unbounded',
+    weights: [400, 500, 600, 700, 800, 900],
+  },
 ]
 
 /**
