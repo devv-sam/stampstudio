@@ -26,6 +26,7 @@ import {
   applyStampBackground,
   removeAllFrames,
   removeFrameByAssetId,
+  updateFrameSrc,
 } from '../utils/stampImageHelpers'
 import {
   addTextObject,
@@ -163,8 +164,13 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
   // Canvas registration — wires Fabric events into provider state
   // ────────────────────────────────────────────────────────────────────────
 
-  /** Track which frame asset ids are currently mounted on the canvas. */
-  const mountedFrameIdsRef = useRef<Set<string>>(new Set())
+  /**
+   * Track which frame asset ids are mounted, paired with the `src` of the
+   * mounted Fabric image. Stored as a Map so a recrop (which changes `src`
+   * but not `id`) can be detected and the existing frame's source swapped
+   * in place — preserving the user's position/rotation/scale.
+   */
+  const mountedFrameIdsRef = useRef<Map<string, string>>(new Map())
   /** Track which text layer ids have a Fabric object mounted. */
   const mountedTextLayerIdsRef = useRef<Set<string>>(new Set())
 
@@ -178,7 +184,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     detachRef.current?.()
     apiRef.current = api
     // Fresh canvas → no frames mounted yet, regardless of what state thinks.
-    mountedFrameIdsRef.current = new Set()
+    mountedFrameIdsRef.current = new Map()
     mountedTextLayerIdsRef.current = new Set()
     setCanvasEpoch((n) => n + 1)
 
@@ -213,7 +219,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       removeAllTextObjects(apiRef.current.canvas, apiRef.current.stamp)
     }
     apiRef.current = null
-    mountedFrameIdsRef.current = new Set()
+    mountedFrameIdsRef.current = new Map()
     mountedTextLayerIdsRef.current = new Set()
     pendingTextSceneRef.current.clear()
     setTextPlacementActive(false)
@@ -430,28 +436,43 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     const api = apiRef.current
     if (!api) return
 
-    const desired = new Set(frameAssets.map((a) => a.id))
+    const desired = new Map(frameAssets.map((a) => [a.id, a.src] as const))
     const mounted = mountedFrameIdsRef.current
 
     // Remove frames whose assets are gone or no longer have role === 'frame'.
-    for (const id of mounted) {
+    for (const id of [...mounted.keys()]) {
       if (!desired.has(id)) {
         removeFrameByAssetId(api.canvas, api.stamp, id)
         mounted.delete(id)
       }
     }
 
-    // Add frames for any new frame assets.
     let cancelled = false
     void (async () => {
       for (const asset of frameAssets) {
         if (cancelled) return
-        if (mounted.has(asset.id)) continue
-        try {
-          await addFrameImage(api.canvas, api.stamp, asset.src, asset.id)
-          mounted.add(asset.id)
-        } catch (err) {
-          console.error('[stampstudio] frame add failed', err)
+        const mountedSrc = mounted.get(asset.id)
+        if (mountedSrc === undefined) {
+          try {
+            await addFrameImage(api.canvas, api.stamp, asset.src, asset.id)
+            mounted.set(asset.id, asset.src)
+          } catch (err) {
+            console.error('[stampstudio] frame add failed', err)
+          }
+        } else if (mountedSrc !== asset.src) {
+          // Recrop: swap the existing frame's image in place so the user's
+          // position/rotation/scale stays intact.
+          try {
+            const ok = await updateFrameSrc(
+              api.canvas,
+              api.stamp,
+              asset.id,
+              asset.src,
+            )
+            if (ok) mounted.set(asset.id, asset.src)
+          } catch (err) {
+            console.error('[stampstudio] frame recrop failed', err)
+          }
         }
       }
     })()

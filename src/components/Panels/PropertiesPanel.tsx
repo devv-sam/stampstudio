@@ -223,7 +223,7 @@ export function PropertiesPanel() {
             <div className="group flex w-full items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/40 px-2.5 py-1.5">
               <button
                 type="button"
-                onClick={bgUpload.open}
+                onClick={() => bgUpload.open()}
                 title="Replace background image"
                 className="flex min-w-0 flex-1 items-center gap-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-white/25 rounded-md -m-0.5 p-0.5"
               >
@@ -252,7 +252,7 @@ export function PropertiesPanel() {
           ) : (
             <button
               type="button"
-              onClick={bgUpload.open}
+              onClick={() => bgUpload.open()}
               className="w-full rounded-lg border border-dashed border-zinc-700 bg-transparent px-4 py-2.5 text-sm text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-900/40"
             >
               Upload image
@@ -276,6 +276,7 @@ export function PropertiesPanel() {
           <AssetStrip
             assets={imageAssets}
             onPromoteBackground={(id) => setAssetRole(id, "background")}
+            onPromoteFrame={(id) => setAssetRole(id, "frame")}
             onUnuse={(id) => setAssetRole(id, "unused")}
             onRecrop={(asset) => bgUpload.openRecrop(asset)}
             onDelete={(id) => removeAsset(id)}
@@ -647,12 +648,14 @@ function IconDismiss() {
 function AssetStrip({
   assets,
   onPromoteBackground,
+  onPromoteFrame,
   onUnuse,
   onRecrop,
   onDelete,
 }: {
   assets: ImageAsset[];
   onPromoteBackground: (id: string) => void;
+  onPromoteFrame: (id: string) => void;
   onUnuse: (id: string) => void;
   onRecrop: (asset: ImageAsset) => void;
   onDelete: (id: string) => void;
@@ -687,9 +690,9 @@ function AssetStrip({
               className={`relative aspect-square w-full overflow-hidden rounded-md border bg-zinc-900 transition-colors ${
                 asset.role === "background"
                   ? "border-white/80"
-                  : asset.role === "unused"
-                    ? "border-zinc-800 hover:border-zinc-700"
-                    : "border-zinc-600"
+                  : asset.role === "frame"
+                    ? "border-amber-300/80"
+                    : "border-zinc-800 hover:border-zinc-700"
               }`}
               title={asset.role}
             >
@@ -701,6 +704,10 @@ function AssetStrip({
               {asset.role === "background" ? (
                 <span className="absolute bottom-0.5 right-0.5 rounded bg-white/90 px-1 text-[8px] font-bold uppercase tracking-wider text-zinc-950">
                   bg
+                </span>
+              ) : asset.role === "frame" ? (
+                <span className="absolute bottom-0.5 right-0.5 rounded bg-amber-300/95 px-1 text-[8px] font-bold uppercase tracking-wider text-zinc-950">
+                  fr
                 </span>
               ) : null}
             </button>
@@ -714,6 +721,7 @@ function AssetStrip({
           onClose={close}
           asset={openAsset}
           onPromoteBackground={onPromoteBackground}
+          onPromoteFrame={onPromoteFrame}
           onUnuse={onUnuse}
           onRecrop={onRecrop}
           onDelete={onDelete}
@@ -728,6 +736,7 @@ function AssetMenuPopover({
   onClose,
   asset,
   onPromoteBackground,
+  onPromoteFrame,
   onUnuse,
   onRecrop,
   onDelete,
@@ -736,6 +745,7 @@ function AssetMenuPopover({
   onClose: () => void;
   asset: ImageAsset;
   onPromoteBackground: (id: string) => void;
+  onPromoteFrame: (id: string) => void;
   onUnuse: (id: string) => void;
   onRecrop: (asset: ImageAsset) => void;
   onDelete: (id: string) => void;
@@ -816,6 +826,15 @@ function AssetMenuPopover({
         disabled={asset.role === "background"}
       >
         Use as background
+      </MenuItem>
+      <MenuItem
+        onClick={() => {
+          onPromoteFrame(asset.id);
+          onClose();
+        }}
+        disabled={asset.role === "frame"}
+      >
+        Use as frame
       </MenuItem>
       {asset.role !== "unused" ? (
         <MenuItem
