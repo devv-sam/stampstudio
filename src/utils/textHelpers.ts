@@ -154,13 +154,28 @@ export function findTextByLayerId(stamp: Group, layerId: string): IText | null {
 export function removeTextByLayerId(canvas: Canvas, stamp: Group, layerId: string) {
   const text = findTextByLayerId(stamp, layerId)
   if (!text) return
+  /** Without deselect, Fabric keeps drawing controls for a removed IText (ghost handles + export glitches). */
+  if (text.isEditing) {
+    text.exitEditing()
+  }
+  if (canvas.getActiveObject() === text) {
+    canvas.discardActiveObject()
+  }
   stamp.remove(text)
   stamp.setCoords()
   canvas.requestRenderAll()
 }
 
 export function removeAllTextObjects(canvas: Canvas, stamp: Group) {
-  for (const t of getAllTextObjects(stamp)) {
+  const texts = getAllTextObjects(stamp)
+  const active = canvas.getActiveObject()
+  if (active && texts.includes(active as IText)) {
+    canvas.discardActiveObject()
+  }
+  for (const t of texts) {
+    if (t.isEditing) {
+      t.exitEditing()
+    }
     stamp.remove(t)
   }
   stamp.setCoords()
