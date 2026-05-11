@@ -197,3 +197,26 @@ export function removeAllFrames(canvas: Canvas, stamp: Group) {
   stamp.setCoords()
   canvas.requestRenderAll()
 }
+
+/**
+ * Swap an existing frame's source image (e.g. after a recrop) while
+ * preserving its current position, rotation, and scale. If no frame is
+ * mounted for `assetId` the call resolves to `false` so the caller can
+ * fall back to a fresh add.
+ */
+export async function updateFrameSrc(
+  canvas: Canvas,
+  stamp: Group,
+  assetId: string,
+  src: string,
+): Promise<boolean> {
+  const frame = findFrameByAssetId(stamp, assetId)
+  if (!frame) return false
+  await frame.setSrc(src)
+  // Re-clamp in case the new image's intrinsic dimensions changed and
+  // pushed the frame out of the stamp's local bounds.
+  frame.setCoords()
+  stamp.setCoords()
+  canvas.requestRenderAll()
+  return true
+}
