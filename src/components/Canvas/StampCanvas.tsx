@@ -443,6 +443,10 @@ export function StampCanvas() {
       const stampBounds = stampRectRef.current
       if (!content || !stampBounds) return null
 
+      /** Avoid baking selection handles into the raster if a text/frame was still active. */
+      fabricCanvas.discardActiveObject()
+      fabricCanvas.requestRenderAll()
+
       const outW = Math.max(1, Math.round(stampBounds.width * multiplier))
       const outH = Math.max(1, Math.round(stampBounds.height * multiplier))
 
