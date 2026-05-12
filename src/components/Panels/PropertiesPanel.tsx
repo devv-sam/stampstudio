@@ -22,6 +22,12 @@ import type {
   ShaderName,
   ShaderParamsMap,
 } from "../../types/canvas";
+import type { StampSnapPreset } from "../../utils/stampSnapSizes";
+import {
+  SNAP_PRESETS_LANDSCAPE,
+  SNAP_PRESETS_PORTRAIT,
+  SNAP_PRESETS_SQUARE,
+} from "../../utils/stampSnapSizes";
 
 type CmykInkKey = keyof Pick<
   ShaderParamsMap["halftone-cmyk"],
@@ -82,6 +88,7 @@ export function PropertiesPanel() {
     pickSolidStampColor,
     imageAssets,
     backgroundAsset,
+    frameAssets,
     setAssetRole,
     removeAsset,
     clearBackground,
@@ -89,6 +96,9 @@ export function PropertiesPanel() {
     setActiveShader,
     shaderParams,
     updateShaderParam,
+    stampDimensions,
+    textLayers,
+    applyStampSizePreset,
   } = useStampEditor();
 
   const bgUpload = useImageUploadFlow();
@@ -128,6 +138,26 @@ export function PropertiesPanel() {
   const handleClearBg = () => {
     void clearBackground();
     setFillTab("solid");
+  };
+
+  const presetResizeWarn =
+    "You have text or frame images on this stamp. Changing size may shift their layout. Continue?";
+
+  const tryApplySizePreset = (p: StampSnapPreset) => {
+    const { w, h } = p;
+    if (
+      Math.abs(stampDimensions.width - w) <= 1 &&
+      Math.abs(stampDimensions.height - h) <= 1
+    ) {
+      return;
+    }
+    if (
+      (textLayers.length > 0 || frameAssets.length > 0) &&
+      !window.confirm(presetResizeWarn)
+    ) {
+      return;
+    }
+    applyStampSizePreset(w, h);
   };
 
   return (
@@ -559,8 +589,88 @@ export function PropertiesPanel() {
         </ShaderAccordionRow>
       </section>
 
+      <section className="space-y-3 border-t border-zinc-800 pt-5">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+          Size presets
+        </p>
+        <SizePresetSubgroup
+          label="Square"
+          presets={SNAP_PRESETS_SQUARE}
+          stampDimensions={stampDimensions}
+          onPick={tryApplySizePreset}
+        />
+        <SizePresetSubgroup
+          label="Landscape"
+          presets={SNAP_PRESETS_LANDSCAPE}
+          stampDimensions={stampDimensions}
+          onPick={tryApplySizePreset}
+        />
+        <SizePresetSubgroup
+          label="Portrait"
+          presets={SNAP_PRESETS_PORTRAIT}
+          stampDimensions={stampDimensions}
+          onPick={tryApplySizePreset}
+        />
+      </section>
+
       {bgUpload.fileInputElement}
       {bgUpload.overlayElement}
+    </div>
+  );
+}
+
+function SizePresetChip({
+  preset,
+  active,
+  onPick,
+}: {
+  preset: StampSnapPreset;
+  active: boolean;
+  onPick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      aria-pressed={active}
+      className={`rounded px-1.5 py-0.5 font-mono text-[10px] tabular-nums transition-colors ${
+        active
+          ? "bg-zinc-700 text-zinc-100"
+          : "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-200"
+      }`}
+    >
+      {preset.w}×{preset.h}
+    </button>
+  );
+}
+
+function SizePresetSubgroup({
+  label,
+  presets,
+  stampDimensions,
+  onPick,
+}: {
+  label: string;
+  presets: readonly StampSnapPreset[];
+  stampDimensions: { width: number; height: number };
+  onPick: (p: StampSnapPreset) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <span className="text-[11px] text-zinc-500">{label}</span>
+      <div className="flex flex-wrap gap-1" role="group" aria-label={label}>
+        {presets.map((p) => (
+          <SizePresetChip
+            key={`${p.w}-${p.h}`}
+            preset={p}
+            active={
+              Math.abs(stampDimensions.width - p.w) <= 1 &&
+              Math.abs(stampDimensions.height - p.h) <= 1
+            }
+            onPick={() => onPick(p)}
+          />
+        ))}
+      </div>
     </div>
   );
 }

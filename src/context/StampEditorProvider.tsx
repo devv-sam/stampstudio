@@ -69,6 +69,10 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     width: 420,
     height: 300,
   })
+  const [snapToPresetsEnabled, setSnapToPresetsEnabled] = useState(true)
+  const snapToPresetsEnabledRef = useRef(true)
+
+  snapToPresetsEnabledRef.current = snapToPresetsEnabled
   const [perforationCount, setPerforationCount] = useState(14)
   const [stampColor, _setStampColor] = useState('#ffffff')
 
@@ -383,6 +387,16 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     setSelectedTextId((cur) => (cur === id ? null : cur))
   }, [])
 
+  const applyStampSizePreset = useCallback((width: number, height: number) => {
+    const next = apiRef.current?.applySizePreset?.(width, height)
+    if (next) {
+      setStampDimensions({
+        width: next.width,
+        height: next.height,
+      })
+    }
+  }, [])
+
   // ────────────────────────────────────────────────────────────────────────
   // Reconcile asset state → Fabric canvas (side effects)
   //
@@ -572,6 +586,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
           const dataUrl = await api.exportCompositedRaster({
             format: 'png',
             multiplier,
+            perforationCount,
           })
           if (dataUrl) {
             downloadDataUrl(dataUrl, 'stamp.png')
@@ -599,6 +614,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
             format: 'jpeg',
             multiplier: options?.multiplier ?? 2,
             quality: options?.quality ?? 0.92,
+            perforationCount,
           })
           if (dataUrl) {
             downloadDataUrl(dataUrl, 'stamp.jpg')
@@ -632,6 +648,9 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       register,
       unregister,
       stampDimensions,
+      snapToPresetsEnabled,
+      setSnapToPresetsEnabled,
+      snapToPresetsEnabledRef,
       perforationCount,
       setPerforationCount,
       stampColor,
@@ -654,6 +673,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       addTextLayerAtScene,
       updateTextLayer,
       removeTextLayer,
+      applyStampSizePreset,
       exportPng,
       exportJpeg,
       exportSvg,
@@ -666,6 +686,8 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       register,
       unregister,
       stampDimensions,
+      snapToPresetsEnabled,
+      setSnapToPresetsEnabled,
       perforationCount,
       stampColor,
       setStampColor,
@@ -686,6 +708,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       addTextLayerAtScene,
       updateTextLayer,
       removeTextLayer,
+      applyStampSizePreset,
       exportPng,
       exportJpeg,
       exportSvg,

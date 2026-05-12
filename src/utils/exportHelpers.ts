@@ -2,6 +2,7 @@ import type { Canvas, Group } from 'fabric'
 
 import { getStampBoundsOnCanvas } from './fabricHelpers'
 import { loadHtmlImage } from './imageHelpers'
+import { computePerforationLayout } from './stampPerforationLayout'
 
 const CANVAS_BG = '#141416'
 
@@ -36,12 +37,12 @@ export function downloadTextFile(content: string, filename: string, mime: string
 // Perforation geometry — shared between raster and SVG paths
 // ────────────────────────────────────────────────────────────────────────────
 
-function getPerforationGeometry(width: number, height: number, count: number) {
-  const safeCount = Math.max(0, Math.floor(count))
-  const hSpacing = safeCount > 0 ? width / (safeCount + 1) : 0
-  const vSpacing = safeCount > 0 ? height / (safeCount + 1) : 0
-  const r = safeCount > 0 ? Math.min(hSpacing, vSpacing) * 0.38 : 0
-  return { count: safeCount, hSpacing, vSpacing, r }
+function getPerforationGeometry(
+  width: number,
+  height: number,
+  userDensity: number,
+) {
+  return computePerforationLayout(width, height, userDensity)
 }
 
 export function punchPerforationHoles(

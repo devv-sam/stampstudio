@@ -3,10 +3,17 @@ import type { Canvas, Group } from 'fabric'
 export type StampCanvasApi = {
   canvas: Canvas
   stamp: Group
+  /** Set stamp to exact output size (px), clamped to stage; no magnetic snap. */
+  applySizePreset?: (width: number, height: number) => {
+    width: number
+    height: number
+  }
   exportCompositedRaster?: (options: {
     format: 'png' | 'jpeg'
     multiplier: number
     quality?: number
+    /** Same count as the live clip-path perforations. */
+    perforationCount: number
   }) => Promise<string | null>
 }
 

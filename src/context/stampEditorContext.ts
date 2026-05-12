@@ -1,4 +1,4 @@
-import { createContext } from 'react'
+import { createContext, type MutableRefObject } from 'react'
 
 import type {
   StampCanvasApi,
@@ -13,7 +13,13 @@ export type StampDimensions = { width: number; height: number }
 export type StampEditorContextValue = {
   register: (api: StampCanvasApi) => void
   unregister: () => void
+  /** Live stamp bounds in px (Fabric scaled width / height). */
   stampDimensions: StampDimensions
+  snapToPresetsEnabled: boolean
+  setSnapToPresetsEnabled: (enabled: boolean) => void
+  /** Read from Fabric handlers outside React batching (effect closure). */
+  snapToPresetsEnabledRef: MutableRefObject<boolean>
+
   perforationCount: number
   setPerforationCount: (n: number) => void
   stampColor: string
@@ -76,6 +82,9 @@ export type StampEditorContextValue = {
     options?: { syncToFabric?: boolean },
   ) => void
   removeTextLayer: (id: string) => void
+
+  /** Resize stamp to exact preset dimensions (px), clamped to the canvas stage. */
+  applyStampSizePreset: (width: number, height: number) => void
 
   exportPng: (multiplier?: number) => Promise<void>
   exportJpeg: (options?: { multiplier?: number; quality?: number }) => Promise<void>
