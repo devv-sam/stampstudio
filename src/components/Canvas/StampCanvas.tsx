@@ -5,16 +5,26 @@ import {
   type TPointerEventInfo,
 } from 'fabric'
 import type { Group } from 'fabric'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { useCanvasSize } from '../../hooks/useCanvas'
 import { useStampEditor } from '../../hooks/useStampEditor'
 import type { TextLayer } from '../../types/text'
+import type { StampCanvasApi } from '../../types/canvas'
 import {
   applyStampResizeHandles,
   clampStampBoundsAndCenter,
   createStampGroup,
+  STAMP_BASE_HEIGHT,
+  STAMP_BASE_WIDTH,
 } from '../../utils/fabricHelpers'
+import {
+  STAMP_SNAP_COMMIT_THRESHOLD_PX,
+  STAMP_SNAP_GUIDE_OUTSET_PX,
+  STAMP_SNAP_PRESETS,
+  STAMP_SNAP_PREVIEW_THRESHOLD_PX,
+} from '../../utils/stampSnapSizes'
 import { FRAME_OBJECT_TAG } from '../../utils/stampImageHelpers'
 import {
   findTextByLayerId,
@@ -165,7 +175,15 @@ export function StampCanvas() {
   const [frameTravelRect, setFrameTravelRect] = useState<RectBounds | null>(
     null,
   )
+  const [snapGuide, setSnapGuide] = useState<{
+    w: number
+    h: number
+    /** Larger dashed frame + early preview — only when resizing larger than gesture start. */
+    expanded: boolean
+  } | null>(null)
   const stampRectRef = useRef<RectBounds | null>(stampRect)
+  /** Stamp area (w×h) at pointer-down on a resize handle — grow vs shrink for snap UI. */
+  const resizeGestureStartAreaRef = useRef(0)
   /** True while dragging a stamp corner — must not discard selection on pointerleave (shell re-centers during resize). */
   const isStampResizingRef = useRef(false)
 
@@ -176,6 +194,8 @@ export function StampCanvas() {
     activeShader,
     shaderParams,
     backgroundAsset,
+    stampColor,
+    snapToPresetsEnabledRef,
     setSelectedTextId,
     updateTextLayer,
     selectedTextId,
@@ -269,7 +289,30 @@ export function StampCanvas() {
       stamp,
       stageSizeRef.current.w,
       stageSizeRef.current.h,
+      {
+        snap:
+          snapToPresetsEnabledRef.current
+            ? {
+                enabled: true,
+                presets: STAMP_SNAP_PRESETS,
+                commitThreshold: STAMP_SNAP_COMMIT_THRESHOLD_PX,
+                previewThreshold: STAMP_SNAP_PREVIEW_THRESHOLD_PX,
+              }
+            : undefined,
+      },
     )
+
+    const buildSnapOptions = (growSnapPreview: boolean) =>
+      snapToPresetsEnabledRef.current
+        ? {
+            enabled: true as const,
+            presets: STAMP_SNAP_PRESETS,
+            commitThreshold: STAMP_SNAP_COMMIT_THRESHOLD_PX,
+            previewThreshold: growSnapPreview
+              ? STAMP_SNAP_PREVIEW_THRESHOLD_PX
+              : STAMP_SNAP_COMMIT_THRESHOLD_PX,
+          }
+        : undefined
 
     const syncStampScreenRect = () => {
       const { w, h } = stageSizeRef.current
@@ -293,9 +336,36 @@ export function StampCanvas() {
       setFrameTravelRect(readFrameTravelRectFabric(stamp, active))
     }
 
-    const onScaleOrModify = () => {
+    const runClampSync = ({
+      previewSnapOutline,
+    }: {
+      previewSnapOutline: boolean
+    }) => {
+      const preA =
+        Math.round(stamp.getScaledWidth()) * Math.round(stamp.getScaledHeight())
+      const isGrowing =
+        resizeGestureStartAreaRef.current <= 0 ||
+        preA > resizeGestureStartAreaRef.current
+
       const { w, h } = stageSizeRef.current
-      clampStampBoundsAndCenter(fabricCanvas, stamp, w, h)
+      const { snapPreview } = clampStampBoundsAndCenter(
+        fabricCanvas,
+        stamp,
+        w,
+        h,
+        { snap: buildSnapOptions(isGrowing) },
+      )
+      if (previewSnapOutline) {
+        setSnapGuide(
+          snapPreview
+            ? {
+                w: snapPreview.w,
+                h: snapPreview.h,
+                expanded: isGrowing,
+              }
+            : null,
+        )
+      }
       syncChromeIfActive()
       syncStampScreenRect()
       syncFrameTravelOverlay()
@@ -324,6 +394,7 @@ export function StampCanvas() {
         fabricCanvas.discardActiveObject()
       }
       setChromeRect(null)
+      setSnapGuide(null)
       fabricCanvas.requestRenderAll()
     }
 
@@ -362,6 +433,7 @@ export function StampCanvas() {
       ) {
         fabricCanvas.discardActiveObject()
         setChromeRect(null)
+        setSnapGuide(null)
         fabricCanvas.requestRenderAll()
       }
     }
@@ -395,9 +467,20 @@ export function StampCanvas() {
 
     const onStampScaleStart = () => {
       isStampResizingRef.current = true
+      resizeGestureStartAreaRef.current =
+        Math.round(stamp.getScaledWidth()) *
+        Math.round(stamp.getScaledHeight())
     }
-    const onStampScaleEnd = () => {
+
+    const onStampScaling = () => {
+      runClampSync({ previewSnapOutline: true })
+    }
+
+    const onStampBoundsModified = () => {
       isStampResizingRef.current = false
+      resizeGestureStartAreaRef.current = 0
+      setSnapGuide(null)
+      runClampSync({ previewSnapOutline: false })
     }
 
     const onPlacementMouseDown = (opt: TPointerEventInfo) => {
@@ -419,10 +502,9 @@ export function StampCanvas() {
       }
     }
 
-    stamp.on('modified', onScaleOrModify)
-    stamp.on('scaling', onScaleOrModify)
     stamp.on('scaling', onStampScaleStart)
-    stamp.on('modified', onStampScaleEnd)
+    stamp.on('scaling', onStampScaling)
+    stamp.on('modified', onStampBoundsModified)
 
     fabricCanvas.on('mouse:down', onPlacementMouseDown)
     fabricCanvas.on('mouse:move', onMouseMove)
@@ -438,7 +520,7 @@ export function StampCanvas() {
     stampRef.current = stamp
     const exportCompositedRaster: NonNullable<
       Parameters<typeof register>[0]['exportCompositedRaster']
-    > = async ({ format, multiplier, quality }) => {
+    > = async ({ format, multiplier, quality, perforationCount: perfCount }) => {
       const content = contentRef.current
       const stampBounds = stampRectRef.current
       if (!content || !stampBounds) return null
@@ -497,7 +579,7 @@ export function StampCanvas() {
 
       ctx.save()
       ctx.scale(multiplier, multiplier)
-      punchPerforationHoles(ctx, stampBounds.width, stampBounds.height, perforationCount)
+      punchPerforationHoles(ctx, stampBounds.width, stampBounds.height, perfCount)
       ctx.restore()
 
       return out.toDataURL(
@@ -506,11 +588,39 @@ export function StampCanvas() {
       )
     }
 
-    register({ canvas: fabricCanvas, stamp, exportCompositedRaster })
+    const applySizePreset: NonNullable<
+      StampCanvasApi['applySizePreset']
+    > = (targetW, targetH) => {
+      const tw = Math.max(1, Math.round(targetW))
+      const th = Math.max(1, Math.round(targetH))
+      stamp.set({
+        scaleX: tw / STAMP_BASE_WIDTH,
+        scaleY: th / STAMP_BASE_HEIGHT,
+      })
+      stamp.setCoords()
+      const { w, h } = stageSizeRef.current
+      clampStampBoundsAndCenter(fabricCanvas, stamp, w, h)
+      fabricCanvas.requestRenderAll()
+      syncStampScreenRect()
+      syncChromeIfActive()
+      setSnapGuide(null)
+      return {
+        width: fabricCanvas.getWidth(),
+        height: fabricCanvas.getHeight(),
+      }
+    }
+
+    register({
+      canvas: fabricCanvas,
+      stamp,
+      applySizePreset,
+      exportCompositedRaster,
+    })
 
     return () => {
-      stamp.off('modified', onScaleOrModify)
-      stamp.off('scaling', onScaleOrModify)
+      stamp.off('modified', onStampBoundsModified)
+      stamp.off('scaling', onStampScaling)
+      stamp.off('scaling', onStampScaleStart)
       fabricCanvas.off('mouse:down', onPlacementMouseDown)
       fabricCanvas.off('mouse:move', onMouseMove)
       fabricCanvas.off('mouse:move', onTextPlacementCursor)
@@ -520,13 +630,12 @@ export function StampCanvas() {
       fabricCanvas.off('object:moving', onObjectMoving)
       fabricCanvas.off('object:scaling', onObjectScaling)
       fabricCanvas.off('object:modified', onObjectModifiedCanvas)
-      stamp.off('scaling', onStampScaleStart)
-      stamp.off('modified', onStampScaleEnd)
       unregister()
       fabricCanvas.dispose()
       fabricRef.current = null
       stampRef.current = null
       setChromeRect(null)
+      setSnapGuide(null)
       setFrameTravelRect(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- init once; stage size handled below
@@ -536,7 +645,16 @@ export function StampCanvas() {
     const c = fabricRef.current
     const s = stampRef.current
     if (!c || !s) return
-    clampStampBoundsAndCenter(c, s, stageW, stageH)
+    clampStampBoundsAndCenter(c, s, stageW, stageH, {
+      snap: snapToPresetsEnabledRef.current
+        ? {
+            enabled: true,
+            presets: STAMP_SNAP_PRESETS,
+            commitThreshold: STAMP_SNAP_COMMIT_THRESHOLD_PX,
+            previewThreshold: STAMP_SNAP_PREVIEW_THRESHOLD_PX,
+          }
+        : undefined,
+    })
     const rw = c.getWidth()
     const rh = c.getHeight()
     setStampRect(centeredStampScreenRect(stageW, stageH, rw, rh))
@@ -572,7 +690,7 @@ export function StampCanvas() {
         <StampPerforations
           width={stampRect?.width ?? 0}
           height={stampRect?.height ?? 0}
-          count={perforationCount}
+          userDensity={perforationCount}
         />
 
         {stampRect ? (
@@ -606,12 +724,14 @@ export function StampCanvas() {
                   c.discardActiveObject()
                 }
                 setChromeRect(null)
+                setSnapGuide(null)
                 c.requestRenderAll()
               }}
             >
               <ShaderLayer
                 rect={shaderRect}
                 imageSrc={backgroundAsset?.src ?? ''}
+                stampColor={stampColor}
                 activeShader={activeShader}
                 shaderParams={shaderParams}
               />
@@ -633,10 +753,43 @@ export function StampCanvas() {
                   }}
                 />
               ) : null}
+            </div>
 
-              <div className="pointer-events-none absolute inset-0 z-[21]">
-                <StampResizeChromeOverlay rect={chromeRect} />
-              </div>
+            <AnimatePresence>
+              {snapGuide && stampRect ? (
+                <motion.div
+                  key={`snap-guide-${snapGuide.w}-${snapGuide.h}-${snapGuide.expanded ? 'e' : 'c'}`}
+                  layout
+                  className="pointer-events-none absolute z-[14] rounded-[3px]"
+                  aria-hidden="true"
+                  style={(() => {
+                    const o = snapGuide.expanded
+                      ? STAMP_SNAP_GUIDE_OUTSET_PX
+                      : 0
+                    return {
+                      left: (stampRect.width - snapGuide.w - o * 2) / 2,
+                      top: (stampRect.height - snapGuide.h - o * 2) / 2,
+                      width: snapGuide.w + o * 2,
+                      height: snapGuide.h + o * 2,
+                      boxSizing: 'border-box' as const,
+                      border: snapGuide.expanded
+                        ? '2px dashed rgba(255, 255, 255, 0.55)'
+                        : '1px dashed rgba(255, 255, 255, 0.42)',
+                      boxShadow: snapGuide.expanded
+                        ? '0 0 0 1px rgba(255, 255, 255, 0.12)'
+                        : 'none',
+                    }
+                  })()}
+                  initial={{ opacity: 0, scale: 0.988 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.988 }}
+                  transition={{ duration: 0.11, ease: [0.22, 1, 0.36, 1] }}
+                />
+              ) : null}
+            </AnimatePresence>
+
+            <div className="pointer-events-none absolute inset-0 z-[21]">
+              <StampResizeChromeOverlay rect={chromeRect} />
             </div>
           </div>
         ) : null}

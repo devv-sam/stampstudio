@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { StampCanvas } from "../Canvas/StampCanvas";
 import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
 import { PropertiesPanel } from "../Panels/PropertiesPanel";
+import { StampSizeHud } from "./StampSizeHud";
 import { Toolbar } from "./Toolbar";
 import { HeaderExport } from "./HeaderExport";
 
@@ -27,6 +28,9 @@ export function AppLayout({ header }: { header?: ReactNode }) {
           <CanvasFloatBar />
           <div className="pointer-events-none absolute bottom-4 left-4 z-10">
             <Toolbar />
+          </div>
+          <div className="pointer-events-none absolute bottom-4 right-4 z-10">
+            <StampSizeHud />
           </div>
         </main>
 

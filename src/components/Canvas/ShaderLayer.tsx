@@ -4,8 +4,10 @@ import {
   HalftoneDots,
   ImageDithering,
 } from '@paper-design/shaders-react'
+import { useMemo } from 'react'
 
 import type { DitheringPresetName, ShaderName, ShaderParamsMap } from '../../types/canvas'
+import { solidColorDataUrl } from '../../utils/solidColorDataUrl'
 
 const DITHERING_PRESETS: Record<
   DitheringPresetName,
@@ -67,21 +69,30 @@ type RectBounds = { left: number; top: number; width: number; height: number }
 export function ShaderLayer({
   rect,
   imageSrc,
+  stampColor,
   activeShader,
   shaderParams,
 }: {
   rect: RectBounds | null
   imageSrc: string
+  stampColor: string
   activeShader: ShaderName | null
   shaderParams: ShaderParamsMap
 }) {
+  const hasPhotoFill = imageSrc.trim().length > 0
+  const baseImage = useMemo(
+    () => (hasPhotoFill ? imageSrc : solidColorDataUrl(stampColor)),
+    [hasPhotoFill, imageSrc, stampColor],
+  )
+
   if (!rect || !activeShader) return null
 
   const w = Math.max(1, rect.width)
   const h = Math.max(1, rect.height)
+
   const common = {
     className: 'absolute inset-0 h-full w-full',
-    image: imageSrc,
+    image: baseImage,
     speed: 0,
   } as const
 
@@ -98,6 +109,7 @@ export function ShaderLayer({
       {activeShader === 'halftone-dots' ? (
         <HalftoneDots
           {...common}
+          {...(!hasPhotoFill ? { colorBack: stampColor } : {})}
           size={shaderParams['halftone-dots'].size}
           type={shaderParams['halftone-dots'].type}
           contrast={shaderParams['halftone-dots'].contrast}
@@ -117,7 +129,11 @@ export function ShaderLayer({
           size={shaderParams['halftone-cmyk'].size}
           type={shaderParams['halftone-cmyk'].type}
           softness={shaderParams['halftone-cmyk'].softness}
-          colorBack={shaderParams['halftone-cmyk'].colorBack}
+          colorBack={
+            hasPhotoFill
+              ? shaderParams['halftone-cmyk'].colorBack
+              : stampColor
+          }
           colorC={shaderParams['halftone-cmyk'].colorC}
           colorM={shaderParams['halftone-cmyk'].colorM}
           colorY={shaderParams['halftone-cmyk'].colorY}

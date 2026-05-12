@@ -38,7 +38,7 @@ const chromeVariants = {
 
 export function StampResizeChromeOverlay({ rect }: { rect: ChromeRect | null }) {
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+    <div className="pointer-events-none absolute inset-0 z-10 overflow-visible">
       <AnimatePresence>
         {rect ? (
           <motion.div
@@ -54,10 +54,6 @@ export function StampResizeChromeOverlay({ rect }: { rect: ChromeRect | null }) 
               width: rect.width,
               height: rect.height,
               borderRadius: rect.rx,
-              // TODO(snap-sizing): re-enable dashed border once snap-to-size grid is wired up
-              // borderWidth: 1.5,
-              // borderStyle: 'dashed',
-              // borderColor: 'rgba(255, 255, 255, 0.35)',
             }}
           >
             <span
