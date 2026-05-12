@@ -109,6 +109,13 @@ export function PropertiesPanel() {
   const fillKind: "solid" | "image" = backgroundAsset ? "image" : fillTab;
   /** Open accordion only — does not turn the canvas effect off when collapsed. */
   const [expandedShader, setExpandedShader] = useState<ShaderName | null>(null);
+  type SizePresetCategory = "square" | "landscape" | "portrait";
+  const [expandedSizeCategory, setExpandedSizeCategory] =
+    useState<SizePresetCategory | null>(null);
+
+  const toggleSizeCategory = (cat: SizePresetCategory) => {
+    setExpandedSizeCategory((c) => (c === cat ? null : cat));
+  };
 
   const openShaderAccordion = (name: ShaderName) => {
     if (expandedShader === name) {
@@ -199,7 +206,7 @@ export function PropertiesPanel() {
                     type="button"
                     onClick={() => onPickPreset(color)}
                     title={color}
-                    className="h-5 w-5 rounded-full transition-transform hover:scale-110 focus:outline-none"
+                    className="h-5 w-5 cursor-pointer rounded-full transition-transform hover:scale-110 focus:outline-none"
                     style={{
                       background: color,
                       outline:
@@ -220,7 +227,7 @@ export function PropertiesPanel() {
                   type="button"
                   onClick={() => setPickerOpen((o) => !o)}
                   title="Custom color"
-                  className="h-5 w-5 rounded-full transition-transform hover:scale-110 focus:outline-none"
+                  className="h-5 w-5 cursor-pointer rounded-full transition-transform hover:scale-110 focus:outline-none"
                   style={{
                     background:
                       "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)",
@@ -255,7 +262,7 @@ export function PropertiesPanel() {
                 type="button"
                 onClick={() => bgUpload.open()}
                 title="Replace background image"
-                className="flex min-w-0 flex-1 items-center gap-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-white/25 rounded-md -m-0.5 p-0.5"
+                className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-md -m-0.5 p-0.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
               >
                 <img
                   src={backgroundAsset.src}
@@ -274,7 +281,7 @@ export function PropertiesPanel() {
                 onClick={handleClearBg}
                 title="Remove background image"
                 aria-label="Remove background image"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-800 hover:text-zinc-100 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-800 hover:text-zinc-100 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
               >
                 <IconDismiss />
               </button>
@@ -283,7 +290,7 @@ export function PropertiesPanel() {
             <button
               type="button"
               onClick={() => bgUpload.open()}
-              className="w-full rounded-lg border border-dashed border-zinc-700 bg-transparent px-4 py-2.5 text-sm text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-900/40"
+              className="w-full cursor-pointer rounded-lg border border-dashed border-zinc-700 bg-transparent px-4 py-2.5 text-sm text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-900/40"
             >
               Upload image
             </button>
@@ -593,28 +600,145 @@ export function PropertiesPanel() {
         <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
           Size presets
         </p>
-        <SizePresetSubgroup
-          label="Square"
-          presets={SNAP_PRESETS_SQUARE}
-          stampDimensions={stampDimensions}
-          onPick={tryApplySizePreset}
-        />
-        <SizePresetSubgroup
-          label="Landscape"
-          presets={SNAP_PRESETS_LANDSCAPE}
-          stampDimensions={stampDimensions}
-          onPick={tryApplySizePreset}
-        />
-        <SizePresetSubgroup
-          label="Portrait"
-          presets={SNAP_PRESETS_PORTRAIT}
-          stampDimensions={stampDimensions}
-          onPick={tryApplySizePreset}
-        />
+        <div className="-mx-5 divide-y divide-zinc-800">
+          <SizePresetCategoryAccordion
+            title="Square"
+            expanded={expandedSizeCategory === "square"}
+            onToggle={() => toggleSizeCategory("square")}
+          >
+            <SizePresetChipGrid
+              ariaLabel="Square size presets"
+              presets={SNAP_PRESETS_SQUARE}
+              stampDimensions={stampDimensions}
+              onPick={tryApplySizePreset}
+            />
+          </SizePresetCategoryAccordion>
+          <SizePresetCategoryAccordion
+            title="Landscape"
+            expanded={expandedSizeCategory === "landscape"}
+            onToggle={() => toggleSizeCategory("landscape")}
+          >
+            <SizePresetChipGrid
+              ariaLabel="Landscape size presets"
+              presets={SNAP_PRESETS_LANDSCAPE}
+              stampDimensions={stampDimensions}
+              onPick={tryApplySizePreset}
+            />
+          </SizePresetCategoryAccordion>
+          <SizePresetCategoryAccordion
+            title="Portrait"
+            expanded={expandedSizeCategory === "portrait"}
+            onToggle={() => toggleSizeCategory("portrait")}
+          >
+            <SizePresetChipGrid
+              ariaLabel="Portrait size presets"
+              presets={SNAP_PRESETS_PORTRAIT}
+              stampDimensions={stampDimensions}
+              onPick={tryApplySizePreset}
+            />
+          </SizePresetCategoryAccordion>
+        </div>
       </section>
 
       {bgUpload.fileInputElement}
       {bgUpload.overlayElement}
+    </div>
+  );
+}
+
+/** Fit preset into a square cell so larger presets read visibly larger in the row. */
+function sizePresetPreviewPx(preset: StampSnapPreset, cellPx: number) {
+  const m = Math.max(preset.w, preset.h)
+  const s = cellPx / m
+  return {
+    width: Math.max(2, preset.w * s),
+    height: Math.max(2, preset.h * s),
+  }
+}
+
+function SizePresetCategoryAccordion({
+  title,
+  expanded,
+  onToggle,
+  children,
+}: {
+  title: string;
+  expanded: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full cursor-pointer items-center gap-2 px-5 py-2.5 text-left text-[13px] text-zinc-100 transition-colors hover:bg-zinc-800/50 focus:outline-none focus-visible:bg-zinc-800/50 focus-visible:ring-2 focus-visible:ring-white/15"
+        aria-expanded={expanded}
+      >
+        <span
+          className="flex h-4 w-4 shrink-0 items-center justify-center text-zinc-400"
+          aria-hidden
+        >
+          <svg
+            viewBox="0 0 10 10"
+            className={`h-2 w-2 transition-transform duration-200 ease-out ${
+              expanded ? "rotate-90" : ""
+            }`}
+            aria-hidden
+          >
+            <path d="M2.5 1.5 L8 5 L2.5 8.5 Z" fill="currentColor" />
+          </svg>
+        </span>
+        <span className="font-medium">{title}</span>
+      </button>
+      <AnimatePresence initial={false}>
+        {expanded ? (
+          <motion.div
+            key="content"
+            initial={{ maxHeight: 0, opacity: 0 }}
+            animate={{ maxHeight: 320, opacity: 1 }}
+            exit={{ maxHeight: 0, opacity: 0 }}
+            transition={{
+              maxHeight: {
+                duration: 0.22,
+                ease: [0.4, 0, 0.2, 1],
+              },
+              opacity: { duration: 0.15 },
+            }}
+            style={{ overflow: "hidden" }}
+          >
+            <div className="min-w-0 pb-3 pl-11 pr-5 pt-0.5">{children}</div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function SizePresetChipGrid({
+  presets,
+  stampDimensions,
+  onPick,
+  ariaLabel,
+}: {
+  presets: readonly StampSnapPreset[];
+  stampDimensions: { width: number; height: number };
+  onPick: (p: StampSnapPreset) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5" role="group" aria-label={ariaLabel}>
+      {presets.map((p) => (
+        <SizePresetChip
+          key={`${p.w}-${p.h}`}
+          preset={p}
+          active={
+            Math.abs(stampDimensions.width - p.w) <= 1 &&
+            Math.abs(stampDimensions.height - p.h) <= 1
+          }
+          onPick={() => onPick(p)}
+        />
+      ))}
     </div>
   );
 }
@@ -628,50 +752,34 @@ function SizePresetChip({
   active: boolean;
   onPick: () => void;
 }) {
+  const preview = sizePresetPreviewPx(preset, 26)
   return (
     <button
       type="button"
       onClick={onPick}
       aria-pressed={active}
-      className={`rounded px-1.5 py-0.5 font-mono text-[10px] tabular-nums transition-colors ${
+      aria-label={`${preset.w} by ${preset.h} pixels`}
+      className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1 font-mono text-[10px] tabular-nums transition-colors ${
         active
           ? "bg-zinc-700 text-zinc-100"
           : "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-200"
       }`}
     >
-      {preset.w}×{preset.h}
+      <span
+        className="flex h-7 w-7 shrink-0 items-center justify-center"
+        aria-hidden
+      >
+        <span
+          className={`box-border shrink-0 rounded-[1px] border bg-transparent ${
+            active ? "border-zinc-50" : "border-white/55"
+          }`}
+          style={{ width: preview.width, height: preview.height }}
+        />
+      </span>
+      <span>
+        {preset.w}×{preset.h}
+      </span>
     </button>
-  );
-}
-
-function SizePresetSubgroup({
-  label,
-  presets,
-  stampDimensions,
-  onPick,
-}: {
-  label: string;
-  presets: readonly StampSnapPreset[];
-  stampDimensions: { width: number; height: number };
-  onPick: (p: StampSnapPreset) => void;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <span className="text-[11px] text-zinc-500">{label}</span>
-      <div className="flex flex-wrap gap-1" role="group" aria-label={label}>
-        {presets.map((p) => (
-          <SizePresetChip
-            key={`${p.w}-${p.h}`}
-            preset={p}
-            active={
-              Math.abs(stampDimensions.width - p.w) <= 1 &&
-              Math.abs(stampDimensions.height - p.h) <= 1
-            }
-            onPick={() => onPick(p)}
-          />
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -693,7 +801,7 @@ function FillTypeTab({
       aria-checked={pressed}
       onClick={onClick}
       title={label}
-      className={`flex h-7 items-center gap-1 rounded px-2 text-[11px] font-medium transition-colors ${
+      className={`flex h-7 cursor-pointer items-center gap-1 rounded px-2 text-[11px] font-medium transition-colors ${
         pressed
           ? "bg-zinc-700 text-zinc-100 shadow-sm"
           : "text-zinc-500 hover:text-zinc-300"
@@ -797,7 +905,7 @@ function AssetStrip({
                   open ? null : { id: asset.id, anchor: e.currentTarget },
                 )
               }
-              className={`relative aspect-square w-full overflow-hidden rounded-md border bg-zinc-900 transition-colors ${
+              className={`relative aspect-square w-full cursor-pointer overflow-hidden rounded-md border bg-zinc-900 transition-colors ${
                 asset.role === "background"
                   ? "border-white/80"
                   : asset.role === "frame"
@@ -996,7 +1104,7 @@ function MenuItem({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded px-2 py-1.5 text-left transition-colors disabled:pointer-events-none disabled:opacity-40 ${
+      className={`cursor-pointer rounded px-2 py-1.5 text-left transition-colors disabled:pointer-events-none disabled:opacity-40 ${
         danger
           ? "text-red-400 hover:bg-red-500/10"
           : "text-zinc-300 hover:bg-zinc-800"
