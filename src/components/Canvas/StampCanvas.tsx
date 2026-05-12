@@ -163,6 +163,8 @@ export function StampCanvas() {
   const stampRef = useRef<ReturnType<typeof createStampGroup> | null>(
     null,
   )
+  /** The stamp size the user last explicitly set — preserved across stage resizes. */
+  const userDesiredStampSizeRef = useRef({ w: STAMP_BASE_WIDTH, h: STAMP_BASE_HEIGHT })
 
   const { width: stageW, height: stageH } = useCanvasSize(wrapRef)
   /** Fresh stage size for Fabric handlers (init effect closure is otherwise stale). */
@@ -481,6 +483,10 @@ export function StampCanvas() {
       resizeGestureStartAreaRef.current = 0
       setSnapGuide(null)
       runClampSync({ previewSnapOutline: false })
+      userDesiredStampSizeRef.current = {
+        w: fabricCanvas.getWidth(),
+        h: fabricCanvas.getHeight(),
+      }
     }
 
     const onPlacementMouseDown = (opt: TPointerEventInfo) => {
@@ -645,6 +651,13 @@ export function StampCanvas() {
     const c = fabricRef.current
     const s = stampRef.current
     if (!c || !s) return
+    // Restore desired size before clamping so the stamp can grow back when the
+    // stage expands again — without this, each shrink permanently reduces the scale.
+    const desired = userDesiredStampSizeRef.current
+    s.set({
+      scaleX: desired.w / STAMP_BASE_WIDTH,
+      scaleY: desired.h / STAMP_BASE_HEIGHT,
+    })
     clampStampBoundsAndCenter(c, s, stageW, stageH, {
       snap: snapToPresetsEnabledRef.current
         ? {
