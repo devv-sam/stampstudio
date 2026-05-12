@@ -1,8 +1,10 @@
-import { useStampEditor } from '../../hooks/useStampEditor'
-import { Button } from '../UI/Button'
+import { motion } from "framer-motion";
+
+import { useStampEditor } from "../../hooks/useStampEditor";
+import { Button } from "../UI/Button";
 
 export function Toolbar() {
-  const { snapToPresetsEnabled, setSnapToPresetsEnabled } = useStampEditor()
+  const { snapToPresetsEnabled, setSnapToPresetsEnabled } = useStampEditor();
 
   return (
     <div className="pointer-events-auto flex flex-col gap-3 rounded-md border border-zinc-800/80 bg-zinc-900/90 p-3 shadow-xl backdrop-blur-sm">
@@ -21,16 +23,19 @@ export function Toolbar() {
           aria-checked={snapToPresetsEnabled}
           aria-label="Toggle snap to recommended sizes"
           onClick={() => setSnapToPresetsEnabled(!snapToPresetsEnabled)}
-          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border p-px transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400/60 ${
+          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border p-px transition-colors duration-200 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400/60 ${
             snapToPresetsEnabled
-              ? 'justify-end border-zinc-500 bg-zinc-100'
-              : 'justify-start border-zinc-600 bg-zinc-950'
+              ? "border-zinc-500 bg-zinc-100"
+              : "border-zinc-700 bg-zinc-950"
           }`}
         >
-          <span
-            className={`pointer-events-none block h-3.5 w-3.5 rounded-full shadow-sm ring-1 ring-black/25 transition-colors duration-150 ${
-              snapToPresetsEnabled ? 'bg-zinc-900' : 'bg-zinc-200'
+          <motion.span
+            aria-hidden
+            className={`pointer-events-none block h-3.5 w-3.5 rounded-full shadow-sm ring-1 ring-black/20 ${
+              snapToPresetsEnabled ? "bg-zinc-900" : "bg-zinc-300"
             }`}
+            animate={{ x: snapToPresetsEnabled ? 16 : 0 }}
+            transition={{ type: "spring", stiffness: 500, damping: 30 }}
           />
         </button>
       </div>
@@ -41,5 +46,5 @@ export function Toolbar() {
         Grid (soon)
       </Button>
     </div>
-  )
+  );
 }
