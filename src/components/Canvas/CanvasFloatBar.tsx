@@ -184,7 +184,7 @@ export function CanvasFloatBar() {
           <button
             type="button"
             onClick={() => frameUpload.open()}
-            title="Upload an interactive element you can move, scale, and rotate"
+            title="Upload frame"
             className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center text-sm rounded-md font-bold text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
           >
             <ImageIcon size={12} />
