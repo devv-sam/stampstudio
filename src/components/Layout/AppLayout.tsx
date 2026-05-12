@@ -17,7 +17,7 @@ export function AppLayout({ header }: { header?: ReactNode }) {
         <div className="flex items-center gap-4">{header}</div>
       </header>
 
-      <div className="relative flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">
         <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[#141416]">
           <StampCanvas />
           <CanvasFloatBar />
@@ -26,7 +26,7 @@ export function AppLayout({ header }: { header?: ReactNode }) {
           </div>
         </main>
 
-        <aside className="flex w-[320px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-zinc-800/80 bg-[#101010] p-5">
+        <aside className="flex h-[42vh] w-full shrink-0 flex-col gap-4 overflow-y-auto border-t border-zinc-800/80 bg-[#101010] p-5 md:h-auto md:w-[320px] md:border-l md:border-t-0">
           <PropertiesPanel />
         </aside>
       </div>
