@@ -89,6 +89,9 @@ export type StampEditorContextValue = {
   exportPng: (multiplier?: number) => Promise<void>
   exportJpeg: (options?: { multiplier?: number; quality?: number }) => Promise<void>
   exportSvg: () => Promise<void>
+  /** Copy raster export to clipboard (PNG only). Mirrors export quality path. */
+  copyPng: (multiplier?: number) => Promise<void>
+  copySvg: () => Promise<void>
 
   /** Shader applied on the stamp (`null` = normal fill only). Separate from accordion open state in the panel. */
   activeShader: ShaderName | null

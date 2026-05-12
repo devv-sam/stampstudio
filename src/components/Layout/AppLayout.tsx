@@ -4,8 +4,6 @@ import { StampCanvas } from "../Canvas/StampCanvas";
 import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
 import { PropertiesPanel } from "../Panels/PropertiesPanel";
 import { StampSizeHud } from "./StampSizeHud";
-import { Toolbar } from "./Toolbar";
-import { HeaderExport } from "./HeaderExport";
 
 export function AppLayout({ header }: { header?: ReactNode }) {
   return (
@@ -16,19 +14,13 @@ export function AppLayout({ header }: { header?: ReactNode }) {
             stampstudio
           </h1>
         </div>
-        <div className="flex items-center gap-4">
-          <HeaderExport />
-          {header}
-        </div>
+        <div className="flex items-center gap-4">{header}</div>
       </header>
 
       <div className="relative flex min-h-0 flex-1">
         <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[#141416]">
           <StampCanvas />
           <CanvasFloatBar />
-          <div className="pointer-events-none absolute bottom-4 left-4 z-10">
-            <Toolbar />
-          </div>
           <div className="pointer-events-none absolute bottom-4 right-4 z-10">
             <StampSizeHud />
           </div>
