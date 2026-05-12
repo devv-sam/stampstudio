@@ -577,10 +577,10 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     [backgroundAsset],
   )
 
-  const exportPng = useCallback(
-    async (multiplier = 2) => {
+  const producePngDataUrl = useCallback(
+    async (multiplier: number): Promise<string | null> => {
       const api = apiRef.current
-      if (!api) return
+      if (!api) return null
       if (api.exportCompositedRaster) {
         try {
           const dataUrl = await api.exportCompositedRaster({
@@ -588,20 +588,37 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
             multiplier,
             perforationCount,
           })
-          if (dataUrl) {
-            downloadDataUrl(dataUrl, 'stamp.png')
-            return
-          }
+          if (dataUrl) return dataUrl
         } catch {
-          // Fallback to Fabric export below.
+          /* fallback */
         }
       }
       const dataUrl = await withExportFallbackFill(() =>
         exportStampPng(api.canvas, api.stamp, multiplier, perforationCount),
       )
-      downloadDataUrl(dataUrl, 'stamp.png')
+      return dataUrl
     },
     [perforationCount, withExportFallbackFill],
+  )
+
+  const exportPng = useCallback(
+    async (multiplier = 2) => {
+      const dataUrl = await producePngDataUrl(multiplier)
+      if (dataUrl) downloadDataUrl(dataUrl, 'stamp.png')
+    },
+    [producePngDataUrl],
+  )
+
+  const copyPng = useCallback(
+    async (multiplier = 2) => {
+      const dataUrl = await producePngDataUrl(multiplier)
+      if (!dataUrl) return
+      const blob = await (await fetch(dataUrl)).blob()
+      await navigator.clipboard.write([
+        new ClipboardItem({ [blob.type || 'image/png']: blob }),
+      ])
+    },
+    [producePngDataUrl],
   )
 
   const exportJpeg = useCallback(
@@ -632,14 +649,25 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     [perforationCount, withExportFallbackFill],
   )
 
-  const exportSvg = useCallback(async () => {
+  const produceSvgMarkup = useCallback(async (): Promise<string | null> => {
     const api = apiRef.current
-    if (!api) return
-    const svg = await withExportFallbackFill(() =>
+    if (!api) return null
+    return withExportFallbackFill(() =>
       exportStampSvg(api.canvas, api.stamp, perforationCount),
     )
-    downloadTextFile(svg, 'stamp.svg', 'image/svg+xml;charset=utf-8')
   }, [perforationCount, withExportFallbackFill])
+
+  const exportSvg = useCallback(async () => {
+    const svg = await produceSvgMarkup()
+    if (!svg) return
+    downloadTextFile(svg, 'stamp.svg', 'image/svg+xml;charset=utf-8')
+  }, [produceSvgMarkup])
+
+  const copySvg = useCallback(async () => {
+    const svg = await produceSvgMarkup()
+    if (!svg) return
+    await navigator.clipboard.writeText(svg)
+  }, [produceSvgMarkup])
 
   // ────────────────────────────────────────────────────────────────────────
 
@@ -677,6 +705,8 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       exportPng,
       exportJpeg,
       exportSvg,
+      copyPng,
+      copySvg,
       activeShader,
       setActiveShader,
       shaderParams,
@@ -712,6 +742,8 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       exportPng,
       exportJpeg,
       exportSvg,
+      copyPng,
+      copySvg,
       activeShader,
       shaderParams,
       updateShaderParam,

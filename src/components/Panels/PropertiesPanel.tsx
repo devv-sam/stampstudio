@@ -57,9 +57,7 @@ const FILL_COLOR_PRESETS = [
   "#2a2520",
 ] as const;
 
-const FILL_PRESET_HEX = new Set(
-  FILL_COLOR_PRESETS.map((c) => c.toLowerCase()),
-);
+const FILL_PRESET_HEX = new Set(FILL_COLOR_PRESETS.map((c) => c.toLowerCase()));
 
 const FILL_LIGHT_SWATCH = new Set([
   "#ffffff",
@@ -99,6 +97,8 @@ export function PropertiesPanel() {
     stampDimensions,
     textLayers,
     applyStampSizePreset,
+    snapToPresetsEnabled,
+    setSnapToPresetsEnabled,
   } = useStampEditor();
 
   const bgUpload = useImageUploadFlow();
@@ -547,7 +547,9 @@ export function PropertiesPanel() {
         <ShaderAccordionRow
           title="Dithering"
           expanded={expandedShader === "image-dithering"}
-          dimmed={expandedShader !== null && expandedShader !== "image-dithering"}
+          dimmed={
+            expandedShader !== null && expandedShader !== "image-dithering"
+          }
           onToggle={() => openShaderAccordion("image-dithering")}
         >
           <div className="space-y-3 pt-1">
@@ -557,40 +559,38 @@ export function PropertiesPanel() {
               defaultValue={shaderParams["image-dithering"].size}
               minValue={1}
               maxValue={10}
-              onChange={(v) =>
-                updateShaderParam("image-dithering", "size", v)
-              }
+              onChange={(v) => updateShaderParam("image-dithering", "size", v)}
             />
             <div className="space-y-1.5">
-            <span className="text-[11px] text-zinc-500">Preset</span>
-            <div
-              className="flex flex-wrap gap-1"
-              role="group"
-              aria-label="Dithering preset"
-            >
-              {(
-                [
-                  ["default", "Default"],
-                  ["noise", "Noise"],
-                  ["retro", "Retro"],
-                ] as const
-              ).map(([value, label]) => (
-                <SegmentTab
-                  key={value}
-                  pressed={shaderParams["image-dithering"].preset === value}
-                  onClick={() =>
-                    updateShaderParam(
-                      "image-dithering",
-                      "preset",
-                      shaderParams["image-dithering"].preset === value
-                        ? "natural"
-                        : value,
-                    )
-                  }
-                  label={label}
-                />
-              ))}
-            </div>
+              <span className="text-[11px] text-zinc-500">Preset</span>
+              <div
+                className="flex flex-wrap gap-1"
+                role="group"
+                aria-label="Dithering preset"
+              >
+                {(
+                  [
+                    ["default", "Default"],
+                    ["noise", "Noise"],
+                    ["retro", "Retro"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <SegmentTab
+                    key={value}
+                    pressed={shaderParams["image-dithering"].preset === value}
+                    onClick={() =>
+                      updateShaderParam(
+                        "image-dithering",
+                        "preset",
+                        shaderParams["image-dithering"].preset === value
+                          ? "natural"
+                          : value,
+                      )
+                    }
+                    label={label}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </ShaderAccordionRow>
@@ -600,6 +600,34 @@ export function PropertiesPanel() {
         <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
           Size presets
         </p>
+        <div className="flex items-center gap-2.5 pt-1">
+          <div className="min-w-0 flex-1">
+            <span className="block text-[11px] font-medium leading-tight text-zinc-300">
+              Snap to presets
+            </span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={snapToPresetsEnabled}
+            aria-label="Toggle snap to recommended sizes"
+            onClick={() => setSnapToPresetsEnabled(!snapToPresetsEnabled)}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border p-px transition-colors duration-200 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400/60 ${
+              snapToPresetsEnabled
+                ? "border-zinc-500 bg-zinc-100"
+                : "border-zinc-700 bg-zinc-950"
+            }`}
+          >
+            <motion.span
+              aria-hidden
+              className={`pointer-events-none block h-3.5 w-3.5 rounded-full shadow-sm ring-1 ring-black/20 ${
+                snapToPresetsEnabled ? "bg-zinc-900" : "bg-zinc-300"
+              }`}
+              animate={{ x: snapToPresetsEnabled ? 16 : 0 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            />
+          </button>
+        </div>
         <div className="-mx-5 divide-y divide-zinc-800">
           <SizePresetCategoryAccordion
             title="Square"
@@ -648,12 +676,12 @@ export function PropertiesPanel() {
 
 /** Fit preset into a square cell so larger presets read visibly larger in the row. */
 function sizePresetPreviewPx(preset: StampSnapPreset, cellPx: number) {
-  const m = Math.max(preset.w, preset.h)
-  const s = cellPx / m
+  const m = Math.max(preset.w, preset.h);
+  const s = cellPx / m;
   return {
     width: Math.max(2, preset.w * s),
     height: Math.max(2, preset.h * s),
-  }
+  };
 }
 
 function SizePresetCategoryAccordion({
@@ -752,7 +780,7 @@ function SizePresetChip({
   active: boolean;
   onPick: () => void;
 }) {
-  const preview = sizePresetPreviewPx(preset, 26)
+  const preview = sizePresetPreviewPx(preset, 26);
   return (
     <button
       type="button"
