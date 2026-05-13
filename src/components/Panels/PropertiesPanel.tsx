@@ -610,21 +610,19 @@ export function PropertiesPanel() {
             type="button"
             role="switch"
             aria-checked={snapToPresetsEnabled}
-            aria-label="Toggle snap to recommended sizes"
+            aria-label="Snap to recommended sizes"
             onClick={() => setSnapToPresetsEnabled(!snapToPresetsEnabled)}
             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border p-px transition-colors duration-200 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400/60 ${
               snapToPresetsEnabled
-                ? "border-zinc-500 bg-zinc-100"
+                ? "border-zinc-500 bg-[#FF4B25]"
                 : "border-zinc-700 bg-zinc-950"
             }`}
           >
             <motion.span
               aria-hidden
-              className={`pointer-events-none block h-3.5 w-3.5 rounded-full shadow-sm ring-1 ring-black/20 ${
-                snapToPresetsEnabled ? "bg-zinc-900" : "bg-zinc-300"
-              }`}
+              className={`pointer-events-none block h-3.5 w-3.5 rounded-full shadow-sm ring-1 ring-black/20 bg-zinc-300 `}
               animate={{ x: snapToPresetsEnabled ? 16 : 0 }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
             />
           </button>
         </div>
