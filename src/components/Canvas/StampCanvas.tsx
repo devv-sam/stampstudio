@@ -204,7 +204,11 @@ export function StampCanvas() {
     textLayers,
     textPlacementActive,
     addTextLayerAtScene,
+    canvasZoom,
+    setCanvasZoom,
   } = useStampEditor()
+
+  const canvasZoomRef = useRef(canvasZoom)
 
   const updateTextLayerRef = useRef<
     (
@@ -236,6 +240,58 @@ export function StampCanvas() {
   useLayoutEffect(() => {
     addTextLayerAtSceneRef.current = addTextLayerAtScene
   }, [addTextLayerAtScene])
+
+  useLayoutEffect(() => {
+    canvasZoomRef.current = canvasZoom
+  }, [canvasZoom])
+
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const handleWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return
+      e.preventDefault()
+      const factor = 1 - e.deltaY * 0.003
+      const next = Math.max(0.25, Math.min(4, canvasZoomRef.current * factor))
+      setCanvasZoom(next)
+    }
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [setCanvasZoom])
+
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    let lastDist = 0
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        lastDist = Math.hypot(
+          e.touches[1]!.clientX - e.touches[0]!.clientX,
+          e.touches[1]!.clientY - e.touches[0]!.clientY,
+        )
+      }
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return
+      e.preventDefault()
+      const dist = Math.hypot(
+        e.touches[1]!.clientX - e.touches[0]!.clientX,
+        e.touches[1]!.clientY - e.touches[0]!.clientY,
+      )
+      if (lastDist > 0) {
+        const scale = dist / lastDist
+        const next = Math.max(0.25, Math.min(4, canvasZoomRef.current * scale))
+        setCanvasZoom(next)
+      }
+      lastDist = dist
+    }
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+    }
+  }, [setCanvasZoom])
 
   /** Fabric sets upper-canvas cursor on every move — override after toggle so I-beam shows without waiting for mousemove. */
   useLayoutEffect(() => {
@@ -715,6 +771,7 @@ export function StampCanvas() {
               width: stampRect.width,
               height: stampRect.height,
               boxSizing: 'border-box',
+              transform: canvasZoom !== 1 ? `scale(${canvasZoom})` : undefined,
             }}
           >
             <div
