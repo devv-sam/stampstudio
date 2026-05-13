@@ -86,6 +86,10 @@ export type StampEditorContextValue = {
   /** Resize stamp to exact preset dimensions (px), clamped to the canvas stage. */
   applyStampSizePreset: (width: number, height: number) => void
 
+  /** CSS-level view zoom applied to the stamp (1 = 100%, 0.25–4). Does not affect stamp pixel dimensions. */
+  canvasZoom: number
+  setCanvasZoom: (zoom: number) => void
+
   exportPng: (multiplier?: number) => Promise<void>
   exportJpeg: (options?: { multiplier?: number; quality?: number }) => Promise<void>
   exportSvg: () => Promise<void>

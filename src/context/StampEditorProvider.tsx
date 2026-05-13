@@ -69,6 +69,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     width: 420,
     height: 300,
   })
+  const [canvasZoom, setCanvasZoom] = useState(1)
   const [snapToPresetsEnabled, setSnapToPresetsEnabled] = useState(true)
   const snapToPresetsEnabledRef = useRef(true)
 
@@ -702,6 +703,8 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       updateTextLayer,
       removeTextLayer,
       applyStampSizePreset,
+      canvasZoom,
+      setCanvasZoom,
       exportPng,
       exportJpeg,
       exportSvg,
@@ -739,6 +742,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       updateTextLayer,
       removeTextLayer,
       applyStampSizePreset,
+      canvasZoom,
       exportPng,
       exportJpeg,
       exportSvg,
