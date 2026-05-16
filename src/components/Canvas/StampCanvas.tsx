@@ -28,6 +28,7 @@ import {
 import { FRAME_OBJECT_TAG } from '../../utils/stampImageHelpers'
 import {
   findTextByLayerId,
+  getAllTextObjects,
   isTextObject,
   readTextLayerId,
 } from '../../utils/textHelpers'
@@ -209,6 +210,8 @@ export function StampCanvas() {
   } = useStampEditor()
 
   const canvasZoomRef = useRef(canvasZoom)
+  const textOverlayRef = useRef<HTMLCanvasElement>(null)
+  const activeShaderRef = useRef(activeShader)
 
   const updateTextLayerRef = useRef<
     (
@@ -244,6 +247,17 @@ export function StampCanvas() {
   useLayoutEffect(() => {
     canvasZoomRef.current = canvasZoom
   }, [canvasZoom])
+
+  useLayoutEffect(() => {
+    activeShaderRef.current = activeShader
+    if (!activeShader) {
+      const overlay = textOverlayRef.current
+      if (overlay) {
+        const ctx = overlay.getContext('2d')
+        ctx?.clearRect(0, 0, overlay.width, overlay.height)
+      }
+    }
+  }, [activeShader])
 
   useEffect(() => {
     const el = wrapRef.current
@@ -578,6 +592,26 @@ export function StampCanvas() {
     fabricCanvas.on('object:scaling', onObjectScaling)
     fabricCanvas.on('object:modified', onObjectModifiedCanvas)
 
+    const syncTextOverlay = () => {
+      const overlay = textOverlayRef.current
+      if (!overlay || !activeShaderRef.current) return
+      const textObjs = getAllTextObjects(stamp)
+      if (textObjs.length === 0) return
+      const nonTextObjs = stamp.getObjects().filter((obj) => !isTextObject(obj))
+      const savedVis = nonTextObjs.map((obj) => obj.visible)
+      nonTextObjs.forEach((obj) => { obj.visible = false })
+      const tempEl = fabricCanvas.toCanvasElement()
+      nonTextObjs.forEach((obj, i) => { obj.visible = savedVis[i]! })
+      overlay.width = tempEl.width
+      overlay.height = tempEl.height
+      const ctx = overlay.getContext('2d')
+      if (ctx) {
+        ctx.clearRect(0, 0, overlay.width, overlay.height)
+        ctx.drawImage(tempEl, 0, 0)
+      }
+    }
+    fabricCanvas.on('after:render', syncTextOverlay)
+
     fabricRef.current = fabricCanvas
     stampRef.current = stamp
     const exportCompositedRaster: NonNullable<
@@ -606,21 +640,8 @@ export function StampCanvas() {
       }
 
       const shaderCanvas = content.querySelector(
-        'canvas:not(.lower-canvas):not(.upper-canvas)',
+        'canvas:not(.lower-canvas):not(.upper-canvas):not(.stampstudio-text-overlay)',
       ) as HTMLCanvasElement | null
-      if (shaderCanvas && shaderCanvas.width > 0 && shaderCanvas.height > 0) {
-        ctx.drawImage(
-          shaderCanvas,
-          0,
-          0,
-          shaderCanvas.width,
-          shaderCanvas.height,
-          0,
-          0,
-          outW,
-          outH,
-        )
-      }
 
       const fabricLower = content.querySelector(
         'canvas.lower-canvas',
@@ -637,6 +658,33 @@ export function StampCanvas() {
           outW,
           outH,
         )
+      }
+
+      if (shaderCanvas && shaderCanvas.width > 0 && shaderCanvas.height > 0) {
+        ctx.globalCompositeOperation = 'multiply'
+        ctx.drawImage(
+          shaderCanvas,
+          0,
+          0,
+          shaderCanvas.width,
+          shaderCanvas.height,
+          0,
+          0,
+          outW,
+          outH,
+        )
+        ctx.globalCompositeOperation = 'source-over'
+
+        // Redraw text clean on top so shader doesn't affect it
+        const textObjs = getAllTextObjects(stamp)
+        if (textObjs.length > 0) {
+          const nonTextObjs = stamp.getObjects().filter((obj) => !isTextObject(obj))
+          const savedVis = nonTextObjs.map((obj) => obj.visible)
+          nonTextObjs.forEach((obj) => { obj.visible = false })
+          const textOnlyEl = fabricCanvas.toCanvasElement()
+          nonTextObjs.forEach((obj, i) => { obj.visible = savedVis[i]! })
+          ctx.drawImage(textOnlyEl, 0, 0, textOnlyEl.width, textOnlyEl.height, 0, 0, outW, outH)
+        }
       }
 
       ctx.save()
@@ -692,6 +740,7 @@ export function StampCanvas() {
       fabricCanvas.off('object:moving', onObjectMoving)
       fabricCanvas.off('object:scaling', onObjectScaling)
       fabricCanvas.off('object:modified', onObjectModifiedCanvas)
+      fabricCanvas.off('after:render', syncTextOverlay)
       unregister()
       fabricCanvas.dispose()
       fabricRef.current = null
@@ -810,6 +859,10 @@ export function StampCanvas() {
               >
                 <canvas ref={canvasElRef} className="block h-full w-full" />
               </div>
+              <canvas
+                ref={textOverlayRef}
+                className="stampstudio-text-overlay pointer-events-none absolute inset-0 z-40 h-full w-full"
+              />
 
               {frameTravelRect ? (
                 <div

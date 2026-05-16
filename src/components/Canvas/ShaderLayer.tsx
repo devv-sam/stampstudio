@@ -98,12 +98,13 @@ export function ShaderLayer({
 
   return (
     <div
-      className="pointer-events-none absolute z-10 overflow-hidden"
+      className="pointer-events-none absolute z-30 overflow-hidden"
       style={{
         left: rect.left,
         top: rect.top,
         width: w,
         height: h,
+        mixBlendMode: 'multiply',
       }}
     >
       {activeShader === 'halftone-dots' ? (
