@@ -423,7 +423,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     void (async () => {
       if (activeShader) {
-        bgRect.set({ fill: 'transparent' })
+        bgRect.set({ fill: '#ffffff' })
         if (!cancelled) api.canvas.requestRenderAll()
         return
       }

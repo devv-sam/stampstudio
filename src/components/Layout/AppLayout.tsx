@@ -15,7 +15,17 @@ export function AppLayout({ header }: { header?: ReactNode }) {
             stampstudio
           </h1>
         </div>
-        <div className="flex items-center gap-4">{header}</div>
+        <div className="flex items-center gap-4">
+          {header}
+          <a
+            href="https://devvsam.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+          >
+            by @devvsam
+          </a>
+        </div>
       </header>
 
       <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">

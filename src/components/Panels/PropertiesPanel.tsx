@@ -104,7 +104,7 @@ export function PropertiesPanel() {
   const bgUpload = useImageUploadFlow();
 
   const [pickerOpen, setPickerOpen] = useState(false);
-  const pickerRef = useRef<HTMLDivElement>(null);
+  const pickerRef = useRef<HTMLButtonElement>(null);
   const [fillTab, setFillTab] = useState<"solid" | "image">("solid");
   const fillKind: "solid" | "image" = backgroundAsset ? "image" : fillTab;
   /** Open accordion only — does not turn the canvas effect off when collapsed. */
@@ -222,8 +222,9 @@ export function PropertiesPanel() {
                 );
               })}
 
-              <div className="relative shrink-0" ref={pickerRef}>
+              <div className="relative shrink-0">
                 <button
+                  ref={pickerRef}
                   type="button"
                   onClick={() => setPickerOpen((o) => !o)}
                   title="Custom color"
@@ -239,20 +240,16 @@ export function PropertiesPanel() {
                     outlineOffset: "1px",
                   }}
                 />
-                {pickerOpen ? (
-                  <div
-                    className="absolute right-0 top-7 z-50"
-                    onMouseLeave={() => setPickerOpen(false)}
-                  >
-                    <ChromePicker
-                      color={stampColor}
-                      onChange={(c) => {
-                        void pickSolidStampColor(c.hex);
-                        setFillTab("solid");
-                      }}
-                      disableAlpha
-                    />
-                  </div>
+                {pickerOpen && pickerRef.current ? (
+                  <ColorPickerPortal
+                    anchorEl={pickerRef.current}
+                    colorHex={stampColor}
+                    onPick={(hex) => {
+                      void pickSolidStampColor(hex);
+                      setFillTab("solid");
+                    }}
+                    onClose={() => setPickerOpen(false)}
+                  />
                 ) : null}
               </div>
             </div>
@@ -1243,7 +1240,7 @@ function SegmentTab({
   );
 }
 
-function CmykPickerPopover({
+function ColorPickerPortal({
   anchorEl,
   colorHex,
   onPick,
@@ -1402,7 +1399,7 @@ function CmykInkSwatches({
       </div>
 
       {picker ? (
-        <CmykPickerPopover
+        <ColorPickerPortal
           anchorEl={picker.anchor}
           colorHex={colors[picker.key]}
           onPick={(hx) => onPick(picker.key, hx)}

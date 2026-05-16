@@ -6,11 +6,13 @@ import {
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { ChromePicker } from "react-color";
+import { createPortal } from "react-dom";
 
 import { useStampEditor } from "../../hooks/useStampEditor";
 import { STAMP_FONTS, STAMP_FONT_SIZES } from "../../types/text";
@@ -108,6 +110,86 @@ const TEXT_LIGHT_SWATCH = new Set([
   "#fbfaf4",
 ]);
 
+function ColorPickerPortal({
+  anchorEl,
+  colorHex,
+  onPick,
+  onClose,
+}: {
+  anchorEl: HTMLElement;
+  colorHex: string;
+  onPick: (hex: string) => void;
+  onClose: () => void;
+}) {
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const reposition = () => {
+      const popover = popoverRef.current;
+      const a = anchorEl.getBoundingClientRect();
+      const guessW = 276;
+      const guessH = 340;
+      const margin = 8;
+      if (!popover) {
+        const left = Math.min(innerWidth - margin - guessW, Math.max(margin, a.right - guessW));
+        let top = a.bottom + 6;
+        if (top + guessH > innerHeight - margin) top = Math.max(margin, a.top - guessH - 6);
+        setPosition({ left, top });
+        return;
+      }
+      const pw = popover.offsetWidth;
+      const ph = popover.offsetHeight;
+      let left = a.right - pw;
+      if (left < margin) left = Math.max(margin, a.left - (pw - a.width));
+      if (left + pw > innerWidth - margin) left = Math.max(margin, innerWidth - pw - margin);
+      let top = a.bottom + 6;
+      if (top + ph > innerHeight - margin) top = Math.max(margin, a.top - ph - 6);
+      setPosition({ left, top });
+    };
+    reposition();
+    const raf = requestAnimationFrame(() => requestAnimationFrame(reposition));
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, [anchorEl]);
+
+  useEffect(() => {
+    const onPointer = (e: MouseEvent) => {
+      const popover = popoverRef.current;
+      if (!popover) return;
+      const t = e.target as Node | null;
+      if (!t || popover.contains(t) || anchorEl.contains(t)) return;
+      onClose();
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("mousedown", onPointer);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onPointer);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [anchorEl, onClose]);
+
+  return createPortal(
+    <div
+      ref={popoverRef}
+      className="fixed z-[100]"
+      style={{ left: position?.left ?? -9999, top: position?.top ?? -9999, visibility: position ? "visible" : "hidden" }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div className="rounded-xl border border-zinc-700 bg-[#141416] shadow-2xl">
+        <ChromePicker color={colorHex} onChange={(c) => onPick(c.hex)} disableAlpha />
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 /** Sidebar typography controls — only mounts when text is selected (caller may skip during placement mode). */
 export function ActiveTextTypography() {
   const {
@@ -119,6 +201,7 @@ export function ActiveTextTypography() {
   } = useStampEditor();
 
   const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerBtnRef = useRef<HTMLButtonElement>(null);
   const [fontDropdownOpen, setFontDropdownOpen] = useState(false);
   const [weightDropdownOpen, setWeightDropdownOpen] = useState(false);
   const [sizeDropdownOpen, setSizeDropdownOpen] = useState(false);
@@ -505,6 +588,7 @@ export function ActiveTextTypography() {
 
             <div className="relative shrink-0">
               <button
+                ref={pickerBtnRef}
                 type="button"
                 onClick={() => setPickerOpen((o) => !o)}
                 title="Custom color"
@@ -520,19 +604,13 @@ export function ActiveTextTypography() {
                   outlineOffset: "1px",
                 }}
               />
-              {pickerOpen ? (
-                <div
-                  className="absolute right-0 top-7 z-50"
-                  onMouseLeave={() => setPickerOpen(false)}
-                >
-                  <ChromePicker
-                    color={selected.color}
-                    onChange={(c) =>
-                      updateTextLayer(selected.id, { color: c.hex })
-                    }
-                    disableAlpha
-                  />
-                </div>
+              {pickerOpen && pickerBtnRef.current ? (
+                <ColorPickerPortal
+                  anchorEl={pickerBtnRef.current}
+                  colorHex={selected.color}
+                  onPick={(hex) => updateTextLayer(selected.id, { color: hex })}
+                  onClose={() => setPickerOpen(false)}
+                />
               ) : null}
             </div>
           </div>
