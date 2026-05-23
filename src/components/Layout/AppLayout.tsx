@@ -5,7 +5,7 @@ import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
 import { PropertiesPanel } from "../Panels/PropertiesPanel";
 import { StampSizeHud } from "./StampSizeHud";
 import { ZoomControl } from "../Canvas/ZoomControl";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics } from "@vercel/analytics/react";
 
 export function AppLayout({ header }: { header?: ReactNode }) {
   return (
