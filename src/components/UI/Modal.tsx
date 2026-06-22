@@ -11,11 +11,16 @@ export function Modal({
   onClose,
   children,
   labelledBy,
+  panelClassName = '',
+  animatePanel = true,
 }: {
   open: boolean
   onClose: () => void
   children: ReactNode
   labelledBy?: string
+  panelClassName?: string
+  /** When false, only the backdrop fades — panel appears instantly (no scale/slide). */
+  animatePanel?: boolean
 }) {
   useEffect(() => {
     if (!open) return
@@ -47,11 +52,11 @@ export function Modal({
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.98, y: 6 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: 4 }}
-            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className="relative z-10 flex max-h-[90vh] w-[min(640px,92vw)] flex-col overflow-hidden rounded-xl border border-zinc-800 bg-[#101010] shadow-2xl"
+            initial={animatePanel ? { opacity: 0, scale: 0.98, y: 6 } : false}
+            animate={animatePanel ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1 }}
+            exit={animatePanel ? { opacity: 0, scale: 0.98, y: 4 } : { opacity: 0 }}
+            transition={{ duration: animatePanel ? 0.18 : 0, ease: [0.22, 1, 0.36, 1] }}
+            className={`relative z-10 flex max-h-[90vh] w-[min(640px,92vw)] flex-col overflow-hidden rounded-xl border border-zinc-800 bg-[#101010] shadow-2xl ${panelClassName}`}
           >
             {children}
           </motion.div>

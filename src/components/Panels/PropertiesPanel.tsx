@@ -611,13 +611,15 @@ export function PropertiesPanel() {
             onClick={() => setSnapToPresetsEnabled(!snapToPresetsEnabled)}
             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border p-px transition-colors duration-200 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400/60 ${
               snapToPresetsEnabled
-                ? "border-zinc-500 bg-[#FF4B25]"
+                ? "border-zinc-400 bg-zinc-200"
                 : "border-zinc-700 bg-zinc-950"
             }`}
           >
             <motion.span
               aria-hidden
-              className={`pointer-events-none block h-3.5 w-3.5 rounded-full shadow-sm ring-1 ring-black/20 bg-zinc-300 `}
+              className={`pointer-events-none block h-3.5 w-3.5 rounded-full shadow-sm ring-1 ring-black/20 ${
+                snapToPresetsEnabled ? "bg-zinc-900" : "bg-zinc-400"
+              }`}
               animate={{ x: snapToPresetsEnabled ? 16 : 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 25 }}
             />
@@ -932,7 +934,7 @@ function AssetStrip({
                 asset.role === "background"
                   ? "border-white/80"
                   : asset.role === "frame"
-                    ? "border-amber-300/80"
+                    ? "border-zinc-500/80"
                     : "border-zinc-800 hover:border-zinc-700"
               }`}
               title={asset.role}
@@ -947,7 +949,7 @@ function AssetStrip({
                   bg
                 </span>
               ) : asset.role === "frame" ? (
-                <span className="absolute bottom-0.5 right-0.5 rounded bg-amber-300/95 px-1 text-[8px] font-bold uppercase tracking-wider text-zinc-950">
+                <span className="absolute bottom-0.5 right-0.5 rounded bg-zinc-300/95 px-1 text-[8px] font-bold uppercase tracking-wider text-zinc-950">
                   fr
                 </span>
               ) : null}

@@ -17,6 +17,8 @@ type CachedProps = {
   backgroundColor?: string
   textBackgroundColor?: string
   visible?: boolean
+  selectable?: boolean
+  evented?: boolean
 }
 
 const cache = new WeakMap<FabricObject, CachedProps>()
@@ -46,6 +48,8 @@ function cacheObject(obj: FabricObject) {
     opacity: obj.opacity,
     shadow: obj.shadow ?? null,
     visible: obj.visible,
+    selectable: obj.selectable,
+    evented: obj.evented,
   }
   if (isTextObject(obj)) {
     cached.backgroundColor = obj.backgroundColor ?? ''
@@ -99,6 +103,7 @@ function applyOutlineToObject(stamp: Group, obj: FabricObject) {
       stroke: OUTLINE_STROKE,
       strokeWidth: OUTLINE_STROKE_WIDTH,
       shadow: null,
+      ...(isBg ? { selectable: false, evented: false } : {}),
       ...(isTextObject(obj)
         ? { backgroundColor: '', textBackgroundColor: '' }
         : {}),
@@ -151,8 +156,8 @@ export function restoreOutlineMode(stamp: Group) {
       opacity: cached.opacity,
       shadow: cached.shadow,
       visible: cached.visible,
-      selectable: true,
-      evented: true,
+      selectable: cached.selectable,
+      evented: cached.evented,
       ...(isTextObject(obj)
         ? {
             backgroundColor: cached.backgroundColor,
