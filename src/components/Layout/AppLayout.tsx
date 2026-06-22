@@ -5,6 +5,8 @@ import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
 import { PropertiesPanel } from "../Panels/PropertiesPanel";
 import { StampSizeHud } from "./StampSizeHud";
 import { ZoomControl } from "../Canvas/ZoomControl";
+import { OutlineModeToggle } from "../Canvas/OutlineModeToggle";
+import { WhatsNewTrigger } from "../UI/ChangelogModal";
 import { Analytics } from "@vercel/analytics/react";
 
 export function AppLayout({ header }: { header?: ReactNode }) {
@@ -19,6 +21,7 @@ export function AppLayout({ header }: { header?: ReactNode }) {
             </h1>
           </div>
           <div className="flex items-center gap-4">
+            <WhatsNewTrigger />
             {header}
             <a
               href="https://devvsam.com"
@@ -35,7 +38,8 @@ export function AppLayout({ header }: { header?: ReactNode }) {
           <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[#141416]">
             <StampCanvas />
             <CanvasFloatBar />
-            <div className="pointer-events-auto absolute bottom-4 left-4 z-10">
+            <div className="pointer-events-auto absolute bottom-4 left-4 z-10 flex flex-col items-start gap-2">
+              <OutlineModeToggle />
               <ZoomControl />
             </div>
             <div className="pointer-events-none absolute bottom-4 right-4 z-10">
@@ -43,7 +47,7 @@ export function AppLayout({ header }: { header?: ReactNode }) {
             </div>
           </main>
 
-          <aside className="flex h-[42vh] w-full shrink-0 flex-col gap-4 overflow-y-auto border-t border-zinc-800/80 bg-[#101010] p-5 md:h-auto md:w-[320px] md:border-l md:border-t-0">
+          <aside className="flex h-[42vh] w-full shrink-0 flex-col gap-4 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-t border-zinc-800/80 bg-[#101010] p-5 md:h-auto md:w-[320px] md:border-l md:border-t-0">
             <PropertiesPanel />
           </aside>
         </div>

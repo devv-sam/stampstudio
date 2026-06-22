@@ -33,6 +33,7 @@ import {
   readTextLayerId,
 } from '../../utils/textHelpers'
 import { punchPerforationHoles } from '../../utils/exportHelpers'
+import { applyOutlineMode, restoreOutlineMode } from '../../utils/outlineMode'
 import { StampPerforations } from './StampPerforations'
 import { ShaderLayer } from './ShaderLayer'
 import {
@@ -197,6 +198,7 @@ export function StampCanvas() {
     activeShader,
     shaderParams,
     backgroundAsset,
+    frameAssets,
     stampColor,
     snapToPresetsEnabledRef,
     setSelectedTextId,
@@ -207,6 +209,7 @@ export function StampCanvas() {
     addTextLayerAtScene,
     canvasZoom,
     setCanvasZoom,
+    outlineMode,
   } = useStampEditor()
 
   const canvasZoomRef = useRef(canvasZoom)
@@ -258,6 +261,18 @@ export function StampCanvas() {
       }
     }
   }, [activeShader])
+
+  useEffect(() => {
+    const c = fabricRef.current
+    const s = stampRef.current
+    if (!c || !s) return
+    if (outlineMode) {
+      applyOutlineMode(s)
+    } else {
+      restoreOutlineMode(s)
+    }
+    c.requestRenderAll()
+  }, [outlineMode, textLayers, backgroundAsset, frameAssets, activeShader])
 
   useEffect(() => {
     const el = wrapRef.current
@@ -808,12 +823,16 @@ export function StampCanvas() {
         <StampPerforations
           width={stampRect?.width ?? 0}
           height={stampRect?.height ?? 0}
-          userDensity={perforationCount}
+          userDensity={outlineMode ? 0 : perforationCount}
         />
 
         {stampRect ? (
           <div
-            className="absolute z-0 rounded-sm ring-1 ring-inset ring-zinc-600/50"
+            className={`absolute z-0 rounded-sm ${
+              outlineMode
+                ? 'ring-1 ring-inset ring-white/50'
+                : 'ring-1 ring-inset ring-zinc-600/50'
+            }`}
             style={{
               left: stampRect.left,
               top: stampRect.top,
@@ -851,7 +870,7 @@ export function StampCanvas() {
                 rect={shaderRect}
                 imageSrc={backgroundAsset?.src ?? ''}
                 stampColor={stampColor}
-                activeShader={activeShader}
+                activeShader={outlineMode ? null : activeShader}
                 shaderParams={shaderParams}
               />
               <div
@@ -861,10 +880,12 @@ export function StampCanvas() {
               </div>
               <canvas
                 ref={textOverlayRef}
-                className="stampstudio-text-overlay pointer-events-none absolute inset-0 z-40 h-full w-full"
+                className={`stampstudio-text-overlay pointer-events-none absolute inset-0 z-40 h-full w-full ${
+                  outlineMode ? 'opacity-0' : ''
+                }`}
               />
 
-              {frameTravelRect ? (
+              {frameTravelRect && !outlineMode ? (
                 <div
                   className="pointer-events-none absolute inset-0 z-[15] border border-red-500/90"
                   style={{
@@ -879,7 +900,7 @@ export function StampCanvas() {
             </div>
 
             <AnimatePresence>
-              {snapGuide && stampRect ? (
+              {snapGuide && stampRect && !outlineMode ? (
                 <motion.div
                   key={`snap-guide-${snapGuide.w}-${snapGuide.h}-${snapGuide.expanded ? 'e' : 'c'}`}
                   layout
@@ -911,7 +932,7 @@ export function StampCanvas() {
               ) : null}
             </AnimatePresence>
 
-            <div className="pointer-events-none absolute inset-0 z-[21]">
+            <div className={`pointer-events-none absolute inset-0 z-[21] ${outlineMode ? 'opacity-0' : ''}`}>
               <StampResizeChromeOverlay rect={chromeRect} />
             </div>
           </div>

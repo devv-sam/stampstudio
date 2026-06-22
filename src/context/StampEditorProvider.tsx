@@ -70,6 +70,11 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     height: 300,
   })
   const [canvasZoom, setCanvasZoom] = useState(1)
+  const [outlineMode, setOutlineMode] = useState(false)
+
+  const toggleOutlineMode = useCallback(() => {
+    setOutlineMode((on) => !on)
+  }, [])
   const [snapToPresetsEnabled, setSnapToPresetsEnabled] = useState(true)
   const snapToPresetsEnabledRef = useRef(true)
 
@@ -705,6 +710,9 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       applyStampSizePreset,
       canvasZoom,
       setCanvasZoom,
+      outlineMode,
+      setOutlineMode,
+      toggleOutlineMode,
       exportPng,
       exportJpeg,
       exportSvg,
@@ -743,6 +751,8 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       removeTextLayer,
       applyStampSizePreset,
       canvasZoom,
+      outlineMode,
+      toggleOutlineMode,
       exportPng,
       exportJpeg,
       exportSvg,

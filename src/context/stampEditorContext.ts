@@ -90,6 +90,11 @@ export type StampEditorContextValue = {
   canvasZoom: number
   setCanvasZoom: (zoom: number) => void
 
+  /** Wireframe view — shows object outlines only (Figma-style). */
+  outlineMode: boolean
+  setOutlineMode: (enabled: boolean) => void
+  toggleOutlineMode: () => void
+
   exportPng: (multiplier?: number) => Promise<void>
   exportJpeg: (options?: { multiplier?: number; quality?: number }) => Promise<void>
   exportSvg: () => Promise<void>
