@@ -7,7 +7,7 @@ All notable changes to Stampstudio are documented here.
 ### Added
 
 - **Outline mode** — wireframe view of every layer on your stamp (⌘Y / Ctrl+Y). Toggle in the bottom-left above the zoom bar.
-- **Changelog modal** — "What's new" in the header with first-visit auto-open.
+- **Changelog page** — `/changelog` parsed from this file, with an unread badge in the header until viewed.
 - Shaders: halftone dots, fluted glass, CMYK halftone, and dithering.
 - Typography: searchable fonts, weights, sizes, and color presets.
 - Frames and backgrounds: upload images, crop, and layer on the canvas.
