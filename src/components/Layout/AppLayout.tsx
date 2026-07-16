@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { Analytics } from "@vercel/analytics/react";
 
 import { StampCanvas } from "../Canvas/StampCanvas";
 import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
@@ -6,8 +8,28 @@ import { PropertiesPanel } from "../Panels/PropertiesPanel";
 import { StampSizeHud } from "./StampSizeHud";
 import { ZoomControl } from "../Canvas/ZoomControl";
 import { OutlineModeToggle } from "../Canvas/OutlineModeToggle";
-import { WhatsNewTrigger } from "../UI/ChangelogModal";
-import { Analytics } from "@vercel/analytics/react";
+import { getLatestVersion } from "../../data/changelog";
+import { hasUnseenChangelog } from "../../utils/changelogStorage";
+
+function ChangelogLink() {
+  const latest = getLatestVersion();
+  const unread = hasUnseenChangelog(latest);
+
+  return (
+    <Link
+      to="/changelog"
+      className="relative inline-flex cursor-pointer font-medium items-center gap-1.5 text-xs hover:text-zinc-200"
+    >
+      Updates
+      {unread ? (
+        <span
+          className="h-1.5 w-1.5 rounded-full bg-white"
+          aria-label="Unread updates"
+        />
+      ) : null}
+    </Link>
+  );
+}
 
 export function AppLayout({ header }: { header?: ReactNode }) {
   return (
@@ -21,7 +43,7 @@ export function AppLayout({ header }: { header?: ReactNode }) {
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <WhatsNewTrigger />
+            <ChangelogLink />
             {header}
             <a
               href="https://devvsam.com"
