@@ -2,12 +2,17 @@
 
 All notable changes to Stampstudio are documented here.
 
-## [1.0.0] - 2026-06-22
+## [1.0.0] - 2026-06-22 — Outline mode & bug fixes
 
 ### Added
 
-- **Outline mode** — wireframe view of every layer on your stamp (⌘Y / Ctrl+Y). Toggle in the bottom-left above the zoom bar.
-- **Changelog page** — `/changelog` parsed from this file, with an unread badge in the header until viewed.
+- Outline Mode — wireframe view of every layer on your stamp (⌘Y / Ctrl+Y). Toggle in the bottom-left above the zoom bar.
+- Properties panel scrollbar hidden when typography section expands — no more layout offset on color swatches.
+
+## [0.1.0] - 2026-04-27 — Launch
+
+### Added
+
 - Shaders: halftone dots, fluted glass, CMYK halftone, and dithering.
 - Typography: searchable fonts, weights, sizes, and color presets.
 - Frames and backgrounds: upload images, crop, and layer on the canvas.
@@ -24,5 +29,3 @@ All notable changes to Stampstudio are documented here.
 
 - Responsive layout improvements for mobile and desktop.
 - Properties panel polish across fill, typography, and shader controls.
-
-[1.0.0]: https://github.com/devv-sam/stampstudio/releases/tag/v1.0.0
