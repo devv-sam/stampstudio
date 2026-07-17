@@ -1,70 +1,73 @@
-import { useCallback, useState } from 'react'
-import Cropper, { type Area } from 'react-easy-crop'
+import { useCallback, useState } from "react";
+import Cropper, { type Area } from "react-easy-crop";
 
-import { Modal } from '../UI/Modal'
-import { Button } from '../UI/Button'
-import { cropImageToDataUrl } from '../../utils/imageHelpers'
+import { Modal } from "../UI/Modal";
+import { Button } from "../UI/Button";
+import { cropImageToDataUrl } from "../../utils/imageHelpers";
 
 export type AspectChoice = {
-  id: string
-  label: string
+  id: string;
+  label: string;
   /** undefined = free-form (no constraint). */
-  value: number | undefined
-}
+  value: number | undefined;
+};
 
 const ASPECT_CHOICES: AspectChoice[] = [
-  { id: 'free', label: 'Free', value: undefined },
-  { id: 'stamp', label: 'Match stamp', value: 420 / 300 },
-  { id: 'square', label: '1:1', value: 1 },
-  { id: 'wide', label: '16:9', value: 16 / 9 },
-]
+  { id: "free", label: "Free", value: undefined },
+  { id: "stamp", label: "Match stamp", value: 420 / 300 },
+  { id: "square", label: "1:1", value: 1 },
+  { id: "wide", label: "16:9", value: 16 / 9 },
+];
 
 export function CropStep({
   src,
   onCancel,
   onConfirm,
   confirmDisabled = false,
-  confirmLabel = 'Continue',
+  confirmLabel = "Continue",
 }: {
-  src: string
-  onCancel: () => void
-  onConfirm: (dataUrl: string, width: number, height: number) => void
+  src: string;
+  onCancel: () => void;
+  onConfirm: (dataUrl: string, width: number, height: number) => void;
   /** Combined with cropping state — e.g. while parent persists the asset */
-  confirmDisabled?: boolean
-  confirmLabel?: string
+  confirmDisabled?: boolean;
+  confirmLabel?: string;
 }) {
-  const [crop, setCrop] = useState({ x: 0, y: 0 })
-  const [zoom, setZoom] = useState(1)
-  const [aspect, setAspect] = useState<AspectChoice>(ASPECT_CHOICES[1])
-  const [pixelArea, setPixelArea] = useState<Area | null>(null)
-  const [isCropping, setIsCropping] = useState(false)
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [aspect, setAspect] = useState<AspectChoice>(ASPECT_CHOICES[1]);
+  const [pixelArea, setPixelArea] = useState<Area | null>(null);
+  const [isCropping, setIsCropping] = useState(false);
 
   const onCropComplete = useCallback((_: Area, areaPixels: Area) => {
-    setPixelArea(areaPixels)
-  }, [])
+    setPixelArea(areaPixels);
+  }, []);
 
   const onApply = async () => {
-    if (!pixelArea) return
-    setIsCropping(true)
+    if (!pixelArea) return;
+    setIsCropping(true);
     try {
-      const result = await cropImageToDataUrl(src, pixelArea)
-      onConfirm(result.dataUrl, result.width, result.height)
+      const result = await cropImageToDataUrl(src, pixelArea);
+      onConfirm(result.dataUrl, result.width, result.height);
     } finally {
-      setIsCropping(false)
+      setIsCropping(false);
     }
-  }
+  };
 
   return (
     <Modal open onClose={onCancel} labelledBy="crop-step-title">
       <div className="flex flex-col">
         <header className="flex items-center justify-between border-b border-zinc-800/80 px-5 py-3">
-          <h2 id="crop-step-title" className="text-sm font-medium text-zinc-200">
+          <h2
+            id="crop-step-title"
+            className="text-sm font-medium text-zinc-200"
+          >
             Crop & adjust
           </h2>
           <button
             type="button"
             onClick={onCancel}
-            className="text-xs text-zinc-500 hover:text-zinc-300"
+            className="text-xs text-zinc-500 cursor-pointer hover:text-zinc-300"
           >
             Cancel
           </button>
@@ -91,21 +94,21 @@ export function CropStep({
             </span>
             <div className="flex flex-wrap gap-1">
               {ASPECT_CHOICES.map((choice) => {
-                const active = aspect.id === choice.id
+                const active = aspect.id === choice.id;
                 return (
                   <button
                     key={choice.id}
                     type="button"
                     onClick={() => setAspect(choice)}
-                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
                       active
-                        ? 'bg-white text-zinc-950'
-                        : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                        ? "bg-white text-zinc-950"
+                        : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                     }`}
                   >
                     {choice.label}
                   </button>
-                )
+                );
               })}
             </div>
           </div>
@@ -127,19 +130,24 @@ export function CropStep({
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button variant="ghost" onClick={onCancel}>
+            <Button
+              variant="ghost"
+              className="cursor-pointer"
+              onClick={onCancel}
+            >
               Cancel
             </Button>
             <Button
               variant="primary"
               onClick={onApply}
+              className="cursor-pointer"
               disabled={!pixelArea || isCropping || confirmDisabled}
             >
-              {isCropping ? 'Cropping…' : confirmLabel}
+              {isCropping ? "Cropping…" : confirmLabel}
             </Button>
           </div>
         </div>
       </div>
     </Modal>
-  )
+  );
 }

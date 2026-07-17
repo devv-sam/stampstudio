@@ -12,7 +12,7 @@ export type StampCanvasApi = {
     format: 'png' | 'jpeg'
     multiplier: number
     quality?: number
-    /** Same count as the live clip-path perforations. */
+    /** Same density/ratio as the live clip-path perforations. */
     perforationCount: number
   }) => Promise<string | null>
 }

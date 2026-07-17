@@ -7,7 +7,6 @@ import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
 import { PropertiesPanel } from "../Panels/PropertiesPanel";
 import { StampSizeHud } from "./StampSizeHud";
 import { ZoomControl } from "../Canvas/ZoomControl";
-import { OutlineModeToggle } from "../Canvas/OutlineModeToggle";
 import { getLatestVersion } from "../../data/changelog";
 import { hasUnseenChangelog } from "../../utils/changelogStorage";
 
@@ -60,8 +59,7 @@ export function AppLayout({ header }: { header?: ReactNode }) {
           <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[#141416]">
             <StampCanvas />
             <CanvasFloatBar />
-            <div className="pointer-events-auto absolute bottom-4 left-4 z-10 flex flex-col items-start gap-2">
-              <OutlineModeToggle />
+            <div className="pointer-events-auto absolute bottom-4 left-4 z-10">
               <ZoomControl />
             </div>
             <div className="pointer-events-none absolute bottom-4 right-4 z-10">

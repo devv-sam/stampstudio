@@ -4,7 +4,7 @@ interface StampPerforationsProps {
   /** Stamp inner size in CSS px — path is in this coordinate system (matches clipped div). */
   width: number
   height: number
-  /** Slider density (0 = off); geometry also scales with width × height. */
+  /** Slider density/ratio (0 = off); sets shared pitch, not a fixed hole count. */
   userDensity: number
 }
 

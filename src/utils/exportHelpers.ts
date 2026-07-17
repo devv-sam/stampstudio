@@ -51,35 +51,33 @@ export function punchPerforationHoles(
   height: number,
   perforationCount: number,
 ) {
-  const { count, hSpacing, vSpacing, r } = getPerforationGeometry(
+  const { hCount, vCount, hSpacing, vSpacing, r } = getPerforationGeometry(
     width,
     height,
     perforationCount,
   )
-  if (count === 0) return
+  if (hCount === 0 && vCount === 0) return
 
   ctx.save()
   // Punch true alpha holes so PNG exports remain transparent over any backdrop.
   ctx.globalCompositeOperation = 'destination-out'
   ctx.fillStyle = 'rgba(0, 0, 0, 1)'
-  for (let i = 0; i < count; i += 1) {
-    const cxTopBottom = hSpacing * (i + 1)
-    const cyLeftRight = vSpacing * (i + 1)
-
+  for (let i = 0; i < hCount; i += 1) {
+    const cx = hSpacing * (i + 1)
     ctx.beginPath()
-    ctx.arc(cxTopBottom, 0, r, 0, Math.PI * 2)
+    ctx.arc(cx, 0, r, 0, Math.PI * 2)
     ctx.fill()
-
     ctx.beginPath()
-    ctx.arc(cxTopBottom, height, r, 0, Math.PI * 2)
+    ctx.arc(cx, height, r, 0, Math.PI * 2)
     ctx.fill()
-
+  }
+  for (let i = 0; i < vCount; i += 1) {
+    const cy = vSpacing * (i + 1)
     ctx.beginPath()
-    ctx.arc(0, cyLeftRight, r, 0, Math.PI * 2)
+    ctx.arc(0, cy, r, 0, Math.PI * 2)
     ctx.fill()
-
     ctx.beginPath()
-    ctx.arc(width, cyLeftRight, r, 0, Math.PI * 2)
+    ctx.arc(width, cy, r, 0, Math.PI * 2)
     ctx.fill()
   }
   ctx.restore()
@@ -194,21 +192,25 @@ export async function exportStampSvg(
     enableRetinaScaling: false,
   })
 
-  const { count, hSpacing, vSpacing, r } = getPerforationGeometry(
+  const { hCount, vCount, hSpacing, vSpacing, r } = getPerforationGeometry(
     width,
     height,
     perforationCount,
   )
 
   const circles: string[] = []
-  for (let i = 0; i < count; i += 1) {
-    const cxTopBottom = hSpacing * (i + 1)
-    const cyLeftRight = vSpacing * (i + 1)
+  for (let i = 0; i < hCount; i += 1) {
+    const cx = hSpacing * (i + 1)
     circles.push(
-      `<circle cx="${cxTopBottom}" cy="0" r="${r}" fill="${CANVAS_BG}" />`,
-      `<circle cx="${cxTopBottom}" cy="${height}" r="${r}" fill="${CANVAS_BG}" />`,
-      `<circle cx="0" cy="${cyLeftRight}" r="${r}" fill="${CANVAS_BG}" />`,
-      `<circle cx="${width}" cy="${cyLeftRight}" r="${r}" fill="${CANVAS_BG}" />`,
+      `<circle cx="${cx}" cy="0" r="${r}" fill="${CANVAS_BG}" />`,
+      `<circle cx="${cx}" cy="${height}" r="${r}" fill="${CANVAS_BG}" />`,
+    )
+  }
+  for (let i = 0; i < vCount; i += 1) {
+    const cy = vSpacing * (i + 1)
+    circles.push(
+      `<circle cx="0" cy="${cy}" r="${r}" fill="${CANVAS_BG}" />`,
+      `<circle cx="${width}" cy="${cy}" r="${r}" fill="${CANVAS_BG}" />`,
     )
   }
 
