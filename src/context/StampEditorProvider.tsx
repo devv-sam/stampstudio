@@ -45,6 +45,26 @@ import {
 
 export type { StampDimensions }
 
+const SNAP_TO_PRESETS_STORAGE_KEY = 'stampstudio-snap-to-presets'
+
+function readSnapToPresetsEnabled(): boolean {
+  try {
+    const stored = localStorage.getItem(SNAP_TO_PRESETS_STORAGE_KEY)
+    if (stored === null) return true
+    return stored === 'true'
+  } catch {
+    return true
+  }
+}
+
+function writeSnapToPresetsEnabled(enabled: boolean) {
+  try {
+    localStorage.setItem(SNAP_TO_PRESETS_STORAGE_KEY, String(enabled))
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 const defaultShaderParams: ShaderParamsMap = {
   'halftone-dots': { size: 0.5, type: 'gooey', contrast: 0.4 },
   'fluted-glass': { size: 0.5, distortion: 0.5, shape: 'lines' },
@@ -75,8 +95,15 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
   const toggleOutlineMode = useCallback(() => {
     setOutlineMode((on) => !on)
   }, [])
-  const [snapToPresetsEnabled, setSnapToPresetsEnabled] = useState(true)
-  const snapToPresetsEnabledRef = useRef(true)
+  const [snapToPresetsEnabled, setSnapToPresetsEnabledState] = useState(
+    readSnapToPresetsEnabled,
+  )
+  const snapToPresetsEnabledRef = useRef(snapToPresetsEnabled)
+
+  const setSnapToPresetsEnabled = useCallback((enabled: boolean) => {
+    setSnapToPresetsEnabledState(enabled)
+    writeSnapToPresetsEnabled(enabled)
+  }, [])
 
   snapToPresetsEnabledRef.current = snapToPresetsEnabled
   const [perforationCount, setPerforationCount] = useState(14)
