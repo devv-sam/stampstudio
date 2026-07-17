@@ -2,6 +2,17 @@
 
 All notable changes to Stampstudio are documented here.
 
+## [1.1.0] - 2026-07-16 — Canvas controls & smarter perforations
+
+### Changed
+
+- Perforations follow a density ratio instead of a fixed hole count — tall and wide stamps keep even spacing on every edge.
+- Outline mode toggle moved into the properties panel under Snap to presets (⌘Y / Ctrl+Y still works).
+
+### Fixed
+
+- Snap to presets preference is remembered when you leave for Updates and come back.
+
 ## [1.0.0] - 2026-06-22 — Outline mode & bug fixes
 
 ### Added

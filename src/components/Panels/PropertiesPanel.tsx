@@ -99,7 +99,30 @@ export function PropertiesPanel() {
     applyStampSizePreset,
     snapToPresetsEnabled,
     setSnapToPresetsEnabled,
+    outlineMode,
+    setOutlineMode,
+    toggleOutlineMode,
   } = useStampEditor();
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "y") return;
+      const target = e.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT")
+      ) {
+        return;
+      }
+      e.preventDefault();
+      toggleOutlineMode();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleOutlineMode]);
 
   const bgUpload = useImageUploadFlow();
 
@@ -593,75 +616,115 @@ export function PropertiesPanel() {
         </ShaderAccordionRow>
       </section>
 
-      <section className="space-y-3 border-t border-zinc-800 pt-5">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-          Size presets
-        </p>
-        <div className="flex items-center gap-2.5 pt-1">
-          <div className="min-w-0 flex-1">
-            <span className="block text-[11px] font-medium leading-tight text-zinc-300">
-              Snap to presets
-            </span>
+      <section className="space-y-5 border-t border-zinc-800 pt-5">
+        <div className="space-y-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            Canvas
+          </p>
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2.5">
+              <div className="min-w-0 flex-1">
+                <span className="block text-[11px] font-medium leading-tight text-zinc-300">
+                  Snap to presets
+                </span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={snapToPresetsEnabled}
+                aria-label="Snap to recommended sizes"
+                onClick={() => setSnapToPresetsEnabled(!snapToPresetsEnabled)}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border p-px transition-colors duration-200 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400/60 ${
+                  snapToPresetsEnabled
+                    ? "border-zinc-400 bg-zinc-200"
+                    : "border-zinc-700 bg-zinc-950"
+                }`}
+              >
+                <motion.span
+                  aria-hidden
+                  className={`pointer-events-none block h-3.5 w-3.5 rounded-full shadow-sm ring-1 ring-black/20 ${
+                    snapToPresetsEnabled ? "bg-zinc-900" : "bg-zinc-400"
+                  }`}
+                  animate={{ x: snapToPresetsEnabled ? 16 : 0 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                />
+              </button>
+            </div>
+            <div
+              className="flex items-center gap-2.5"
+              title="Wireframe view of stamp layers (⌘Y)"
+            >
+              <div className="min-w-0 flex-1">
+                <span className="block text-[11px] font-medium leading-tight text-zinc-300">
+                  Outline
+                </span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={outlineMode}
+                aria-label="Outline mode"
+                onClick={() => setOutlineMode(!outlineMode)}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border p-px transition-colors duration-200 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400/60 ${
+                  outlineMode
+                    ? "border-zinc-400 bg-zinc-200"
+                    : "border-zinc-700 bg-zinc-950"
+                }`}
+              >
+                <motion.span
+                  aria-hidden
+                  className={`pointer-events-none block h-3.5 w-3.5 rounded-full shadow-sm ring-1 ring-black/20 ${
+                    outlineMode ? "bg-zinc-900" : "bg-zinc-400"
+                  }`}
+                  animate={{ x: outlineMode ? 16 : 0 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                />
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={snapToPresetsEnabled}
-            aria-label="Snap to recommended sizes"
-            onClick={() => setSnapToPresetsEnabled(!snapToPresetsEnabled)}
-            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border p-px transition-colors duration-200 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400/60 ${
-              snapToPresetsEnabled
-                ? "border-zinc-400 bg-zinc-200"
-                : "border-zinc-700 bg-zinc-950"
-            }`}
-          >
-            <motion.span
-              aria-hidden
-              className={`pointer-events-none block h-3.5 w-3.5 rounded-full shadow-sm ring-1 ring-black/20 ${
-                snapToPresetsEnabled ? "bg-zinc-900" : "bg-zinc-400"
-              }`}
-              animate={{ x: snapToPresetsEnabled ? 16 : 0 }}
-              transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            />
-          </button>
         </div>
-        <div className="-mx-5 divide-y divide-zinc-800">
-          <SizePresetCategoryAccordion
-            title="Square"
-            expanded={expandedSizeCategory === "square"}
-            onToggle={() => toggleSizeCategory("square")}
-          >
-            <SizePresetChipGrid
-              ariaLabel="Square size presets"
-              presets={SNAP_PRESETS_SQUARE}
-              stampDimensions={stampDimensions}
-              onPick={tryApplySizePreset}
-            />
-          </SizePresetCategoryAccordion>
-          <SizePresetCategoryAccordion
-            title="Landscape"
-            expanded={expandedSizeCategory === "landscape"}
-            onToggle={() => toggleSizeCategory("landscape")}
-          >
-            <SizePresetChipGrid
-              ariaLabel="Landscape size presets"
-              presets={SNAP_PRESETS_LANDSCAPE}
-              stampDimensions={stampDimensions}
-              onPick={tryApplySizePreset}
-            />
-          </SizePresetCategoryAccordion>
-          <SizePresetCategoryAccordion
-            title="Portrait"
-            expanded={expandedSizeCategory === "portrait"}
-            onToggle={() => toggleSizeCategory("portrait")}
-          >
-            <SizePresetChipGrid
-              ariaLabel="Portrait size presets"
-              presets={SNAP_PRESETS_PORTRAIT}
-              stampDimensions={stampDimensions}
-              onPick={tryApplySizePreset}
-            />
-          </SizePresetCategoryAccordion>
+        <div className="space-y-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            Presets
+          </p>
+          <div className="-mx-5 -mt-2.5 divide-y divide-zinc-800">
+            <SizePresetCategoryAccordion
+              title="Square"
+              expanded={expandedSizeCategory === "square"}
+              onToggle={() => toggleSizeCategory("square")}
+            >
+              <SizePresetChipGrid
+                ariaLabel="Square size presets"
+                presets={SNAP_PRESETS_SQUARE}
+                stampDimensions={stampDimensions}
+                onPick={tryApplySizePreset}
+              />
+            </SizePresetCategoryAccordion>
+            <SizePresetCategoryAccordion
+              title="Landscape"
+              expanded={expandedSizeCategory === "landscape"}
+              onToggle={() => toggleSizeCategory("landscape")}
+            >
+              <SizePresetChipGrid
+                ariaLabel="Landscape size presets"
+                presets={SNAP_PRESETS_LANDSCAPE}
+                stampDimensions={stampDimensions}
+                onPick={tryApplySizePreset}
+              />
+            </SizePresetCategoryAccordion>
+            <SizePresetCategoryAccordion
+              title="Portrait"
+              expanded={expandedSizeCategory === "portrait"}
+              onToggle={() => toggleSizeCategory("portrait")}
+            >
+              <SizePresetChipGrid
+                ariaLabel="Portrait size presets"
+                presets={SNAP_PRESETS_PORTRAIT}
+                stampDimensions={stampDimensions}
+                onPick={tryApplySizePreset}
+              />
+            </SizePresetCategoryAccordion>
+          </div>
         </div>
       </section>
 
