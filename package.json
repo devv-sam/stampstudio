@@ -2,6 +2,7 @@
   "name": "stampstudio",
   "private": true,
   "version": "1.1.0",
+  "description": "Free online postage stamp maker and designer — custom photo stamps, typography, perforations, and print-style shaders.",
   "type": "module",
   "scripts": {
     "dev": "vite",

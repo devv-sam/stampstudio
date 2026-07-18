@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { Analytics } from "@vercel/analytics/react";
 
 import { getChangelog, getLatestVersion } from "../data/changelog";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { CHANGELOG_TITLE } from "../seo";
 import { markChangelogSeen } from "../utils/changelogStorage";
 import {
   formatVersionLabel,
@@ -155,6 +157,8 @@ function ReleaseEntry({ release }: { release: ChangelogRelease }) {
 export function ChangelogPage() {
   const releases = getChangelog();
   const latestVersion = getLatestVersion();
+
+  useDocumentTitle(CHANGELOG_TITLE);
 
   useEffect(() => {
     if (latestVersion) markChangelogSeen(latestVersion);

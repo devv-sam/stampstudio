@@ -8,6 +8,8 @@ import { PropertiesPanel } from "../Panels/PropertiesPanel";
 import { StampSizeHud } from "./StampSizeHud";
 import { ZoomControl } from "../Canvas/ZoomControl";
 import { getLatestVersion } from "../../data/changelog";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { HOME_TITLE } from "../../seo";
 import { hasUnseenChangelog } from "../../utils/changelogStorage";
 
 function ChangelogLink() {
@@ -31,6 +33,8 @@ function ChangelogLink() {
 }
 
 export function AppLayout({ header }: { header?: ReactNode }) {
+  useDocumentTitle(HOME_TITLE);
+
   return (
     <>
       <Analytics />
@@ -39,6 +43,10 @@ export function AppLayout({ header }: { header?: ReactNode }) {
           <div className="flex items-baseline gap-2">
             <h1 className="font-display text-base font-normal tracking-tight text-white lowercase">
               stampstudio
+              <span className="sr-only">
+                {" "}
+                — online postage stamp maker and designer
+              </span>
             </h1>
           </div>
           <div className="flex items-center gap-4">
@@ -57,6 +65,11 @@ export function AppLayout({ header }: { header?: ReactNode }) {
 
         <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">
           <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[#141416]">
+            <p className="sr-only">
+              Free online stamp maker to create custom postage stamps. Upload
+              photos, add typography, adjust perforated edges, apply print-style
+              shaders, and export PNG, JPEG, or SVG — no account required.
+            </p>
             <StampCanvas />
             <CanvasFloatBar />
             <div className="pointer-events-auto absolute bottom-4 left-4 z-10">

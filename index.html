@@ -2,18 +2,121 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>stampstudio</title>
+    <meta
+      name="description"
+      content="Free online stamp maker. Design custom postage stamps with photos, typography, perforated edges, and print-style shaders — then export PNG, JPEG, or SVG. No account required."
+    />
+    <meta
+      name="keywords"
+      content="online stamp maker, postage stamp maker, custom stamp designer, digital stamp generator, create stamp online, stamp designer, perforated stamp"
+    />
+    <meta name="author" content="devvsam" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <link rel="canonical" href="https://stampstudio.app/" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="stampstudio" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="https://stampstudio.app/" />
+    <meta property="og:title" content="stampstudio" />
+    <meta
+      property="og:description"
+      content="Design custom postage stamps online. Upload photos, add type, perforations, and shaders — export PNG, JPEG, or SVG. Free, no sign-up."
+    />
+    <meta property="og:image" content="https://stampstudio.app/og.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="stampstudio — online postage stamp maker"
+    />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="stampstudio" />
+    <meta
+      name="twitter:description"
+      content="Design custom postage stamps online. Upload photos, add type, perforations, and shaders — export PNG, JPEG, or SVG. Free, no sign-up."
+    />
+    <meta name="twitter:image" content="https://stampstudio.app/og.jpg" />
+    <meta name="twitter:image:alt" content="stampstudio" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "stampstudio",
+        "alternateName": ["Stamp Studio", "Stampstudio"],
+        "url": "https://stampstudio.app/",
+        "description": "Free online stamp maker to design custom postage stamps with photos, typography, perforated edges, and print-style shaders. Export PNG, JPEG, or SVG — no account required.",
+        "applicationCategory": "DesignApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "featureList": [
+          "Online postage stamp maker",
+          "Custom photo stamps",
+          "Typography and font controls",
+          "Adjustable perforated edges",
+          "Print-style shaders (halftone, dither, CMYK)",
+          "Export PNG, JPEG, and SVG"
+        ],
+        "creator": {
+          "@type": "Person",
+          "name": "devvsam",
+          "url": "https://devvsam.com"
+        },
+        "image": "https://stampstudio.app/og.jpg"
+      }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Bebas+Neue&family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Serif+Display&family=Fraunces:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Libre+Baskerville:wght@400;700&family=Playfair+Display:wght@400;700&family=Space+Grotesk:wght@400;500;700&family=Syne:wght@400;500;600;700;800&family=Unbounded:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <title>stampstudio</title>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <main
+        style="
+          max-width: 40rem;
+          margin: 2rem auto;
+          padding: 0 1.25rem;
+          font-family: Georgia, serif;
+          color: #f4f4f5;
+          background: #0a0a0a;
+        "
+      >
+        <h1>stampstudio — online postage stamp maker</h1>
+        <p>
+          Free online stamp maker and custom postage stamp designer. Upload a
+          photo, add typography, adjust perforated edges, apply print-style
+          shaders, and export PNG, JPEG, or SVG — no account required.
+        </p>
+        <p>
+          Enable JavaScript to open the stamp designer at
+          <a href="https://stampstudio.app/" style="color: #a1a1aa"
+            >stampstudio.app</a
+          >.
+        </p>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
