@@ -42,6 +42,7 @@ import {
   exportStampPng,
   exportStampSvg,
 } from '../utils/exportHelpers'
+import { addStampToLibrary } from '../utils/stampLibraryStorage'
 
 export type { StampDimensions }
 
@@ -89,6 +90,10 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     width: 420,
     height: 300,
   })
+  // Mirror the live stamp size into a ref so export callbacks can record it in
+  // the stamp library without taking it as a dependency (it changes on resize).
+  const stampDimensionsRef = useRef(stampDimensions)
+  stampDimensionsRef.current = stampDimensions
   const [canvasZoom, setCanvasZoom] = useState(1)
   const [outlineMode, setOutlineMode] = useState(false)
 
@@ -637,7 +642,11 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
   const exportPng = useCallback(
     async (multiplier = 2) => {
       const dataUrl = await producePngDataUrl(multiplier)
-      if (dataUrl) downloadDataUrl(dataUrl, 'stamp.png')
+      if (dataUrl) {
+        downloadDataUrl(dataUrl, 'stamp.png')
+        // Only downloaded stamps enter the library (feeds the Stampsheet tray).
+        addStampToLibrary({ src: dataUrl, ...stampDimensionsRef.current })
+      }
     },
     [producePngDataUrl],
   )
@@ -668,6 +677,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
           })
           if (dataUrl) {
             downloadDataUrl(dataUrl, 'stamp.jpg')
+            addStampToLibrary({ src: dataUrl, ...stampDimensionsRef.current })
             return
           }
         } catch {
@@ -678,6 +688,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
         exportStampJpeg(api.canvas, api.stamp, options, perforationCount),
       )
       downloadDataUrl(dataUrl, 'stamp.jpg')
+      addStampToLibrary({ src: dataUrl, ...stampDimensionsRef.current })
     },
     [perforationCount, withExportFallbackFill],
   )

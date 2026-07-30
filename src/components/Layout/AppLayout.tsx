@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
 import { Analytics } from "@vercel/analytics/react";
 
 import { StampCanvas } from "../Canvas/StampCanvas";
@@ -7,8 +8,11 @@ import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
 import { PropertiesPanel } from "../Panels/PropertiesPanel";
 import { StampSizeHud } from "./StampSizeHud";
 import { ZoomControl } from "../Canvas/ZoomControl";
+import { ExperimentsModal } from "../Experiments/ExperimentsModal";
+import { StampSheetExperiment } from "../Experiments/StampSheetExperiment";
 import { getLatestVersion } from "../../data/changelog";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { useExperiments } from "../../hooks/useExperiments";
 import { HOME_TITLE } from "../../seo";
 import { hasUnseenChangelog } from "../../utils/changelogStorage";
 
@@ -34,6 +38,7 @@ function ChangelogLink() {
 
 export function AppLayout({ header }: { header?: ReactNode }) {
   useDocumentTitle(HOME_TITLE);
+  const { active } = useExperiments();
 
   return (
     <>
@@ -85,6 +90,11 @@ export function AppLayout({ header }: { header?: ReactNode }) {
           </aside>
         </div>
       </div>
+
+      <ExperimentsModal />
+      <AnimatePresence>
+        {active === "stampsheet" ? <StampSheetExperiment /> : null}
+      </AnimatePresence>
     </>
   );
 }
