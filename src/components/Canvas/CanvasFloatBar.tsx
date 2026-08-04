@@ -50,7 +50,7 @@ export function CanvasFloatBar() {
   } = useStampEditor();
 
   const frameUpload = useImageUploadFlow({ defaultRole: "frame" });
-  const { openModal: openExperiments } = useExperiments();
+  const { launch: launchExperiment } = useExperiments();
 
   const [exportPopoverOpen, setExportPopoverOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormatChip>("png");
@@ -193,7 +193,7 @@ export function CanvasFloatBar() {
           </button>
           <button
             type="button"
-            onClick={openExperiments}
+            onClick={() => launchExperiment("stampsheet")}
             title="Experiments"
             className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center text-sm rounded-md font-bold text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
           >

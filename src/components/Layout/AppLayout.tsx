@@ -8,7 +8,6 @@ import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
 import { PropertiesPanel } from "../Panels/PropertiesPanel";
 import { StampSizeHud } from "./StampSizeHud";
 import { ZoomControl } from "../Canvas/ZoomControl";
-import { ExperimentsModal } from "../Experiments/ExperimentsModal";
 import { StampSheetExperiment } from "../Experiments/StampSheetExperiment";
 import { getLatestVersion } from "../../data/changelog";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -91,7 +90,6 @@ export function AppLayout({ header }: { header?: ReactNode }) {
         </div>
       </div>
 
-      <ExperimentsModal />
       <AnimatePresence>
         {active === "stampsheet" ? <StampSheetExperiment /> : null}
       </AnimatePresence>

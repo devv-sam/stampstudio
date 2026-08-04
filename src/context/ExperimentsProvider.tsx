@@ -13,20 +13,14 @@ import {
  * surface can share state without prop-drilling, and the studio stays unaware.
  */
 export function ExperimentsProvider({ children }: { children: ReactNode }) {
-  const [modalOpen, setModalOpen] = useState(false)
   const [active, setActive] = useState<ExperimentId | null>(null)
 
-  const openModal = useCallback(() => setModalOpen(true), [])
-  const closeModal = useCallback(() => setModalOpen(false), [])
-  const launch = useCallback((id: ExperimentId) => {
-    setModalOpen(false)
-    setActive(id)
-  }, [])
+  const launch = useCallback((id: ExperimentId) => setActive(id), [])
   const exit = useCallback(() => setActive(null), [])
 
   const value = useMemo<ExperimentsContextValue>(
-    () => ({ modalOpen, openModal, closeModal, active, launch, exit }),
-    [modalOpen, openModal, closeModal, active, launch, exit],
+    () => ({ active, launch, exit }),
+    [active, launch, exit],
   )
 
   return (
