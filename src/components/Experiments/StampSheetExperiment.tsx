@@ -9,13 +9,17 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
-import { motion } from "framer-motion";
-import { ArrowLeft, Download, Plus, SlidersHorizontal } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowLeft, Download, Plus, SlidersHorizontal, X } from "lucide-react";
 
-import { Sheet } from "../../vendor/stampstuff/index.js";
+import { Sheet, type Stamp } from "../../vendor/stampstuff/index.js";
 import { exportSheet } from "../../vendor/stampstuff/export.js";
 import embedTemplate from "../../vendor/stampstuff/embed-template.html?raw";
 import { useExperiments } from "../../hooks/useExperiments";
+import {
+  SheetSettingsPanel,
+  type SettingsTab,
+} from "./SheetSettingsPanel";
 import {
   getStampLibrary,
   type StampLibraryEntry,
@@ -67,6 +71,17 @@ export function StampSheetExperiment() {
 
   const [busy, setBusy] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
+
+  // Settings drawer + the sticker it's editing. `selectionKey` bumps on every
+  // selection change so the sticker controls remount with the new values (the
+  // sliders are uncontrolled — they read their start value once, on mount).
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("sheet");
+  const [selected, setSelected] = useState<Stamp | null>(null);
+  const [selectionKey, setSelectionKey] = useState(0);
+  // The live Sheet, mirrored into state so the settings panel can render with
+  // it (sheetRef stays for the imperative handlers, which run after render).
+  const [sheet, setSheet] = useState<Sheet | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -142,6 +157,24 @@ export function StampSheetExperiment() {
       dragEnabled: true,
     });
     sheetRef.current = sheet;
+    setSheet(sheet);
+
+    // Selection drives which sticker the settings drawer edits.
+    sheet.onSelect = (stamp: Stamp | null) => {
+      setSelected(stamp);
+      setSelectionKey((k) => k + 1);
+    };
+
+    // Double-clicking a sticker is the way into its settings: the preceding
+    // pointerdown already selected it, so this just opens the drawer on the
+    // Sticker tab. Double-clicking bare sheet is ignored.
+    const onDoubleClick = (e: MouseEvent) => {
+      const { x, y } = sheet.toWorld(e.clientX, e.clientY);
+      if (!sheet.pick(x, y)) return;
+      setSettingsOpen(true);
+      setSettingsTab("sticker");
+    };
+    sheet.canvas.addEventListener("dblclick", onDoubleClick);
 
     // Keep the dimension HUD glued above the selected stamp, updated per frame
     // (imperative — no React re-render on every animation tick).
@@ -166,10 +199,17 @@ export function StampSheetExperiment() {
     };
 
     return () => {
+      sheet.canvas.removeEventListener("dblclick", onDoubleClick);
       sheet.destroy();
       sheetRef.current = null;
+      setSheet(null);
     };
   }, []);
+
+  // Deselecting (or deleting) while on the Sticker tab drops back to Sheet —
+  // that tab has nothing to edit without a selection. Derived rather than
+  // stored, so losing the selection can't leave a stale tab behind.
+  const activeTab: SettingsTab = selected ? settingsTab : "sheet";
 
   // ── Drag a tray stamp onto the sheet → add it where it was dropped. ────────
   const onDrop = useCallback((e: DragEvent) => {
@@ -210,6 +250,15 @@ export function StampSheetExperiment() {
       img.src = src;
     };
     reader.readAsDataURL(file);
+  }, []);
+
+  // removeStamp clears sheet.selected but doesn't fire onSelect — do it here.
+  const onDeleteSelected = useCallback(() => {
+    const sheet = sheetRef.current;
+    if (!sheet || !sheet.selected) return;
+    sheet.removeStamp(sheet.selected);
+    setSelected(null);
+    setSelectionKey((k) => k + 1);
   }, []);
 
   const onDownload = useCallback(async () => {
@@ -363,38 +412,100 @@ export function StampSheetExperiment() {
         </div>
       ) : null}
 
-      {/* Bottom action bar (reuses the studio's floating-pill look). */}
-      <div className="flex shrink-0 items-center justify-center pb-8 pt-2">
-        <div className="flex items-center gap-1 rounded-md border border-zinc-700/90 bg-zinc-900/95 px-2 py-1.5">
-          <button
-            type="button"
-            onClick={exit}
-            title="Back to studio"
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
-          >
-            <ArrowLeft size={14} aria-hidden />
-            <span className="sr-only">Back to studio</span>
-          </button>
-          <button
-            type="button"
-            disabled
-            title="Settings — coming soon"
-            className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md text-zinc-600"
-          >
-            <SlidersHorizontal size={14} aria-hidden />
-            <span className="sr-only">Settings (coming soon)</span>
-          </button>
-          <button
-            type="button"
-            onClick={onDownload}
-            disabled={busy}
-            title="Export sheet as HTML"
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Download size={14} aria-hidden />
-            <span className="sr-only">Export sheet as HTML</span>
-          </button>
+      {/* Bottom action bar (reuses the studio's floating-pill look). While the
+          settings drawer is open the pill collapses to a single close button,
+          and the drawer floats directly above it, over the stamp drawer. */}
+      <div className="relative flex shrink-0 items-center justify-center pb-8 pt-2">
+        {/* Positioning shell stays mounted so the panel itself can be the
+            direct AnimatePresence child (it owns the enter/exit spring). */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-full z-30 mb-3 flex justify-center px-6 sm:px-10">
+          <div className="w-full max-w-3xl">
+            <AnimatePresence>
+              {settingsOpen && sheet ? (
+                <SheetSettingsPanel
+                  key="panel"
+                  sheet={sheet}
+                  selected={selected}
+                  selectionKey={selectionKey}
+                  tab={activeTab}
+                  onTabChange={setSettingsTab}
+                  onDeleteSelected={onDeleteSelected}
+                />
+              ) : null}
+            </AnimatePresence>
+          </div>
         </div>
+
+        <AnimatePresence mode="wait" initial={false}>
+          {settingsOpen ? (
+            <motion.div
+              key="close"
+              className="flex items-center rounded-md border border-zinc-700/90 bg-zinc-900/95 px-2 py-1.5"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{
+                type: "spring",
+                stiffness: 500,
+                damping: 28,
+                mass: 0.6,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(false)}
+                title="Close settings"
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
+              >
+                <X size={14} aria-hidden />
+                <span className="sr-only">Close settings</span>
+              </button>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="actions"
+              className="flex items-center gap-1 rounded-md border border-zinc-700/90 bg-zinc-900/95 px-2 py-1.5"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{
+                type: "spring",
+                stiffness: 500,
+                damping: 28,
+                mass: 0.6,
+              }}
+            >
+              <button
+                type="button"
+                onClick={exit}
+                title="Back to studio"
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
+              >
+                <ArrowLeft size={14} aria-hidden />
+                <span className="sr-only">Back to studio</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                title="Sheet settings"
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
+              >
+                <SlidersHorizontal size={14} aria-hidden />
+                <span className="sr-only">Sheet settings</span>
+              </button>
+              <button
+                type="button"
+                onClick={onDownload}
+                disabled={busy}
+                title="Export sheet as HTML"
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Download size={14} aria-hidden />
+                <span className="sr-only">Export sheet as HTML</span>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   );

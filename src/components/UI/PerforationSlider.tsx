@@ -15,7 +15,16 @@ interface PerforationSliderProps {
   step?: number
   damping?: number
   stiffness?: number
+  /** Commit — fires once the handle is released (or a key press settles). */
   onChange?: (value: number) => void
+  /**
+   * Live — fires on every value change as the spring tracks the drag. Use for
+   * targets that can absorb a value per frame (an imperative canvas/WebGL
+   * surface); prefer `onChange` for anything that triggers a React re-render.
+   */
+  onInput?: (value: number) => void
+  /** Render the read-out; defaults to the raw stepped number. */
+  format?: (value: number) => string
 }
 
 /** % of inner-bar width the handle starts fading before hitting label/value text. */
@@ -35,6 +44,8 @@ export function PerforationSlider({
   damping = 22,
   stiffness = 280,
   onChange,
+  onInput,
+  format,
 }: PerforationSliderProps) {
   const range = maxValue - minValue
   const clampedDefault = Math.min(Math.max(defaultValue, minValue), maxValue)
@@ -87,11 +98,24 @@ export function PerforationSlider({
     return () => ro.disconnect()
   })
 
+  /** Kept in a ref so an inline arrow doesn't resubscribe the spring listener. */
+  const onInputRef = useRef(onInput)
+  useEffect(() => {
+    onInputRef.current = onInput
+  })
+  /** Last value handed to onInput — suppresses no-op emits (and the mount one). */
+  const lastEmitted = useRef<number | null>(null)
+
   useEffect(() => {
     const onChangeX = (latest: number) => {
       const clamped = Math.max(0, Math.min(100, latest))
       const stepped = Math.round(((clamped / 100) * range) / step) * step
-      setCurrentValue(stepped + minValue)
+      const value = stepped + minValue
+      setCurrentValue(value)
+      if (lastEmitted.current !== null && lastEmitted.current !== value) {
+        onInputRef.current?.(value)
+      }
+      lastEmitted.current = value
       recompute(latest)
     }
     onChangeX(x.get())
@@ -137,7 +161,7 @@ export function PerforationSlider({
           ref={valueRef}
           className="pointer-events-none relative z-10 select-none pl-2 pr-3 font-mono text-sm tabular-nums text-zinc-300"
         >
-          {currentValue}
+          {format ? format(currentValue) : currentValue}
         </span>
 
         {/* Handle — sits a few pixels inside the fill's right edge */}
