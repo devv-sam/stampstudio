@@ -2,19 +2,19 @@
 
 All notable changes to Stampstudio are documented here.
 
-## [1.2.0] - 2026-08-04 — Stampsheet
+## [1.2.0] - 2026-08-04 - Stampsheet
 
 ### Added
 
-- Stampsheet — a new experiment behind the flask icon in the canvas toolbar. Arrange your stamps on a sheet you can actually push around: pick one up and it lifts, tilts toward the drag, and settles back with a bounce.
-- Stamp library — the last five stamps you export are kept and show up in the Stampsheet tray, sized exactly as they'll land on the sheet. Drag one onto the sheet to place it.
-- Sheet settings, behind the sliders button: idle motion, hover lift, tilt on drag, whether stickers can be dragged at all, and the sheet background colour.
-- Sticker settings — double-click any sticker on the sheet to style just that one: border width and colour, holographic foil with adjustable intensity, shadow, scale, and rotation. Every control previews live on the sheet as you drag it.
-- Export the sheet as a self-contained interactive HTML file. No network dependencies — the runtime and images are inlined, so it stays draggable wherever you open or embed it.
+- Stampsheet, a new experiment behind the flask icon in the canvas toolbar. Arrange your stamps on a sheet and drag them around. They lift when you pick them up and settle back with a bounce.
+- Stamp library: your last five exported stamps are saved and appear in the Stampsheet tray, ready to drag onto the sheet.
+- Sheet settings for motion, hover lift, tilt on drag, dragging, and background color.
+- Sticker settings: double-click a sticker to set its border, holographic foil, shadow, scale, and rotation. Changes preview live on the sheet.
+- Export the sheet as a single interactive HTML file that works offline.
 
 ### Changed
 
-- The Stampsheet stamp tray scrolls with the mouse wheel. It previously only responded to a sideways drag, so stamps past the edge were easy to miss.
+- The Stampsheet tray now scrolls with the mouse wheel, not just a sideways drag.
 
 ## [1.1.0] - 2026-07-16 — Canvas controls & smarter perforations
 
