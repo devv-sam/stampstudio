@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Download, Image as ImageIcon, Type } from "lucide-react";
+import { Download, FlaskConical, Image as ImageIcon, Type } from "lucide-react";
 
 import { useImageUploadFlow } from "../../hooks/useImageUploadFlow";
 import { useStampEditor } from "../../hooks/useStampEditor";
+import { useExperiments } from "../../hooks/useExperiments";
 
 type ExportFormatChip = "png" | "svg";
 type ResolutionChip = "1080p" | "4k" | "6k";
@@ -49,6 +50,7 @@ export function CanvasFloatBar() {
   } = useStampEditor();
 
   const frameUpload = useImageUploadFlow({ defaultRole: "frame" });
+  const { launch: launchExperiment } = useExperiments();
 
   const [exportPopoverOpen, setExportPopoverOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormatChip>("png");
@@ -188,6 +190,14 @@ export function CanvasFloatBar() {
             className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center text-sm rounded-md font-bold text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
           >
             <ImageIcon size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={() => launchExperiment("stampsheet")}
+            title="Experiments"
+            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center text-sm rounded-md font-bold text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
+          >
+            <FlaskConical size={12} />
           </button>
         </>
       )}
