@@ -2,6 +2,20 @@
 
 All notable changes to Stampstudio are documented here.
 
+## [1.2.0] - 2026-08-04 - Stampsheet
+
+### Added
+
+- Stampsheet, a new experiment behind the flask icon in the canvas toolbar. Arrange your stamps on a sheet and drag them around. They lift when you pick them up and settle back with a bounce.
+- Stamp library: your last five exported stamps are saved and appear in the Stampsheet tray, ready to drag onto the sheet.
+- Sheet settings for motion, hover lift, tilt on drag, dragging, and background color.
+- Sticker settings: double-click a sticker to set its border, holographic foil, shadow, scale, and rotation. Changes preview live on the sheet.
+- Export the sheet as a single interactive HTML file that works offline.
+
+### Changed
+
+- The Stampsheet tray now scrolls with the mouse wheel, not just a sideways drag.
+
 ## [1.1.0] - 2026-07-16 — Canvas controls & smarter perforations
 
 ### Changed
