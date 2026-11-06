@@ -23,7 +23,6 @@ import {
 } from '../../utils/fabricHelpers'
 import {
   STAMP_SNAP_COMMIT_THRESHOLD_PX,
-  STAMP_SNAP_GUIDE_OUTSET_PX,
   STAMP_SNAP_PRESETS,
   STAMP_SNAP_PREVIEW_THRESHOLD_PX,
 } from '../../utils/stampSnapSizes'
@@ -46,8 +45,28 @@ import {
 
 const DESK_FILL = 0.82
 const DESK_MAX_SCALE = 1.7
+const SNAP_GUIDE_GAP = 4
 const STAMP_SHADOW =
   'drop-shadow(0 1px 2px rgb(0 0 0 / 0.12)) drop-shadow(0 16px 24px rgb(0 0 0 / 0.14))'
+
+// view-only and fixed per stage, so resizing tracks the pointer and sizes read true
+function stageViewScale(stageW: number, stageH: number) {
+  return Math.min(
+    DESK_MAX_SCALE,
+    Math.max(
+      1,
+      Math.min(
+        (stageW * DESK_FILL) / STAMP_BASE_WIDTH,
+        (stageH * DESK_FILL) / STAMP_BASE_HEIGHT,
+      ),
+    ),
+  )
+}
+
+function roomForStamp(stageW: number, stageH: number) {
+  const scale = stageViewScale(stageW, stageH)
+  return { w: stageW / scale, h: stageH / scale }
+}
 
 function readChromeFromStamp(stamp: Group): ChromeRect {
   const box = stamp.getBoundingRect()
@@ -190,12 +209,10 @@ export function StampCanvas() {
   const [snapGuide, setSnapGuide] = useState<{
     w: number
     h: number
-    /** Larger dashed frame + early preview — only when resizing larger than gesture start. */
-    expanded: boolean
+    /** The stamp has committed to this preset, not just approaching it. */
+    snapped: boolean
   } | null>(null)
   const stampRectRef = useRef<RectBounds | null>(stampRect)
-  /** Stamp area (w×h) at pointer-down on a resize handle — grow vs shrink for snap UI. */
-  const resizeGestureStartAreaRef = useRef(0)
   /** True while dragging a stamp corner — must not discard selection on pointerleave (shell re-centers during resize). */
   const isStampResizingRef = useRef(false)
 
@@ -408,11 +425,15 @@ export function StampCanvas() {
     const stamp = createStampGroup()
     applyStampResizeHandles(stamp)
     fabricCanvas.add(stamp)
+    const initialRoom = roomForStamp(
+      stageSizeRef.current.w,
+      stageSizeRef.current.h,
+    )
     clampStampBoundsAndCenter(
       fabricCanvas,
       stamp,
-      stageSizeRef.current.w,
-      stageSizeRef.current.h,
+      initialRoom.w,
+      initialRoom.h,
       {
         snap:
           snapToPresetsEnabledRef.current
@@ -426,15 +447,13 @@ export function StampCanvas() {
       },
     )
 
-    const buildSnapOptions = (growSnapPreview: boolean) =>
+    const buildSnapOptions = () =>
       snapToPresetsEnabledRef.current
         ? {
             enabled: true as const,
             presets: STAMP_SNAP_PRESETS,
             commitThreshold: STAMP_SNAP_COMMIT_THRESHOLD_PX,
-            previewThreshold: growSnapPreview
-              ? STAMP_SNAP_PREVIEW_THRESHOLD_PX
-              : STAMP_SNAP_COMMIT_THRESHOLD_PX,
+            previewThreshold: STAMP_SNAP_PREVIEW_THRESHOLD_PX,
           }
         : undefined
 
@@ -465,19 +484,13 @@ export function StampCanvas() {
     }: {
       previewSnapOutline: boolean
     }) => {
-      const preA =
-        Math.round(stamp.getScaledWidth()) * Math.round(stamp.getScaledHeight())
-      const isGrowing =
-        resizeGestureStartAreaRef.current <= 0 ||
-        preA > resizeGestureStartAreaRef.current
-
-      const { w, h } = stageSizeRef.current
+      const room = roomForStamp(stageSizeRef.current.w, stageSizeRef.current.h)
       const { snapPreview } = clampStampBoundsAndCenter(
         fabricCanvas,
         stamp,
-        w,
-        h,
-        { snap: buildSnapOptions(isGrowing) },
+        room.w,
+        room.h,
+        { snap: buildSnapOptions() },
       )
       if (previewSnapOutline) {
         setSnapGuide(
@@ -485,7 +498,9 @@ export function StampCanvas() {
             ? {
                 w: snapPreview.w,
                 h: snapPreview.h,
-                expanded: isGrowing,
+                snapped:
+                  fabricCanvas.getWidth() === snapPreview.w &&
+                  fabricCanvas.getHeight() === snapPreview.h,
               }
             : null,
         )
@@ -591,9 +606,6 @@ export function StampCanvas() {
 
     const onStampScaleStart = () => {
       isStampResizingRef.current = true
-      resizeGestureStartAreaRef.current =
-        Math.round(stamp.getScaledWidth()) *
-        Math.round(stamp.getScaledHeight())
     }
 
     const onStampScaling = () => {
@@ -602,7 +614,6 @@ export function StampCanvas() {
 
     const onStampBoundsModified = () => {
       isStampResizingRef.current = false
-      resizeGestureStartAreaRef.current = 0
       setSnapGuide(null)
       runClampSync({ previewSnapOutline: false })
       userDesiredStampSizeRef.current = {
@@ -764,8 +775,8 @@ export function StampCanvas() {
         scaleY: th / STAMP_BASE_HEIGHT,
       })
       stamp.setCoords()
-      const { w, h } = stageSizeRef.current
-      clampStampBoundsAndCenter(fabricCanvas, stamp, w, h)
+      const room = roomForStamp(stageSizeRef.current.w, stageSizeRef.current.h)
+      clampStampBoundsAndCenter(fabricCanvas, stamp, room.w, room.h)
       fabricCanvas.requestRenderAll()
       syncStampScreenRect()
       syncChromeIfActive()
@@ -816,16 +827,17 @@ export function StampCanvas() {
     // stage expands again — without this, each shrink permanently reduces the scale.
     const desired = userDesiredStampSizeRef.current
     // shrink both axes together so a narrow stage doesn't squash the stamp
+    const room = roomForStamp(stageW, stageH)
     const fit = Math.min(
       1,
-      (stageW * STAMP_MAX_CANVAS_FRACTION) / desired.w,
-      (stageH * STAMP_MAX_CANVAS_FRACTION) / desired.h,
+      (room.w * STAMP_MAX_CANVAS_FRACTION) / desired.w,
+      (room.h * STAMP_MAX_CANVAS_FRACTION) / desired.h,
     )
     s.set({
       scaleX: (desired.w * fit) / STAMP_BASE_WIDTH,
       scaleY: (desired.h * fit) / STAMP_BASE_HEIGHT,
     })
-    clampStampBoundsAndCenter(c, s, stageW, stageH, {
+    clampStampBoundsAndCenter(c, s, room.w, room.h, {
       snap: snapToPresetsEnabledRef.current
         ? {
             enabled: true,
@@ -838,6 +850,8 @@ export function StampCanvas() {
     const rw = c.getWidth()
     const rh = c.getHeight()
     setStampRect(centeredStampScreenRect(stageW, stageH, rw, rh))
+    // the provider's size readout listens to stamp events, this clamp fires none
+    s.fire('moving', {} as never)
     c.requestRenderAll()
     if (c.getActiveObject() === s) {
       const next = readChromeFromStamp(s)
@@ -851,19 +865,7 @@ export function StampCanvas() {
     }
   }, [stageW, stageH])
 
-  // view-only scale, export still uses the stamp's real pixel size
-  const deskScale = stampRect
-    ? Math.min(
-        DESK_MAX_SCALE,
-        Math.max(
-          1,
-          Math.min(
-            (stageW * DESK_FILL) / stampRect.width,
-            (stageH * DESK_FILL) / stampRect.height,
-          ),
-        ),
-      )
-    : 1
+  const viewScale = stageViewScale(stageW, stageH)
 
   const shaderRect =
     stampRect === null
@@ -904,7 +906,7 @@ export function StampCanvas() {
                 : STAMP_SHADOW,
             }}
             initial={false}
-            animate={{ scale: canvasZoom * deskScale }}
+            animate={{ scale: canvasZoom * viewScale }}
             transition={settled ? springy : { duration: 0 }}
           >
             <div
@@ -967,33 +969,38 @@ export function StampCanvas() {
             <AnimatePresence>
               {snapGuide && stampRect && !outlineMode ? (
                 <motion.div
-                  key={`snap-guide-${snapGuide.w}-${snapGuide.h}-${snapGuide.expanded ? 'e' : 'c'}`}
-                  layout
-                  className="pointer-events-none absolute z-[14] rounded-[3px]"
+                  key={`snap-guide-${snapGuide.w}-${snapGuide.h}`}
+                  className={`pointer-events-none absolute z-[14] box-border rounded-[3px] border-2 transition-colors duration-100 ${
+                    snapGuide.snapped
+                      ? 'border-clover'
+                      : 'border-dashed border-cornflower'
+                  }`}
                   aria-hidden="true"
-                  style={(() => {
-                    const o = snapGuide.expanded
-                      ? STAMP_SNAP_GUIDE_OUTSET_PX
-                      : 0
-                    return {
-                      left: (stampRect.width - snapGuide.w - o * 2) / 2,
-                      top: (stampRect.height - snapGuide.h - o * 2) / 2,
-                      width: snapGuide.w + o * 2,
-                      height: snapGuide.h + o * 2,
-                      boxSizing: 'border-box' as const,
-                      border: snapGuide.expanded
-                        ? '2px dashed rgba(28, 28, 30, 0.55)'
-                        : '1px dashed rgba(28, 28, 30, 0.42)',
-                      boxShadow: snapGuide.expanded
-                        ? '0 0 0 1px rgba(28, 28, 30, 0.12)'
-                        : 'none',
-                    }
-                  })()}
-                  initial={{ opacity: 0, scale: 0.988 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.988 }}
-                  transition={{ duration: 0.11, ease: [0.22, 1, 0.36, 1] }}
-                />
+                  style={{
+                    left: (stampRect.width - snapGuide.w) / 2 - SNAP_GUIDE_GAP,
+                    top: (stampRect.height - snapGuide.h) / 2 - SNAP_GUIDE_GAP,
+                    width: snapGuide.w + SNAP_GUIDE_GAP * 2,
+                    height: snapGuide.h + SNAP_GUIDE_GAP * 2,
+                  }}
+                  initial={{ opacity: 0, filter: 'blur(4px)' }}
+                  animate={{
+                    opacity: 1,
+                    filter: 'blur(0px)',
+                    scale: snapGuide.snapped ? [1.03, 1] : 1,
+                  }}
+                  exit={{ opacity: 0, filter: 'blur(4px)' }}
+                  transition={{ duration: 0.16, ease: 'easeOut' }}
+                >
+                  <span
+                    className={`absolute -top-8 left-1/2 -translate-x-1/2 rounded-lg px-2 py-0.5 text-xs whitespace-nowrap tabular-nums transition-colors duration-100 ${
+                      snapGuide.snapped
+                        ? 'bg-clover text-ink'
+                        : 'bg-cornflower text-ink'
+                    }`}
+                  >
+                    {snapGuide.w} × {snapGuide.h}
+                  </span>
+                </motion.div>
               ) : null}
             </AnimatePresence>
 
@@ -1016,7 +1023,7 @@ export function StampCanvas() {
               top:
                 stampRect.top +
                 stampRect.height / 2 +
-                (stampRect.height / 2) * canvasZoom * deskScale +
+                (stampRect.height / 2) * canvasZoom * viewScale +
                 12,
             }}
             transition={settled ? springy : { duration: 0 }}

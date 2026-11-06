@@ -7,6 +7,7 @@ import {
   type ComponentType,
 } from "react";
 
+import { useDialKit } from "dialkit";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Check,
@@ -83,6 +84,23 @@ export function CanvasFloatBar() {
   } = useStampEditor();
 
   const { blurPop, press, springy } = useDeskMotion();
+  const nav = useDialKit(
+    "Bottom nav",
+    {
+      buttonSize: [35, 28, 64, 1],
+      iconSize: [20, 12, 32, 1],
+      iconStroke: [1.75, 1, 3, 0.05],
+      buttonRadius: [12, 0, 32, 1],
+      gap: [4, 0, 24, 1],
+      padding: [6, 0, 24, 1],
+      cardRadius: [12, 0, 48, 1],
+      dividerHeight: [20, 0, 40, 1],
+      dividerSpacing: [4, 0, 24, 1],
+      labelGap: [8, 0, 24, 1],
+      bottomOffset: [20, 0, 64, 1],
+    },
+    { id: "bottom-nav", persist: true },
+  );
   const frameUpload = useImageUploadFlow({ defaultRole: "frame" });
   const bgUpload = useImageUploadFlow();
   const { launch: launchExperiment } = useExperiments();
@@ -327,7 +345,8 @@ export function CanvasFloatBar() {
     <>
       <div
         ref={floatRootRef}
-        className="pointer-events-auto absolute bottom-5 left-1/2 z-40 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-col items-center gap-2"
+        className="pointer-events-auto absolute left-1/2 z-40 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-col items-center gap-2"
+        style={{ bottom: nav.bottomOffset }}
       >
         <AnimatePresence initial={false}>
           {exportPopoverOpen ? (
@@ -445,13 +464,19 @@ export function CanvasFloatBar() {
         </AnimatePresence>
 
         <div
-          className="desk-card relative flex items-center p-2"
+          className="desk-card relative flex items-center"
+          style={{
+            gap: nav.gap,
+            padding: nav.padding,
+            borderRadius: nav.cardRadius,
+          }}
           onPointerLeave={hideTip}
           onBlur={hideTip}
         >
           <motion.div
             aria-hidden
-            className="pointer-events-none absolute bottom-full left-0 mb-2"
+            className="pointer-events-none absolute bottom-full left-0"
+            style={{ marginBottom: nav.labelGap }}
             initial={false}
             animate={{
               x: tip.x,
@@ -474,7 +499,14 @@ export function CanvasFloatBar() {
           {groups.map((group, g) => (
             <Fragment key={group[0]!.label}>
               {g > 0 ? (
-                <span aria-hidden className="mx-1 h-5 w-px bg-zinc-700" />
+                <span
+                  aria-hidden
+                  className="w-px bg-zinc-700"
+                  style={{
+                    height: nav.dividerHeight,
+                    marginInline: nav.dividerSpacing,
+                  }}
+                />
               ) : null}
               {group.map(({ label, icon: Icon, tint, on, active, onClick }) => (
                 <motion.button
@@ -485,11 +517,20 @@ export function CanvasFloatBar() {
                   onClick={onClick}
                   onPointerEnter={(e) => showTip(label, e.currentTarget)}
                   onFocus={(e) => showTip(label, e.currentTarget)}
-                  className={`flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl transition-colors duration-150 ${tint} ${
+                  className={`flex shrink-0 cursor-pointer items-center justify-center transition-colors duration-150 ${tint} ${
                     active ? on : "text-ink"
                   }`}
+                  style={{
+                    width: nav.buttonSize,
+                    height: nav.buttonSize,
+                    borderRadius: nav.buttonRadius,
+                  }}
                 >
-                  <Icon size={20} strokeWidth={1.75} aria-hidden />
+                  <Icon
+                    size={nav.iconSize}
+                    strokeWidth={nav.iconStroke}
+                    aria-hidden
+                  />
                 </motion.button>
               ))}
             </Fragment>

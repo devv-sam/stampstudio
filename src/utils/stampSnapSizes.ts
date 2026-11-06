@@ -10,9 +10,6 @@ export const STAMP_SNAP_COMMIT_THRESHOLD_PX = 17
  */
 export const STAMP_SNAP_PREVIEW_THRESHOLD_PX = 48
 
-/** Outset around the target size so the dashed guide is easier to see (px per side). */
-export const STAMP_SNAP_GUIDE_OUTSET_PX = 12
-
 export type StampSnapPreset = { w: number; h: number }
 
 export const SNAP_PRESETS_SQUARE: readonly StampSnapPreset[] = [

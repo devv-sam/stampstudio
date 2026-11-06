@@ -217,8 +217,8 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
 
     const syncDimensions = () => {
       setStampDimensions({
-        width: Math.round(api.stamp.getScaledWidth()),
-        height: Math.round(api.stamp.getScaledHeight()),
+        width: api.canvas.getWidth(),
+        height: api.canvas.getHeight(),
       })
     }
 
