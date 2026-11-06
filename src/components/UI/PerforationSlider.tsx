@@ -41,7 +41,7 @@ export function PerforationSlider({
   minValue = 0,
   maxValue = 28,
   step = 1,
-  damping = 22,
+  damping = 32,
   stiffness = 280,
   onChange,
   onInput,

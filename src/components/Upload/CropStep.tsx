@@ -1,8 +1,11 @@
 import { useCallback, useState } from "react";
+import { motion } from "framer-motion";
 import Cropper, { type Area } from "react-easy-crop";
 
-import { Modal } from "../UI/Modal";
 import { Button } from "../UI/Button";
+import { Modal } from "../UI/Modal";
+import { PerforationSlider } from "../UI/PerforationSlider";
+import { useDeskMotion } from "../../utils/deskMotion";
 import { cropImageToDataUrl } from "../../utils/imageHelpers";
 
 export type AspectChoice = {
@@ -19,6 +22,15 @@ const ASPECT_CHOICES: AspectChoice[] = [
   { id: "wide", label: "16:9", value: 16 / 9 },
 ];
 
+const MAX_ZOOM = 4;
+
+function ratioBox(ratio: number | undefined) {
+  const r = ratio ?? 1;
+  return r >= 1
+    ? { width: 18, height: Math.round(18 / r) }
+    : { width: Math.round(18 * r), height: 18 };
+}
+
 export function CropStep({
   src,
   onCancel,
@@ -33,8 +45,11 @@ export function CropStep({
   confirmDisabled?: boolean;
   confirmLabel?: string;
 }) {
+  const { springy } = useDeskMotion();
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
+  // remounts the uncontrolled slider when scroll or pinch zooms the cropper
+  const [zoomSyncKey, setZoomSyncKey] = useState(0);
   const [aspect, setAspect] = useState<AspectChoice>(ASPECT_CHOICES[1]);
   const [pixelArea, setPixelArea] = useState<Area | null>(null);
   const [isCropping, setIsCropping] = useState(false);
@@ -56,96 +71,92 @@ export function CropStep({
 
   return (
     <Modal open onClose={onCancel} labelledBy="crop-step-title">
-      <div className="flex flex-col">
-        <header className="flex items-center justify-between border-b border-zinc-800/80 px-5 py-3">
-          <h2
-            id="crop-step-title"
-            className="text-sm font-medium text-zinc-200"
-          >
-            Crop & adjust
-          </h2>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="text-xs text-zinc-500 cursor-pointer hover:text-zinc-300"
-          >
-            Cancel
-          </button>
-        </header>
+      <div className="flex flex-col gap-3 p-3">
+        <h2 id="crop-step-title" className="px-2 pt-1 text-lg font-semibold">
+          Crop & adjust
+        </h2>
 
-        <div className="relative h-[360px] w-full bg-[#0a0a0a]">
+        <div className="relative h-[360px] w-full overflow-hidden rounded-2xl bg-desk max-md:h-[280px]">
           <Cropper
             image={src}
             crop={crop}
             zoom={zoom}
+            maxZoom={MAX_ZOOM}
             aspect={aspect.value}
             onCropChange={setCrop}
-            onZoomChange={setZoom}
+            onZoomChange={(next) => {
+              setZoom(next);
+              setZoomSyncKey((k) => k + 1);
+            }}
             onCropComplete={onCropComplete}
             objectFit="contain"
             showGrid
+            style={{
+              cropAreaStyle: {
+                color: "rgb(241 241 241 / 0.82)",
+                border: "2px solid var(--color-cornflower)",
+              },
+            }}
           />
         </div>
 
-        <div className="flex flex-col gap-4 border-t border-zinc-800/80 px-5 py-4">
-          <div className="flex items-center gap-2">
-            <span className="w-16 shrink-0 text-xs uppercase tracking-wider text-zinc-500">
-              Aspect
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {ASPECT_CHOICES.map((choice) => {
-                const active = aspect.id === choice.id;
-                return (
-                  <button
-                    key={choice.id}
-                    type="button"
-                    onClick={() => setAspect(choice)}
-                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
-                      active
-                        ? "bg-white text-zinc-950"
-                        : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
-                    }`}
-                  >
-                    {choice.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        <div
+          role="radiogroup"
+          aria-label="Aspect ratio"
+          className="flex flex-wrap gap-1 rounded-2xl bg-zinc-900 p-1"
+        >
+          {ASPECT_CHOICES.map((choice) => {
+            const active = aspect.id === choice.id;
+            return (
+              <button
+                key={choice.id}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setAspect(choice)}
+                className="relative flex h-10 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl text-sm whitespace-nowrap"
+              >
+                {active ? (
+                  <motion.span
+                    layoutId="crop-aspect-pill"
+                    transition={springy}
+                    className="absolute inset-0 rounded-xl bg-card shadow-sm"
+                  />
+                ) : null}
+                <motion.span
+                  aria-hidden
+                  initial={false}
+                  animate={ratioBox(choice.value)}
+                  transition={springy}
+                  className={`relative rounded-[3px] border-[1.5px] ${
+                    active ? "border-cornflower" : "border-zinc-500"
+                  } ${choice.value ? "" : "border-dashed"}`}
+                />
+                <span className="relative">{choice.label}</span>
+              </button>
+            );
+          })}
+        </div>
 
-          <div className="flex items-center gap-2">
-            <span className="w-16 shrink-0 text-xs uppercase tracking-wider text-zinc-500">
-              Zoom
-            </span>
-            <input
-              type="range"
-              min={1}
-              max={4}
-              step={0.01}
-              value={zoom}
-              onChange={(e) => setZoom(parseFloat(e.target.value))}
-              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-800 accent-white"
-              aria-label="Zoom"
-            />
-          </div>
+        <PerforationSlider
+          key={zoomSyncKey}
+          label="Zoom"
+          defaultValue={Math.round(zoom * 100)}
+          minValue={100}
+          maxValue={MAX_ZOOM * 100}
+          format={(v) => `${v}%`}
+          onInput={(v) => setZoom(v / 100)}
+        />
 
-          <div className="flex justify-end gap-2 pt-1">
-            <Button
-              variant="ghost"
-              className="cursor-pointer"
-              onClick={onCancel}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={onApply}
-              className="cursor-pointer"
-              disabled={!pixelArea || isCropping || confirmDisabled}
-            >
-              {isCropping ? "Cropping…" : confirmLabel}
-            </Button>
-          </div>
+        <div className="flex justify-end gap-2">
+          <Button onClick={onCancel}>Cancel</Button>
+          <Button
+            variant="primary"
+            onClick={onApply}
+            disabled={!pixelArea || isCropping || confirmDisabled}
+          >
+            {isCropping ? "Cropping…" : confirmLabel}
+          </Button>
         </div>
       </div>
     </Modal>

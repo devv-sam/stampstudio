@@ -4,11 +4,9 @@ type Variant = 'primary' | 'secondary' | 'ghost'
 
 const variantClass: Record<Variant, string> = {
   primary:
-    'bg-white text-zinc-950 hover:bg-zinc-100 border border-transparent shadow-sm',
-  secondary:
-    'bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border border-zinc-700',
-  ghost:
-    'bg-transparent text-zinc-300 hover:bg-zinc-800/80 border border-transparent',
+    'border border-[#5bcd8a] bg-[linear-gradient(180deg,#00cc55_0%,#07602c_100%)] text-[#fff]',
+  secondary: 'border border-transparent bg-zinc-800 text-ink hover:bg-zinc-700',
+  ghost: 'border border-transparent text-ink hover:bg-zinc-800',
 }
 
 export function Button({
@@ -23,7 +21,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-40 ${variantClass[variant]} ${className}`}
+      className={`inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium whitespace-nowrap transition-[transform,background-color] duration-200 ease-out active:scale-95 disabled:pointer-events-none disabled:opacity-50 ${variantClass[variant]} ${className}`}
       {...props}
     >
       {children}

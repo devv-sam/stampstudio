@@ -2,7 +2,7 @@
 
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Libre Baskerville', ui-serif, Georgia, serif;
+  --font-display: var(--font-sans);
   --text-sm: 0.8125rem; /* 13px */
 
   --color-clover: #00cc55;
@@ -11,6 +11,54 @@
   --color-cornflower: #3b84ee;
   --color-buttercup: #ffe122;
   --color-peony: #ff31c6;
+
+  --color-desk: #f1f1f1;
+  --color-card: #ffffff;
+  --color-ink: #1c1c1e;
+  --color-ink-soft: #6e6e73;
+
+  --shadow-chunky: 0 1px 2px rgb(0 0 0 / 0.05), 0 14px 32px -12px rgb(0 0 0 / 0.16);
+}
+
+/* shortcut: remaps the dark-era zinc classes onto paper tones, drop it once those components are restyled */
+.paper-ui,
+.desk-card {
+  --color-zinc-950: #ffffff;
+  --color-zinc-900: #f7f7f7;
+  --color-zinc-800: #efefef;
+  --color-zinc-700: #e3e3e3;
+  --color-zinc-600: #c7c7c7;
+  --color-zinc-500: #6e6e73;
+  --color-zinc-400: #5c5c60;
+  --color-zinc-300: #48484b;
+  --color-zinc-200: #333336;
+  --color-zinc-100: #1c1c1e;
+  --text-xs: 0.875rem;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+.desk-card {
+  border-radius: 1.5rem;
+  background: var(--color-card);
+  box-shadow: var(--shadow-chunky);
+}
+
+.paper-ui :focus-visible,
+.desk-card :focus-visible {
+  outline: 3px solid var(--color-cornflower);
+  outline-offset: 2px;
+}
+
+.desk-stage {
+  position: absolute;
+  inset: 4.5rem 14rem 5.5rem;
+}
+
+@media (max-width: 767px) {
+  .desk-stage {
+    inset: 4rem 0.75rem 24rem;
+  }
 }
 
 html,

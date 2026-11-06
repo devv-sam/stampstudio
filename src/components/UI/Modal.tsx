@@ -1,10 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, type ReactNode } from 'react'
 
+import { useDeskMotion } from '../../utils/deskMotion'
+
 /**
  * Lightweight modal primitive — overlay + centred panel + escape-to-close.
- *
- * Animation matches the resize-chrome timing for visual cohesion.
  */
 export function Modal({
   open,
@@ -22,6 +22,8 @@ export function Modal({
   /** When false, only the backdrop fades — panel appears instantly (no scale/slide). */
   animatePanel?: boolean
 }) {
+  const { blurPop } = useDeskMotion()
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -49,14 +51,11 @@ export function Modal({
             type="button"
             aria-label="Close"
             onClick={onClose}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-desk/70 backdrop-blur-md"
           />
           <motion.div
-            initial={animatePanel ? { opacity: 0, scale: 0.98, y: 6 } : false}
-            animate={animatePanel ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1 }}
-            exit={animatePanel ? { opacity: 0, scale: 0.98, y: 4 } : { opacity: 0 }}
-            transition={{ duration: animatePanel ? 0.18 : 0, ease: [0.22, 1, 0.36, 1] }}
-            className={`relative z-10 flex max-h-[90vh] w-[min(640px,92vw)] flex-col overflow-hidden rounded-xl border border-zinc-800 bg-[#101010] shadow-2xl ${panelClassName}`}
+            {...(animatePanel ? blurPop : {})}
+            className={`desk-card relative z-10 flex max-h-[90vh] w-[min(560px,92vw)] flex-col overflow-y-auto ${panelClassName}`}
           >
             {children}
           </motion.div>

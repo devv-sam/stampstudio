@@ -5,9 +5,12 @@ import { Analytics } from "@vercel/analytics/react";
 
 import { StampCanvas } from "../Canvas/StampCanvas";
 import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
-import { PropertiesPanel } from "../Panels/PropertiesPanel";
+import { ActiveTextTypography } from "../Panels/ActiveTextTypography";
+import { LogoMorph } from "../Brand/LogoMorph";
+import { MagneticPicker } from "../Desk/MagneticPicker";
+import { PresetStack } from "../Desk/PresetStack";
+import { ShaderRail } from "../Desk/ShaderRail";
 import { StampSizeHud } from "./StampSizeHud";
-import { ZoomControl } from "../Canvas/ZoomControl";
 import { StampSheetExperiment } from "../Experiments/StampSheetExperiment";
 import { getLatestVersion } from "../../data/changelog";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -22,12 +25,12 @@ function ChangelogLink() {
   return (
     <Link
       to="/changelog"
-      className="relative inline-flex cursor-pointer font-medium items-center gap-1.5 text-xs hover:text-zinc-200"
+      className="relative inline-flex cursor-pointer items-center gap-1.5 text-sm hover:text-ink-soft"
     >
       Updates
       {unread ? (
         <span
-          className="h-1.5 w-1.5 rounded-full bg-white"
+          className="h-2 w-2 rounded-full bg-peony"
           aria-label="Unread updates"
         />
       ) : null}
@@ -42,16 +45,18 @@ export function AppLayout({ header }: { header?: ReactNode }) {
   return (
     <>
       <Analytics />
-      <div className="flex h-full min-h-0 flex-col">
-        <header className="flex shrink-0 items-center justify-between border-b border-zinc-800/80 px-5 py-3">
-          <div className="flex items-baseline gap-2">
-            <h1 className="font-display text-base font-normal tracking-tight text-white lowercase">
-              stampstudio
-              <span className="sr-only">
-                {" "}
-                — online postage stamp maker and designer
-              </span>
-            </h1>
+      <div className="relative h-full min-h-0 overflow-hidden bg-desk text-ink">
+        <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-4 px-5 py-4">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2.5">
+              <LogoMorph />
+              <h1 className="sr-only">
+                stampstudio — online postage stamp maker and designer
+              </h1>
+            </div>
+            <div className="max-md:hidden">
+              <StampSizeHud />
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <ChangelogLink />
@@ -60,33 +65,36 @@ export function AppLayout({ header }: { header?: ReactNode }) {
               href="https://devvsam.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+              className="text-sm text-ink-soft transition-colors hover:text-ink"
             >
               by @devvsam
             </a>
           </div>
         </header>
 
-        <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">
-          <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[#141416]">
-            <p className="sr-only">
-              Free online stamp maker to create custom postage stamps. Upload
-              photos, add typography, adjust perforated edges, apply print-style
-              shaders, and export PNG, JPEG, or SVG — no account required.
-            </p>
-            <StampCanvas />
-            <CanvasFloatBar />
-            <div className="pointer-events-auto absolute bottom-4 left-4 z-10">
-              <ZoomControl />
-            </div>
-            <div className="pointer-events-none absolute bottom-4 right-4 z-10">
-              <StampSizeHud />
-            </div>
-          </main>
+        <main className="desk-stage flex min-h-0 min-w-0 flex-col">
+          <p className="sr-only">
+            Free online stamp maker to create custom postage stamps. Upload
+            photos, add typography, adjust perforated edges, apply print-style
+            shaders, and export PNG, JPEG, or SVG — no account required.
+          </p>
+          <StampCanvas />
+        </main>
 
-          <aside className="flex h-[42vh] w-full shrink-0 flex-col gap-4 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-t border-zinc-800/80 bg-[#101010] p-5 md:h-auto md:w-[320px] md:border-l md:border-t-0">
-            <PropertiesPanel />
-          </aside>
+        <div className="pointer-events-none z-20 max-md:absolute max-md:inset-x-3 max-md:bottom-[14rem] max-md:flex max-md:items-end max-md:gap-2">
+          <div className="min-w-0 max-md:flex-1 md:absolute md:left-5 md:top-1/2 md:-translate-y-1/2">
+            <ShaderRail />
+          </div>
+          <div className="md:absolute md:right-6 md:top-1/2 md:-translate-y-1/2">
+            <PresetStack />
+          </div>
+        </div>
+
+        <ActiveTextTypography />
+        <CanvasFloatBar />
+
+        <div className="pointer-events-auto absolute bottom-1 right-1 z-30 origin-bottom-right max-md:bottom-[4.5rem] max-md:scale-[0.6]">
+          <MagneticPicker />
         </div>
       </div>
 

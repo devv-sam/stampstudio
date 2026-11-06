@@ -44,7 +44,7 @@ function createArcCornerRender(corner: CornerKey) {
     void fabricObject;
     const radius = 14;
     ctx.save();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.78)";
+    ctx.strokeStyle = "rgba(28, 28, 30, 0.7)";
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
 

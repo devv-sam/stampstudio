@@ -5,10 +5,12 @@ import {
   type TPointerEventInfo,
 } from 'fabric'
 import type { Group } from 'fabric'
+import { useDialKit } from 'dialkit'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { useCanvasSize } from '../../hooks/useCanvas'
+import { useDeskMotion } from '../../utils/deskMotion'
 import { useStampEditor } from '../../hooks/useStampEditor'
 import type { TextLayer } from '../../types/text'
 import type { StampCanvasApi } from '../../types/canvas'
@@ -18,6 +20,7 @@ import {
   createStampGroup,
   STAMP_BASE_HEIGHT,
   STAMP_BASE_WIDTH,
+  STAMP_MAX_CANVAS_FRACTION,
 } from '../../utils/fabricHelpers'
 import {
   STAMP_SNAP_COMMIT_THRESHOLD_PX,
@@ -211,6 +214,23 @@ export function StampCanvas() {
     setCanvasZoom,
     outlineMode,
   } = useStampEditor()
+
+  const [hovering, setHovering] = useState(false)
+  const { springy } = useDeskMotion()
+  const stampDial = useDialKit(
+    'Stamp',
+    {
+      tilt: [1.5, 0, 8, 0.1],
+      fill: [0.82, 0.5, 0.95, 0.01],
+      maxScale: [1.7, 1, 2.5, 0.05],
+      shadow: {
+        offset: [16, 0, 48, 1],
+        blur: [24, 0, 72, 1],
+        opacity: [0.14, 0, 0.5, 0.01],
+      },
+    },
+    { id: 'stamp', persist: true },
+  )
 
   const canvasZoomRef = useRef(canvasZoom)
   const textOverlayRef = useRef<HTMLCanvasElement>(null)
@@ -774,9 +794,15 @@ export function StampCanvas() {
     // Restore desired size before clamping so the stamp can grow back when the
     // stage expands again — without this, each shrink permanently reduces the scale.
     const desired = userDesiredStampSizeRef.current
+    // shrink both axes together so a narrow stage doesn't squash the stamp
+    const fit = Math.min(
+      1,
+      (stageW * STAMP_MAX_CANVAS_FRACTION) / desired.w,
+      (stageH * STAMP_MAX_CANVAS_FRACTION) / desired.h,
+    )
     s.set({
-      scaleX: desired.w / STAMP_BASE_WIDTH,
-      scaleY: desired.h / STAMP_BASE_HEIGHT,
+      scaleX: (desired.w * fit) / STAMP_BASE_WIDTH,
+      scaleY: (desired.h * fit) / STAMP_BASE_HEIGHT,
     })
     clampStampBoundsAndCenter(c, s, stageW, stageH, {
       snap: snapToPresetsEnabledRef.current
@@ -804,6 +830,28 @@ export function StampCanvas() {
     }
   }, [stageW, stageH])
 
+  const tilted =
+    hovering &&
+    !chromeRect &&
+    !frameTravelRect &&
+    !selectedTextId &&
+    !textPlacementActive &&
+    !outlineMode
+
+  // view-only scale, export still uses the stamp's real pixel size
+  const deskScale = stampRect
+    ? Math.min(
+        stampDial.maxScale,
+        Math.max(
+          1,
+          Math.min(
+            (stageW * stampDial.fill) / stampRect.width,
+            (stageH * stampDial.fill) / stampRect.height,
+          ),
+        ),
+      )
+    : 1
+
   const shaderRect =
     stampRect === null
       ? null
@@ -818,7 +866,7 @@ export function StampCanvas() {
     <div ref={wrapRef} className="relative h-full min-h-0 w-full min-w-0 flex-1">
       <div
         ref={stageRef}
-        className="relative h-full min-h-0 w-full overflow-hidden bg-[#141416]"
+        className="relative h-full min-h-0 w-full"
       >
         <StampPerforations
           width={stampRect?.width ?? 0}
@@ -827,11 +875,9 @@ export function StampCanvas() {
         />
 
         {stampRect ? (
-          <div
+          <motion.div
             className={`absolute z-0 rounded-sm ${
-              outlineMode
-                ? 'ring-1 ring-inset ring-white/50'
-                : 'ring-1 ring-inset ring-zinc-600/50'
+              outlineMode ? 'ring-1 ring-inset ring-ink/50' : ''
             }`}
             style={{
               left: stampRect.left,
@@ -839,8 +885,19 @@ export function StampCanvas() {
               width: stampRect.width,
               height: stampRect.height,
               boxSizing: 'border-box',
-              transform: canvasZoom !== 1 ? `scale(${canvasZoom})` : undefined,
+              filter: outlineMode
+                ? undefined
+                : `drop-shadow(0 1px 2px rgb(0 0 0 / 0.12)) drop-shadow(0 ${stampDial.shadow.offset}px ${stampDial.shadow.blur}px rgb(0 0 0 / ${stampDial.shadow.opacity}))`,
             }}
+            initial={false}
+            animate={{
+              scale: canvasZoom * deskScale,
+              rotate: tilted ? -stampDial.tilt : 0,
+            }}
+            transition={springy}
+            onPointerEnter={() => setHovering(true)}
+            onPointerLeave={() => setHovering(false)}
+            onPointerDown={() => setHovering(false)}
           >
             <div
               ref={contentRef}
@@ -917,10 +974,10 @@ export function StampCanvas() {
                       height: snapGuide.h + o * 2,
                       boxSizing: 'border-box' as const,
                       border: snapGuide.expanded
-                        ? '2px dashed rgba(255, 255, 255, 0.55)'
-                        : '1px dashed rgba(255, 255, 255, 0.42)',
+                        ? '2px dashed rgba(28, 28, 30, 0.55)'
+                        : '1px dashed rgba(28, 28, 30, 0.42)',
                       boxShadow: snapGuide.expanded
-                        ? '0 0 0 1px rgba(255, 255, 255, 0.12)'
+                        ? '0 0 0 1px rgba(28, 28, 30, 0.12)'
                         : 'none',
                     }
                   })()}
@@ -935,7 +992,7 @@ export function StampCanvas() {
             <div className={`pointer-events-none absolute inset-0 z-[21] ${outlineMode ? 'opacity-0' : ''}`}>
               <StampResizeChromeOverlay rect={chromeRect} />
             </div>
-          </div>
+          </motion.div>
         ) : null}
       </div>
     </div>

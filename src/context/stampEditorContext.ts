@@ -71,7 +71,7 @@ export type StampEditorContextValue = {
   textLayers: TextLayer[]
   selectedTextId: string | null
   setSelectedTextId: (id: string | null) => void
-  /** Press T or the text tool, then click the stamp canvas to append a layer. */
+  /** Pick the text tool, then click the stamp canvas to append a layer. */
   textPlacementActive: boolean
   setTextPlacementActive: (active: boolean) => void
   toggleTextPlacementActive: () => void

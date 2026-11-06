@@ -1,3 +1,4 @@
+import defaultStampUrl from '../assets/default-stamp.svg'
 import {
   useCallback,
   useEffect,
@@ -82,6 +83,16 @@ const defaultShaderParams: ShaderParamsMap = {
   'image-dithering': { preset: 'natural', size: 2 },
 }
 
+const DEFAULT_ASSET: ImageAsset = {
+  id: 'default-stamp',
+  fileName: 'Default stamp',
+  src: defaultStampUrl,
+  width: 1920,
+  height: 1080,
+  role: 'background',
+  createdAt: new Date(0).toISOString(),
+}
+
 export function StampEditorProvider({ children }: { children: ReactNode }) {
   const apiRef = useRef<StampCanvasApi | null>(null)
   const detachRef = useRef<(() => void) | null>(null)
@@ -137,7 +148,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     },
     [],
   )
-  const [imageAssets, setImageAssets] = useState<ImageAsset[]>([])
+  const [imageAssets, setImageAssets] = useState<ImageAsset[]>([DEFAULT_ASSET])
   /**
    * Bumped whenever the Fabric canvas (re-)registers so reconciliation
    * effects re-run against the fresh canvas instance — covers HMR remounts

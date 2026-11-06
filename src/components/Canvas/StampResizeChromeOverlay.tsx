@@ -10,7 +10,7 @@ export type ChromeRect = {
 }
 
 const L = 18
-const stroke = '2px solid rgba(255, 255, 255, 0.32)'
+const stroke = '2px solid rgba(28, 28, 30, 0.45)'
 
 const cornerBase: CSSProperties = {
   position: 'absolute',
