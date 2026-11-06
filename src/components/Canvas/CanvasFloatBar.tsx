@@ -4,6 +4,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type ComponentProps,
   type ComponentType,
 } from "react";
 
@@ -11,6 +12,7 @@ import { useDialKit } from "dialkit";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Check,
+  Eye,
   FlaskConical,
   Frame,
   Image as ImageIcon,
@@ -57,6 +59,11 @@ const COPY_LABEL = {
   failed: "Couldn't copy",
 };
 
+// lucide has no dashed eye, so the outline-off state dashes the regular one
+function EyeDashed(props: ComponentProps<typeof Eye>) {
+  return <Eye {...props} strokeDasharray="3 2.5" />;
+}
+
 type NavTool = {
   label: string;
   icon: ComponentType<{
@@ -80,6 +87,7 @@ export function CanvasFloatBar() {
     exportSvg,
     copyPng,
     copySvg,
+    outlineMode,
     toggleOutlineMode,
   } = useStampEditor();
 
@@ -90,7 +98,7 @@ export function CanvasFloatBar() {
       buttonSize: [35, 28, 64, 1],
       iconSize: [20, 12, 32, 1],
       iconStroke: [1.75, 1, 3, 0.05],
-      buttonRadius: [12, 0, 32, 1],
+      buttonRadius: [6, 0, 32, 1],
       gap: [4, 0, 24, 1],
       padding: [6, 0, 24, 1],
       cardRadius: [12, 0, 48, 1],
@@ -99,7 +107,7 @@ export function CanvasFloatBar() {
       labelGap: [8, 0, 24, 1],
       bottomOffset: [20, 0, 64, 1],
     },
-    { id: "bottom-nav", persist: true },
+    { id: "bottom-nav-v2", persist: true },
   );
   const frameUpload = useImageUploadFlow({ defaultRole: "frame" });
   const bgUpload = useImageUploadFlow();
@@ -294,7 +302,15 @@ export function CanvasFloatBar() {
     ],
     [
       {
-        label: "Library and settings",
+        label: "Outline",
+        icon: outlineMode ? Eye : EyeDashed,
+        tint: "hover:text-clover focus-visible:text-clover",
+        on: "text-clover",
+        active: outlineMode,
+        onClick: toggleOutlineMode,
+      },
+      {
+        label: "Library",
         icon: SlidersHorizontal,
         tint: "hover:text-peony focus-visible:text-peony",
         on: "text-peony",
@@ -409,7 +425,7 @@ export function CanvasFloatBar() {
                 </div>
               </div>
 
-              <div className="flex gap-2 p-2 pt-0">
+              <div className="flex gap-1.5 p-1.5 pt-0">
                 <Button
                   variant="primary"
                   disabled={exportBusy}
@@ -454,7 +470,7 @@ export function CanvasFloatBar() {
           {drawerOpen ? (
             <motion.div
               role="dialog"
-              aria-label="Library and canvas settings"
+              aria-label="Library"
               {...blurPop}
               className="desk-card w-[min(20rem,calc(100vw-2rem))] p-4"
             >

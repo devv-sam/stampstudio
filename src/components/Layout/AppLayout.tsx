@@ -7,8 +7,7 @@ import { StampCanvas } from "../Canvas/StampCanvas";
 import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
 import { ActiveTextTypography } from "../Panels/ActiveTextTypography";
 import { LogoMorph } from "../Brand/LogoMorph";
-import { MagneticPicker } from "../Desk/MagneticPicker";
-import { PresetStack } from "../Desk/PresetStack";
+import { StampInspector } from "../Desk/StampInspector";
 import { ShaderRail } from "../Desk/ShaderRail";
 import { StampSheetExperiment } from "../Experiments/StampSheetExperiment";
 import { getLatestVersion } from "../../data/changelog";
@@ -77,21 +76,18 @@ export function AppLayout({ header }: { header?: ReactNode }) {
           <StampCanvas />
         </main>
 
-        <div className="pointer-events-none z-20 max-md:absolute max-md:inset-x-3 max-md:bottom-[14rem] max-md:flex max-md:items-end max-md:gap-2">
+        <div className="pointer-events-none z-20 max-md:absolute max-md:inset-x-3 max-md:bottom-[5.5rem] max-md:flex max-md:items-end max-md:gap-2">
           <div className="min-w-0 max-md:flex-1 md:absolute md:left-5 md:top-1/2 md:-translate-y-1/2">
             <ShaderRail />
           </div>
           <div className="md:absolute md:right-6 md:top-1/2 md:-translate-y-1/2">
-            <PresetStack />
+            <StampInspector />
           </div>
         </div>
 
         <ActiveTextTypography />
         <CanvasFloatBar />
 
-        <div className="pointer-events-auto absolute bottom-1 right-1 z-30 origin-bottom-right max-md:bottom-[4.5rem] max-md:scale-[0.6]">
-          <MagneticPicker />
-        </div>
       </div>
 
       <AnimatePresence>

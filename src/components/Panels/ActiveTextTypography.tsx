@@ -317,7 +317,7 @@ export function ActiveTextTypography() {
   if (!visible || !selected) return null;
 
   return (
-    <section data-text-panel className="desk-card pointer-events-auto absolute z-30 space-y-2 p-2 max-md:inset-x-3 max-md:top-16 md:right-5 md:top-1/2 md:w-72 md:-translate-y-1/2">
+    <section data-text-panel className="desk-card pointer-events-auto absolute z-30 space-y-1.5 p-1.5 max-md:inset-x-3 max-md:top-16 md:right-5 md:top-1/2 md:w-72 md:-translate-y-1/2">
       <div className="flex items-center justify-between gap-2 pl-2">
         <p className="text-base">Typography</p>
         <button
@@ -331,7 +331,7 @@ export function ActiveTextTypography() {
         </button>
       </div>
 
-      <div className="space-y-2.5">
+      <div className="space-y-1.5">
         <div ref={fontTrayRef} className="relative">
           {/*
            * Native <button> gets Tailwind preflight `font` shorthand — use div+role instead
@@ -422,7 +422,7 @@ export function ActiveTextTypography() {
           ) : null}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
           <div ref={weightTrayRef} className="relative">
             <button
               type="button"

@@ -5,11 +5,6 @@ import {
   Rect,
 } from "fabric";
 
-import {
-  findBestSnapPreset,
-  type StampSnapPreset,
-} from "./stampSnapSizes";
-
 /** Fabric object name used to identify the stamp artboard */
 export const STAMP_NAME = "stampstudio-stamp";
 /** Fabric object name used to identify the stamp background child. */
@@ -105,20 +100,12 @@ export function centerStampInCanvas(canvas: Canvas, stamp: Group) {
 export type ClampStampBoundsOptions = {
   minSide?: number;
   maxFrac?: number;
-  snap?: {
-    enabled: boolean;
-    presets: readonly StampSnapPreset[];
-    commitThreshold: number;
-    previewThreshold: number;
-  };
 };
 
 /**
  * Clamp scaled size to [effectiveMinSide, stage*STAMP_MAX_CANVAS_FRACTION] per axis, then center.
  * Resizes the Fabric canvas to exactly the stamp's display size (stage-sized canvas is no longer used).
  *
- * Optionally snaps to preset dimensions when axes are within `snap.commitThreshold`.
- * Returns `snapPreview` for UI when within `snap.previewThreshold` (typically larger).
  */
 export function clampStampBoundsAndCenter(
   canvas: Canvas,
@@ -126,7 +113,7 @@ export function clampStampBoundsAndCenter(
   stageW: number,
   stageH: number,
   options?: ClampStampBoundsOptions,
-): { snapPreview: StampSnapPreset | null } {
+): void {
   const minSide = options?.minSide ?? STAMP_MIN_SIDE;
   const maxFrac = options?.maxFrac ?? STAMP_MAX_CANVAS_FRACTION;
   const baseW = STAMP_BASE_WIDTH;
@@ -145,40 +132,13 @@ export function clampStampBoundsAndCenter(
   sw = Math.min(maxSw, Math.max(minSwEff, sw));
   sh = Math.min(maxSh, Math.max(minShEff, sh));
 
-  let rw = Math.max(1, Math.round(sw));
-  let rh = Math.max(1, Math.round(sh));
-
-  let snapPreview: StampSnapPreset | null = null;
-  const snap = options?.snap;
-  if (snap?.enabled && snap.presets.length > 0) {
-    const eligible = snap.presets.filter(
-      (p) =>
-        p.w <= Math.floor(maxSw) && p.h <= Math.floor(maxSh)
-        && p.w >= Math.ceil(minSwEff) && p.h >= Math.ceil(minShEff),
-    );
-    snapPreview = findBestSnapPreset(
-      rw,
-      rh,
-      eligible,
-      snap.previewThreshold,
-    );
-    const commit = findBestSnapPreset(
-      rw,
-      rh,
-      eligible,
-      snap.commitThreshold,
-    );
-    if (commit) {
-      rw = commit.w;
-      rh = commit.h;
-    }
-  }
+  const rw = Math.max(1, Math.round(sw));
+  const rh = Math.max(1, Math.round(sh));
 
   stamp.set({ scaleX: rw / baseW, scaleY: rh / baseH });
   canvas.setDimensions({ width: rw, height: rh });
   centerStampInCanvas(canvas, stamp);
   stamp.setCoords();
-  return { snapPreview };
 }
 
 export function getStampBoundsOnCanvas(_canvas: Canvas, stamp: Group) {

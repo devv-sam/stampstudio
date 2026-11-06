@@ -17,13 +17,13 @@
   --color-ink: #1c1c1e;
   --color-ink-soft: #6e6e73;
 
-  /* card 20, control 12, chip 8, tag 4. nested radius = outer radius - padding, so cards pad controls by 8 and controls pad chips by 4 */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
-  --radius-2xl: 1.25rem;
-  --radius-3xl: 1.25rem;
+  /* card 12, control 6, chip 4. nested radius = outer radius - padding, so cards pad controls by 6 and controls pad chips by 2 */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.75rem;
+  --radius-3xl: 0.75rem;
 
   --shadow-chunky: 0 1px 2px rgb(0 0 0 / 0.05), 0 14px 32px -12px rgb(0 0 0 / 0.16);
 }
@@ -52,8 +52,8 @@
   box-shadow: var(--shadow-chunky);
 }
 
-.paper-ui :focus-visible,
-.desk-card :focus-visible {
+.paper-ui :focus-visible:not(input),
+.desk-card :focus-visible:not(input) {
   outline: 3px solid var(--color-cornflower);
   outline-offset: 2px;
 }
@@ -65,7 +65,7 @@
 
 @media (max-width: 767px) {
   .desk-stage {
-    inset: 4rem 0.75rem 24rem;
+    inset: 4rem 0.75rem 16rem;
   }
 }
 

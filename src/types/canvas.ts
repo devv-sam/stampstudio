@@ -3,8 +3,8 @@ import type { Canvas, Group } from 'fabric'
 export type StampCanvasApi = {
   canvas: Canvas
   stamp: Group
-  /** Set stamp to exact output size (px), clamped to stage; no magnetic snap. */
-  applySizePreset?: (width: number, height: number) => {
+  /** Set stamp to exact output size (px), clamped to stage. */
+  setSize?: (width: number, height: number) => {
     width: number
     height: number
   }

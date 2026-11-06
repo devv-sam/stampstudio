@@ -71,7 +71,7 @@ export function CropStep({
 
   return (
     <Modal open onClose={onCancel} labelledBy="crop-step-title">
-      <div className="flex flex-col gap-2 p-2">
+      <div className="flex flex-col gap-1.5 p-1.5">
         <h2 id="crop-step-title" className="px-2 py-1 text-lg font-semibold">
           Crop & adjust
         </h2>
@@ -103,7 +103,7 @@ export function CropStep({
         <div
           role="radiogroup"
           aria-label="Aspect ratio"
-          className="flex flex-wrap gap-1 rounded-xl bg-zinc-900 p-1"
+          className="flex flex-wrap gap-0.5 rounded-xl bg-zinc-900 p-0.5"
         >
           {ASPECT_CHOICES.map((choice) => {
             const active = aspect.id === choice.id;

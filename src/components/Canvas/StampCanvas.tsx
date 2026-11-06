@@ -6,7 +6,7 @@ import {
 } from 'fabric'
 import type { Group } from 'fabric'
 import { useDialKit } from 'dialkit'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { useCanvasSize } from '../../hooks/useCanvas'
@@ -23,11 +23,6 @@ import {
   STAMP_MAX_CANVAS_FRACTION,
   STAMP_MIN_SIDE,
 } from '../../utils/fabricHelpers'
-import {
-  STAMP_SNAP_COMMIT_THRESHOLD_PX,
-  STAMP_SNAP_PRESETS,
-  STAMP_SNAP_PREVIEW_THRESHOLD_PX,
-} from '../../utils/stampSnapSizes'
 import { FRAME_OBJECT_TAG } from '../../utils/stampImageHelpers'
 import {
   findTextByLayerId,
@@ -44,7 +39,6 @@ import { StampResizeEdges } from './StampResizeEdges'
 
 const DESK_FILL = 0.82
 const DESK_MAX_SCALE = 1.7
-const SNAP_GUIDE_GAP = 2
 const STAMP_SHADOW =
   'drop-shadow(0 1px 2px rgb(0 0 0 / 0.12)) drop-shadow(0 16px 24px rgb(0 0 0 / 0.14))'
 
@@ -140,12 +134,6 @@ export function StampCanvas() {
   const [frameTravelRect, setFrameTravelRect] = useState<RectBounds | null>(
     null,
   )
-  const [snapGuide, setSnapGuide] = useState<{
-    w: number
-    h: number
-    /** The stamp has committed to this preset, not just approaching it. */
-    snapped: boolean
-  } | null>(null)
   const stampRectRef = useRef<RectBounds | null>(stampRect)
 
   const {
@@ -157,7 +145,6 @@ export function StampCanvas() {
     backgroundAsset,
     frameAssets,
     stampColor,
-    snapToPresetsEnabledRef,
     setSelectedTextId,
     updateTextLayer,
     selectedTextId,
@@ -167,7 +154,7 @@ export function StampCanvas() {
     canvasZoom,
     setCanvasZoom,
     outlineMode,
-    applyStampSizePreset,
+    setStampSize,
   } = useStampEditor()
 
   const { scale: defaultScale } = useDialKit(
@@ -178,6 +165,7 @@ export function StampCanvas() {
 
   // the stamp sizes itself across the first frames, only spring after that
   const [settled, setSettled] = useState(false)
+  const [resizing, setResizing] = useState(false)
   useEffect(() => {
     let id = requestAnimationFrame(() => {
       id = requestAnimationFrame(() => setSettled(true))
@@ -368,33 +356,7 @@ export function StampCanvas() {
       stageSizeRef.current.w,
       stageSizeRef.current.h,
     )
-    clampStampBoundsAndCenter(
-      fabricCanvas,
-      stamp,
-      initialRoom.w,
-      initialRoom.h,
-      {
-        snap:
-          snapToPresetsEnabledRef.current
-            ? {
-                enabled: true,
-                presets: STAMP_SNAP_PRESETS,
-                commitThreshold: STAMP_SNAP_COMMIT_THRESHOLD_PX,
-                previewThreshold: STAMP_SNAP_PREVIEW_THRESHOLD_PX,
-              }
-            : undefined,
-      },
-    )
-
-    const buildSnapOptions = () =>
-      snapToPresetsEnabledRef.current
-        ? {
-            enabled: true as const,
-            presets: STAMP_SNAP_PRESETS,
-            commitThreshold: STAMP_SNAP_COMMIT_THRESHOLD_PX,
-            previewThreshold: STAMP_SNAP_PREVIEW_THRESHOLD_PX,
-          }
-        : undefined
+    clampStampBoundsAndCenter(fabricCanvas, stamp, initialRoom.w, initialRoom.h)
 
     const syncStampScreenRect = () => {
       const { w, h } = stageSizeRef.current
@@ -412,32 +374,9 @@ export function StampCanvas() {
       setFrameTravelRect(readFrameTravelRectFabric(stamp, active))
     }
 
-    const runClampSync = ({
-      previewSnapOutline,
-    }: {
-      previewSnapOutline: boolean
-    }) => {
+    const runClampSync = () => {
       const room = roomForStamp(stageSizeRef.current.w, stageSizeRef.current.h)
-      const { snapPreview } = clampStampBoundsAndCenter(
-        fabricCanvas,
-        stamp,
-        room.w,
-        room.h,
-        { snap: buildSnapOptions() },
-      )
-      if (previewSnapOutline) {
-        setSnapGuide(
-          snapPreview
-            ? {
-                w: snapPreview.w,
-                h: snapPreview.h,
-                snapped:
-                  fabricCanvas.getWidth() === snapPreview.w &&
-                  fabricCanvas.getHeight() === snapPreview.h,
-              }
-            : null,
-        )
-      }
+      clampStampBoundsAndCenter(fabricCanvas, stamp, room.w, room.h)
       syncStampScreenRect()
       syncFrameTravelOverlay()
       fabricCanvas.requestRenderAll()
@@ -476,12 +415,11 @@ export function StampCanvas() {
     }
 
     const onStampScaling = () => {
-      runClampSync({ previewSnapOutline: true })
+      runClampSync()
     }
 
     const onStampBoundsModified = () => {
-      setSnapGuide(null)
-      runClampSync({ previewSnapOutline: false })
+      runClampSync()
       userDesiredStampSizeRef.current = {
         w: fabricCanvas.getWidth(),
         h: fabricCanvas.getHeight(),
@@ -629,8 +567,8 @@ export function StampCanvas() {
       )
     }
 
-    const applySizePreset: NonNullable<
-      StampCanvasApi['applySizePreset']
+    const setSize: NonNullable<
+      StampCanvasApi['setSize']
     > = (targetW, targetH) => {
       const tw = Math.max(1, Math.round(targetW))
       const th = Math.max(1, Math.round(targetH))
@@ -643,7 +581,10 @@ export function StampCanvas() {
       clampStampBoundsAndCenter(fabricCanvas, stamp, room.w, room.h)
       fabricCanvas.requestRenderAll()
       syncStampScreenRect()
-      setSnapGuide(null)
+      userDesiredStampSizeRef.current = {
+        w: fabricCanvas.getWidth(),
+        h: fabricCanvas.getHeight(),
+      }
       return {
         width: fabricCanvas.getWidth(),
         height: fabricCanvas.getHeight(),
@@ -653,7 +594,7 @@ export function StampCanvas() {
     register({
       canvas: fabricCanvas,
       stamp,
-      applySizePreset,
+      setSize,
       exportCompositedRaster,
     })
 
@@ -673,7 +614,6 @@ export function StampCanvas() {
       fabricCanvas.dispose()
       fabricRef.current = null
       stampRef.current = null
-      setSnapGuide(null)
       setFrameTravelRect(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- init once; stage size handled below
@@ -683,8 +623,8 @@ export function StampCanvas() {
     const w = Math.round(STAMP_BASE_WIDTH * defaultScale)
     const h = Math.round(STAMP_BASE_HEIGHT * defaultScale)
     userDesiredStampSizeRef.current = { w, h }
-    applyStampSizePreset(w, h)
-  }, [defaultScale, applyStampSizePreset])
+    setStampSize(w, h)
+  }, [defaultScale, setStampSize])
 
   useEffect(() => {
     const c = fabricRef.current
@@ -704,16 +644,7 @@ export function StampCanvas() {
       scaleX: (desired.w * fit) / STAMP_BASE_WIDTH,
       scaleY: (desired.h * fit) / STAMP_BASE_HEIGHT,
     })
-    clampStampBoundsAndCenter(c, s, room.w, room.h, {
-      snap: snapToPresetsEnabledRef.current
-        ? {
-            enabled: true,
-            presets: STAMP_SNAP_PRESETS,
-            commitThreshold: STAMP_SNAP_COMMIT_THRESHOLD_PX,
-            previewThreshold: STAMP_SNAP_PREVIEW_THRESHOLD_PX,
-          }
-        : undefined,
-    })
+    clampStampBoundsAndCenter(c, s, room.w, room.h)
     const rw = c.getWidth()
     const rh = c.getHeight()
     setStampRect(centeredStampScreenRect(stageW, stageH, rw, rh))
@@ -734,11 +665,15 @@ export function StampCanvas() {
   const resizeStamp = (width: number, height: number) => {
     const s = stampRef.current
     if (!s) return
+    setResizing(true)
     s.set({ scaleX: width / STAMP_BASE_WIDTH, scaleY: height / STAMP_BASE_HEIGHT })
     s.fire('scaling', {} as never)
   }
 
-  const finishStampResize = () => stampRef.current?.fire('modified', {} as never)
+  const finishStampResize = () => {
+    setResizing(false)
+    stampRef.current?.fire('modified', {} as never)
+  }
 
   const shaderRect =
     stampRect === null
@@ -825,45 +760,6 @@ export function StampCanvas() {
               ) : null}
             </div>
 
-            <AnimatePresence>
-              {snapGuide && stampRect && !outlineMode ? (
-                <motion.div
-                  key={`snap-guide-${snapGuide.w}-${snapGuide.h}`}
-                  className={`pointer-events-none absolute z-[14] box-border rounded-lg border transition-colors duration-100 ${
-                    snapGuide.snapped
-                      ? 'border-clover'
-                      : 'border-dashed border-cornflower'
-                  }`}
-                  aria-hidden="true"
-                  style={{
-                    left: (stampRect.width - snapGuide.w) / 2 - SNAP_GUIDE_GAP,
-                    top: (stampRect.height - snapGuide.h) / 2 - SNAP_GUIDE_GAP,
-                    width: snapGuide.w + SNAP_GUIDE_GAP * 2,
-                    height: snapGuide.h + SNAP_GUIDE_GAP * 2,
-                  }}
-                  initial={{ opacity: 0, filter: 'blur(4px)' }}
-                  animate={{
-                    opacity: 1,
-                    filter: 'blur(0px)',
-                    scale: snapGuide.snapped ? [1.03, 1] : 1,
-                  }}
-                  exit={{ opacity: 0, filter: 'blur(4px)' }}
-                  transition={{ duration: 0.16, ease: 'easeOut' }}
-                >
-                  <span
-                    className={`absolute bottom-full left-1/2 mb-1 origin-bottom -translate-x-1/2 rounded px-1 text-[10px] leading-4 whitespace-nowrap tabular-nums transition-colors duration-100 ${
-                      snapGuide.snapped
-                        ? 'bg-clover text-ink'
-                        : 'bg-cornflower text-ink'
-                    }`}
-                    style={{ scale: 1 / (canvasZoom * viewScale) }}
-                  >
-                    {snapGuide.w} × {snapGuide.h}
-                  </span>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-
             {outlineMode ? null : (
               <StampResizeEdges
                 width={stampRect.width}
@@ -889,13 +785,17 @@ export function StampCanvas() {
             }}
             initial={false}
             animate={{
+              opacity: resizing ? 0 : 1,
               top:
                 stampRect.top +
                 stampRect.height / 2 +
                 (stampRect.height / 2) * canvasZoom * viewScale +
                 22,
             }}
-            transition={settled ? springy : { duration: 0 }}
+            transition={{
+              opacity: { duration: 0.12 },
+              top: settled && !resizing ? springy : { duration: 0 },
+            }}
           >
             <StampSizeHud />
           </motion.div>

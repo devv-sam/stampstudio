@@ -134,7 +134,7 @@ export function PerforationSlider({
   }
 
   return (
-    <div className="relative h-10 w-full rounded-xl bg-zinc-900 p-1">
+    <div className="relative h-10 w-full rounded-xl bg-zinc-900 p-0.5">
       {/* Inner bar — rounded, hosts the rounded fill and content */}
       <div
         ref={innerRef}

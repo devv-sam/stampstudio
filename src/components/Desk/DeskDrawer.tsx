@@ -1,79 +1,18 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
 import { createPortal } from "react-dom";
 
 import { useStampEditor } from "../../hooks/useStampEditor";
-import { useDeskMotion } from "../../utils/deskMotion";
 import type { ImageAsset } from "../../types/assets";
-
-function SwitchRow({
-  label,
-  title,
-  checked,
-  onChange,
-}: {
-  label: string;
-  title?: string;
-  checked: boolean;
-  onChange: (next: boolean) => void;
-}) {
-  const { springy } = useDeskMotion();
-
-  return (
-    <div className="flex items-center gap-3" title={title}>
-      <span className="min-w-0 flex-1 text-base">{label}</span>
-      <motion.button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        onClick={() => onChange(!checked)}
-        whileTap="squish"
-        className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full p-1 transition-colors ${
-          checked ? "bg-clover" : "bg-zinc-700"
-        }`}
-      >
-        <motion.span
-          aria-hidden
-          className="block h-5 w-5 rounded-full bg-card shadow-sm"
-          style={{ originX: checked ? 1 : 0 }}
-          variants={{ squish: { scaleX: 1.4 } }}
-          animate={{ x: checked ? 20 : 0, scaleX: 1 }}
-          transition={springy}
-        />
-      </motion.button>
-    </div>
-  );
-}
 
 export function DeskDrawer({
   onRecrop,
 }: {
   onRecrop: (asset: ImageAsset) => void;
 }) {
-  const {
-    imageAssets,
-    setAssetRole,
-    removeAsset,
-    snapToPresetsEnabled,
-    setSnapToPresetsEnabled,
-    outlineMode,
-    setOutlineMode,
-  } = useStampEditor();
+  const { imageAssets, setAssetRole, removeAsset } = useStampEditor();
 
   return (
-    <div className="space-y-4">
-      <SwitchRow
-        label="Snap to presets"
-        checked={snapToPresetsEnabled}
-        onChange={setSnapToPresetsEnabled}
-      />
-      <SwitchRow
-        label="Outline"
-        title="Wireframe view of stamp layers (⌘Y)"
-        checked={outlineMode}
-        onChange={setOutlineMode}
-      />
+    <div>
       {imageAssets.length > 0 ? (
         <AssetStrip
           assets={imageAssets}
@@ -83,7 +22,9 @@ export function DeskDrawer({
           onRecrop={onRecrop}
           onDelete={(id) => removeAsset(id)}
         />
-      ) : null}
+      ) : (
+        <p className="text-sm text-ink-soft">Your uploads show up here.</p>
+      )}
     </div>
   );
 }
@@ -252,7 +193,7 @@ function AssetMenuPopover({
     <div
       ref={popoverRef}
       role="menu"
-      className="paper-ui fixed z-[60] flex min-w-[180px] flex-col rounded-2xl bg-card p-2 text-sm shadow-chunky"
+      className="paper-ui fixed z-[60] flex min-w-[180px] flex-col rounded-2xl bg-card p-1.5 text-sm shadow-chunky"
       style={{
         left: position?.left ?? -9999,
         top: position?.top ?? -9999,

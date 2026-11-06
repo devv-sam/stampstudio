@@ -47,26 +47,6 @@ import { addStampToLibrary } from '../utils/stampLibraryStorage'
 
 export type { StampDimensions }
 
-const SNAP_TO_PRESETS_STORAGE_KEY = 'stampstudio-snap-to-presets'
-
-function readSnapToPresetsEnabled(): boolean {
-  try {
-    const stored = localStorage.getItem(SNAP_TO_PRESETS_STORAGE_KEY)
-    if (stored === null) return true
-    return stored === 'true'
-  } catch {
-    return true
-  }
-}
-
-function writeSnapToPresetsEnabled(enabled: boolean) {
-  try {
-    localStorage.setItem(SNAP_TO_PRESETS_STORAGE_KEY, String(enabled))
-  } catch {
-    /* ignore quota / private mode */
-  }
-}
-
 export function StampEditorProvider({ children }: { children: ReactNode }) {
   const apiRef = useRef<StampCanvasApi | null>(null)
   const detachRef = useRef<(() => void) | null>(null)
@@ -85,17 +65,6 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
   const toggleOutlineMode = useCallback(() => {
     setOutlineMode((on) => !on)
   }, [])
-  const [snapToPresetsEnabled, setSnapToPresetsEnabledState] = useState(
-    readSnapToPresetsEnabled,
-  )
-  const snapToPresetsEnabledRef = useRef(snapToPresetsEnabled)
-
-  const setSnapToPresetsEnabled = useCallback((enabled: boolean) => {
-    setSnapToPresetsEnabledState(enabled)
-    writeSnapToPresetsEnabled(enabled)
-  }, [])
-
-  snapToPresetsEnabledRef.current = snapToPresetsEnabled
   const [perforationCount, setPerforationCount] = useState(14)
   const [stampColor, _setStampColor] = useState('#ffffff')
 
@@ -410,8 +379,8 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     setSelectedTextId((cur) => (cur === id ? null : cur))
   }, [])
 
-  const applyStampSizePreset = useCallback((width: number, height: number) => {
-    const next = apiRef.current?.applySizePreset?.(width, height)
+  const setStampSize = useCallback((width: number, height: number) => {
+    const next = apiRef.current?.setSize?.(width, height)
     if (next) {
       setStampDimensions({
         width: next.width,
@@ -705,9 +674,6 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       register,
       unregister,
       stampDimensions,
-      snapToPresetsEnabled,
-      setSnapToPresetsEnabled,
-      snapToPresetsEnabledRef,
       perforationCount,
       setPerforationCount,
       stampColor,
@@ -730,7 +696,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       addTextLayerAtScene,
       updateTextLayer,
       removeTextLayer,
-      applyStampSizePreset,
+      setStampSize,
       canvasZoom,
       setCanvasZoom,
       outlineMode,
@@ -750,8 +716,6 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       register,
       unregister,
       stampDimensions,
-      snapToPresetsEnabled,
-      setSnapToPresetsEnabled,
       perforationCount,
       stampColor,
       setStampColor,
@@ -772,7 +736,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       addTextLayerAtScene,
       updateTextLayer,
       removeTextLayer,
-      applyStampSizePreset,
+      setStampSize,
       canvasZoom,
       outlineMode,
       toggleOutlineMode,

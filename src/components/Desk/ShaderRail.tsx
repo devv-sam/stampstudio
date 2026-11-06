@@ -61,13 +61,13 @@ export function ShaderRail() {
     {
       windowWidth: [75, 32, 140, 1],
       windowHeight: [62, 24, 120, 1],
-      windowRadius: [12, 0, 32, 1],
+      windowRadius: [6, 0, 32, 1],
       columns: [1, 1, 4, 1],
       gap: [7, 0, 32, 1],
-      padding: [8, 0, 32, 1],
-      cardRadius: [20, 0, 48, 1],
+      padding: [6, 0, 32, 1],
+      cardRadius: [12, 0, 48, 1],
     },
-    { id: "shader-rail-v2", persist: true },
+    { id: "shader-rail-v3", persist: true },
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tip, setTip] = useState({
@@ -202,7 +202,7 @@ export function ShaderRail() {
           <motion.div
             key={activeShader}
             {...blurPop}
-            className="desk-card absolute z-30 w-60 space-y-2 p-2 max-md:bottom-full max-md:left-0 max-md:mb-2 md:left-full md:top-0 md:ml-3"
+            className="desk-card absolute z-30 w-60 space-y-1.5 p-1.5 max-md:bottom-full max-md:left-0 max-md:mb-2 md:left-full md:top-0 md:ml-3"
           >
             <ShaderParams shader={activeShader} />
           </motion.div>
