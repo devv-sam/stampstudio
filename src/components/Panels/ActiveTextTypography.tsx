@@ -317,7 +317,7 @@ export function ActiveTextTypography() {
   if (!visible || !selected) return null;
 
   return (
-    <section className="desk-card pointer-events-auto absolute z-30 space-y-3 p-4 max-md:inset-x-3 max-md:top-16 md:right-5 md:top-1/2 md:w-72 md:-translate-y-1/2">
+    <section data-text-panel className="desk-card pointer-events-auto absolute z-30 space-y-3 p-4 max-md:inset-x-3 max-md:top-16 md:right-5 md:top-1/2 md:w-72 md:-translate-y-1/2">
       <div className="flex items-center justify-between gap-2">
         <p className="text-base">Typography</p>
         <button

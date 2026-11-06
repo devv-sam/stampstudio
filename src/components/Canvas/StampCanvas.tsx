@@ -37,6 +37,7 @@ import {
 } from '../../utils/textHelpers'
 import { punchPerforationHoles } from '../../utils/exportHelpers'
 import { applyOutlineMode, restoreOutlineMode } from '../../utils/outlineMode'
+import { StampSizeHud } from '../Layout/StampSizeHud'
 import { StampPerforations } from './StampPerforations'
 import { ShaderLayer } from './ShaderLayer'
 import {
@@ -293,6 +294,25 @@ export function StampCanvas() {
     }
     c.requestRenderAll()
   }, [outlineMode, textLayers, backgroundAsset, frameAssets, activeShader])
+
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as Element | null
+      if (
+        !target ||
+        contentRef.current?.contains(target) ||
+        target.closest('[data-text-panel], .chrome-picker')
+      ) {
+        return
+      }
+      const c = fabricRef.current
+      if (!c?.getActiveObject()) return
+      c.discardActiveObject()
+      c.requestRenderAll()
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [])
 
   useEffect(() => {
     const el = wrapRef.current
@@ -992,6 +1012,24 @@ export function StampCanvas() {
             <div className={`pointer-events-none absolute inset-0 z-[21] ${outlineMode ? 'opacity-0' : ''}`}>
               <StampResizeChromeOverlay rect={chromeRect} />
             </div>
+          </motion.div>
+        ) : null}
+
+        {stampRect ? (
+          <motion.div
+            className="pointer-events-none absolute text-center"
+            style={{ left: stampRect.left, width: stampRect.width }}
+            initial={false}
+            animate={{
+              top:
+                stampRect.top +
+                stampRect.height / 2 +
+                (stampRect.height / 2) * canvasZoom * deskScale +
+                12,
+            }}
+            transition={springy}
+          >
+            <StampSizeHud />
           </motion.div>
         ) : null}
       </div>

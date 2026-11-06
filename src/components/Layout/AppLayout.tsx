@@ -10,7 +10,6 @@ import { LogoMorph } from "../Brand/LogoMorph";
 import { MagneticPicker } from "../Desk/MagneticPicker";
 import { PresetStack } from "../Desk/PresetStack";
 import { ShaderRail } from "../Desk/ShaderRail";
-import { StampSizeHud } from "./StampSizeHud";
 import { StampSheetExperiment } from "../Experiments/StampSheetExperiment";
 import { getLatestVersion } from "../../data/changelog";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -53,9 +52,6 @@ export function AppLayout({ header }: { header?: ReactNode }) {
               <h1 className="sr-only">
                 stampstudio — online postage stamp maker and designer
               </h1>
-            </div>
-            <div className="max-md:hidden">
-              <StampSizeHud />
             </div>
           </div>
           <div className="flex items-center gap-4">

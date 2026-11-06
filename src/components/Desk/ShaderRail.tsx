@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { useStampEditor } from "../../hooks/useStampEditor";
@@ -55,9 +55,38 @@ export function ShaderRail() {
     stampColor,
     backgroundAsset,
   } = useStampEditor();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as Element;
+      // ink color pickers portal to body but still belong to this menu
+      if (rootRef.current?.contains(target) || target.closest(".chrome-picker")) {
+        return;
+      }
+      setSettingsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSettingsOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [settingsOpen]);
+
+  const onThumb = (name: ShaderName) => {
+    const turningOff = activeShader === name && settingsOpen;
+    setActiveShader(turningOff ? null : name);
+    setSettingsOpen(!turningOff);
+  };
 
   return (
-    <div className="pointer-events-auto relative">
+    <div ref={rootRef} className="pointer-events-auto relative">
       <div
         role="group"
         aria-label="Print effects"
@@ -71,7 +100,7 @@ export function ShaderRail() {
               type="button"
               {...press}
               aria-pressed={on}
-              onClick={() => setActiveShader(on ? null : name)}
+              onClick={() => onThumb(name)}
               className="flex w-[104px] shrink-0 cursor-pointer flex-col gap-1 text-left text-sm"
             >
               <span
@@ -94,7 +123,7 @@ export function ShaderRail() {
       </div>
 
       <AnimatePresence>
-        {activeShader ? (
+        {activeShader && settingsOpen ? (
           <motion.div
             key={activeShader}
             {...blurPop}
@@ -259,9 +288,9 @@ function ShaderParams({ shader }: { shader: ShaderName }) {
             />
             <div className="space-y-1.5">
               <span className="text-sm text-zinc-500">Print type</span>
-              <div className="-mx-0.5 flex min-w-0 items-center gap-2 overflow-x-auto px-0.5 pb-0.5 [scrollbar-width:thin]">
+              <div className="flex flex-wrap items-center gap-2">
                 <div
-                  className="flex shrink-0 flex-nowrap gap-1"
+                  className="flex flex-wrap gap-1"
                   role="group"
                   aria-label="CMYK halftone print type"
                 >
