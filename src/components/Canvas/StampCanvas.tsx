@@ -5,7 +5,6 @@ import {
   type TPointerEventInfo,
 } from 'fabric'
 import type { Group } from 'fabric'
-import { useDialKit } from 'dialkit'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
@@ -44,6 +43,11 @@ import {
   StampResizeChromeOverlay,
   type ChromeRect,
 } from './StampResizeChromeOverlay'
+
+const DESK_FILL = 0.82
+const DESK_MAX_SCALE = 1.7
+const STAMP_SHADOW =
+  'drop-shadow(0 1px 2px rgb(0 0 0 / 0.12)) drop-shadow(0 16px 24px rgb(0 0 0 / 0.14))'
 
 function readChromeFromStamp(stamp: Group): ChromeRect {
   const box = stamp.getBoundingRect()
@@ -216,7 +220,6 @@ export function StampCanvas() {
     outlineMode,
   } = useStampEditor()
 
-  const [hovering, setHovering] = useState(false)
   // the stamp sizes itself across the first frames, only spring after that
   const [settled, setSettled] = useState(false)
   useEffect(() => {
@@ -226,20 +229,6 @@ export function StampCanvas() {
     return () => cancelAnimationFrame(id)
   }, [])
   const { springy } = useDeskMotion()
-  const stampDial = useDialKit(
-    'Stamp',
-    {
-      tilt: [1.5, 0, 8, 0.1],
-      fill: [0.82, 0.5, 0.95, 0.01],
-      maxScale: [1.7, 1, 2.5, 0.05],
-      shadow: {
-        offset: [16, 0, 48, 1],
-        blur: [24, 0, 72, 1],
-        opacity: [0.14, 0, 0.5, 0.01],
-      },
-    },
-    { id: 'stamp', persist: true },
-  )
 
   const canvasZoomRef = useRef(canvasZoom)
   const textOverlayRef = useRef<HTMLCanvasElement>(null)
@@ -655,15 +644,19 @@ export function StampCanvas() {
     fabricCanvas.on('object:scaling', onObjectScaling)
     fabricCanvas.on('object:modified', onObjectModifiedCanvas)
 
+    let syncingOverlay = false
     const syncTextOverlay = () => {
       const overlay = textOverlayRef.current
-      if (!overlay || !activeShaderRef.current) return
+      // toCanvasElement fires after:render, so without this guard it recurses
+      if (syncingOverlay || !overlay || !activeShaderRef.current) return
       const textObjs = getAllTextObjects(stamp)
       if (textObjs.length === 0) return
       const nonTextObjs = stamp.getObjects().filter((obj) => !isTextObject(obj))
       const savedVis = nonTextObjs.map((obj) => obj.visible)
       nonTextObjs.forEach((obj) => { obj.visible = false })
+      syncingOverlay = true
       const tempEl = fabricCanvas.toCanvasElement()
+      syncingOverlay = false
       nonTextObjs.forEach((obj, i) => { obj.visible = savedVis[i]! })
       overlay.width = tempEl.width
       overlay.height = tempEl.height
@@ -858,23 +851,15 @@ export function StampCanvas() {
     }
   }, [stageW, stageH])
 
-  const tilted =
-    hovering &&
-    !chromeRect &&
-    !frameTravelRect &&
-    !selectedTextId &&
-    !textPlacementActive &&
-    !outlineMode
-
   // view-only scale, export still uses the stamp's real pixel size
   const deskScale = stampRect
     ? Math.min(
-        stampDial.maxScale,
+        DESK_MAX_SCALE,
         Math.max(
           1,
           Math.min(
-            (stageW * stampDial.fill) / stampRect.width,
-            (stageH * stampDial.fill) / stampRect.height,
+            (stageW * DESK_FILL) / stampRect.width,
+            (stageH * DESK_FILL) / stampRect.height,
           ),
         ),
       )
@@ -904,7 +889,7 @@ export function StampCanvas() {
 
         {stampRect ? (
           <motion.div
-            className={`absolute z-0 rounded-sm ${
+            className={`absolute z-0 rounded-[2px] ${
               outlineMode ? 'ring-1 ring-inset ring-ink/50' : ''
             }`}
             style={{
@@ -916,17 +901,11 @@ export function StampCanvas() {
               visibility: settled ? 'visible' : 'hidden',
               filter: outlineMode
                 ? undefined
-                : `drop-shadow(0 1px 2px rgb(0 0 0 / 0.12)) drop-shadow(0 ${stampDial.shadow.offset}px ${stampDial.shadow.blur}px rgb(0 0 0 / ${stampDial.shadow.opacity}))`,
+                : STAMP_SHADOW,
             }}
             initial={false}
-            animate={{
-              scale: canvasZoom * deskScale,
-              rotate: tilted ? -stampDial.tilt : 0,
-            }}
+            animate={{ scale: canvasZoom * deskScale }}
             transition={settled ? springy : { duration: 0 }}
-            onPointerEnter={() => setHovering(true)}
-            onPointerLeave={() => setHovering(false)}
-            onPointerDown={() => setHovering(false)}
           >
             <div
               ref={contentRef}

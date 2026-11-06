@@ -110,7 +110,7 @@ export function ColorPickerPortal({
         e.stopPropagation();
       }}
     >
-      <div className="overflow-hidden rounded-xl bg-card shadow-chunky">
+      <div className="overflow-hidden rounded-2xl bg-card shadow-chunky">
         <ChromePicker
           color={colorHex}
           onChange={(c) => onPick(c.hex)}

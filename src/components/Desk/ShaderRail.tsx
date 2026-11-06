@@ -1,6 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useDialKit } from "dialkit";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
+import {
+  DEFAULT_SHADER_PARAMS,
+  defaultStampUrl,
+} from "../../data/editorDefaults";
 import { useStampEditor } from "../../hooks/useStampEditor";
 import { ShaderLayer } from "../Canvas/ShaderLayer";
 import { ColorPickerPortal } from "../UI/ColorPickerPortal";
@@ -42,20 +47,36 @@ const SHADERS: readonly { name: ShaderName; label: string }[] = [
   { name: "fluted-glass", label: "Fluted glass" },
   { name: "halftone-cmyk", label: "Halftone CMYK" },
   { name: "image-dithering", label: "Dithering" },
+  { name: "paper-texture", label: "Paper" },
+  { name: "water", label: "Water" },
+  { name: "engraving", label: "Engraving" },
+  { name: "riso", label: "Riso" },
 ];
 
-const THUMB_RECT = { left: 0, top: 0, width: 104, height: 72 };
-
 export function ShaderRail() {
-  const { blurPop, press } = useDeskMotion();
-  const {
-    activeShader,
-    setActiveShader,
-    shaderParams,
-    stampColor,
-    backgroundAsset,
-  } = useStampEditor();
+  const { blurPop, press, springy } = useDeskMotion();
+  const { activeShader, setActiveShader } = useStampEditor();
+  const rail = useDialKit(
+    "Shader rail",
+    {
+      windowWidth: [75, 32, 140, 1],
+      windowHeight: [62, 24, 120, 1],
+      windowRadius: [12, 0, 32, 1],
+      columns: [1, 1, 4, 1],
+      gap: [7, 0, 32, 1],
+      padding: [8, 0, 32, 1],
+      cardRadius: [20, 0, 48, 1],
+    },
+    { id: "shader-rail-v2", persist: true },
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tip, setTip] = useState({
+    name: null as ShaderName | null,
+    label: "",
+    y: 0,
+    visible: false,
+    snap: true,
+  });
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,6 +100,22 @@ export function ShaderRail() {
     };
   }, [settingsOpen]);
 
+  const showTip = (name: ShaderName, label: string, el: HTMLElement) => {
+    setTip((t) => ({
+      name,
+      label,
+      y: el.offsetTop + el.offsetHeight / 2,
+      visible: true,
+      snap: !t.visible,
+    }));
+  };
+
+  const hideTip = () => setTip((t) => ({ ...t, visible: false }));
+
+  // the open settings card sits where this thumb's label would land
+  const tipShown =
+    tip.visible && !(settingsOpen && tip.name === activeShader);
+
   const onThumb = (name: ShaderName) => {
     const turningOff = activeShader === name && settingsOpen;
     setActiveShader(turningOff ? null : name);
@@ -90,7 +127,17 @@ export function ShaderRail() {
       <div
         role="group"
         aria-label="Print effects"
-        className="desk-card flex gap-3 p-3 max-md:overflow-x-auto md:flex-col"
+        onPointerLeave={hideTip}
+        onBlur={hideTip}
+        className="desk-card grid w-max grid-cols-[repeat(var(--rail-columns),max-content)] max-md:grid-cols-3"
+        style={
+          {
+            "--rail-columns": rail.columns,
+            gap: rail.gap,
+            padding: rail.padding,
+            borderRadius: rail.cardRadius,
+          } as CSSProperties
+        }
       >
         {SHADERS.map(({ name, label }) => {
           const on = activeShader === name;
@@ -99,35 +146,63 @@ export function ShaderRail() {
               key={name}
               type="button"
               {...press}
+              aria-label={label}
+              onPointerEnter={(e) => showTip(name, label, e.currentTarget)}
+              onFocus={(e) => showTip(name, label, e.currentTarget)}
               aria-pressed={on}
               onClick={() => onThumb(name)}
-              className="flex w-[104px] shrink-0 cursor-pointer flex-col gap-1 text-left text-sm"
+              className={`relative block cursor-pointer overflow-hidden bg-[#fff] ${
+                on ? "outline-3 outline-offset-1 outline-cornflower" : ""
+              }`}
+              style={{
+                width: rail.windowWidth,
+                height: rail.windowHeight,
+                borderRadius: rail.windowRadius,
+              }}
             >
-              <span
-                className={`relative block h-[72px] w-full overflow-hidden rounded-xl bg-[#fff] ${
-                  on ? "outline-3 outline-offset-2 outline-cornflower" : ""
-                }`}
-              >
-                <ShaderLayer
-                  rect={THUMB_RECT}
-                  imageSrc={backgroundAsset?.src ?? ""}
-                  stampColor={stampColor}
-                  activeShader={name}
-                  shaderParams={shaderParams}
-                />
-              </span>
-              <span className="truncate">{label}</span>
+              <ShaderLayer
+                rect={{
+                  left: 0,
+                  top: 0,
+                  width: rail.windowWidth,
+                  height: rail.windowHeight,
+                }}
+                imageSrc={defaultStampUrl}
+                stampColor="#ffffff"
+                activeShader={name}
+                shaderParams={DEFAULT_SHADER_PARAMS}
+              />
             </motion.button>
           );
         })}
       </div>
+
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute top-0 left-full z-40 ml-2"
+        initial={false}
+        animate={{
+          y: tip.y,
+          opacity: tipShown ? 1 : 0,
+          filter: tipShown ? "blur(0px)" : "blur(6px)",
+        }}
+        transition={{
+          y: tip.snap ? { duration: 0 } : springy,
+          opacity: { duration: 0.14 },
+          filter: { duration: 0.18 },
+        }}
+      >
+        <span className="desk-card block -translate-y-1/2 !rounded-xl px-2.5 py-1 text-sm whitespace-nowrap">
+          {tip.label}
+        </span>
+      </motion.div>
 
       <AnimatePresence>
         {activeShader && settingsOpen ? (
           <motion.div
             key={activeShader}
             {...blurPop}
-            className="desk-card absolute z-30 w-60 space-y-3 p-3 max-md:bottom-full max-md:left-0 max-md:mb-2 md:left-full md:top-0 md:ml-3"
+            className="desk-card absolute z-30 w-60 space-y-2 p-2 max-md:bottom-full max-md:left-0 max-md:mb-2 md:left-full md:top-0 md:ml-3"
           >
             <ShaderParams shader={activeShader} />
           </motion.div>
@@ -329,6 +404,103 @@ function ShaderParams({ shader }: { shader: ShaderName }) {
                 />
               </div>
             </div>
+      </>
+    );
+  }
+
+  if (shader === "paper-texture") {
+    const p = shaderParams["paper-texture"];
+    return (
+      <>
+        {(
+          [
+            ["folds", "Folds"],
+            ["crumples", "Crumples"],
+            ["roughness", "Roughness"],
+          ] as const
+        ).map(([param, label]) => (
+          <PerforationSlider
+            key={`paper-${param}-${p[param]}`}
+            label={label}
+            defaultValue={Math.round(p[param] * 100)}
+            minValue={0}
+            maxValue={100}
+            onChange={(v) => updateShaderParam("paper-texture", param, v / 100)}
+          />
+        ))}
+      </>
+    );
+  }
+
+  if (shader === "water") {
+    const p = shaderParams.water;
+    return (
+      <>
+        {(
+          [
+            ["size", "Size"],
+            ["waves", "Waves"],
+            ["caustic", "Caustic"],
+          ] as const
+        ).map(([param, label]) => (
+          <PerforationSlider
+            key={`water-${param}-${p[param]}`}
+            label={label}
+            defaultValue={Math.round(p[param] * 100)}
+            minValue={0}
+            maxValue={100}
+            onChange={(v) => updateShaderParam("water", param, v / 100)}
+          />
+        ))}
+      </>
+    );
+  }
+
+  if (shader === "engraving") {
+    const p = shaderParams.engraving;
+    return (
+      <>
+        <PerforationSlider
+          key={`engrave-size-${p.size}`}
+          label="Line spacing"
+          defaultValue={p.size}
+          minValue={2}
+          maxValue={16}
+          onChange={(v) => updateShaderParam("engraving", "size", v)}
+        />
+        <PerforationSlider
+          key={`engrave-angle-${p.angle}`}
+          label="Angle"
+          defaultValue={p.angle}
+          minValue={0}
+          maxValue={180}
+          format={(v) => `${v}°`}
+          onChange={(v) => updateShaderParam("engraving", "angle", v)}
+        />
+      </>
+    );
+  }
+
+  if (shader === "riso") {
+    const p = shaderParams.riso;
+    return (
+      <>
+        <PerforationSlider
+          key={`riso-size-${p.size}`}
+          label="Grain"
+          defaultValue={Math.round(p.size * 10)}
+          minValue={10}
+          maxValue={60}
+          onChange={(v) => updateShaderParam("riso", "size", v / 10)}
+        />
+        <PerforationSlider
+          key={`riso-offset-${p.offset}`}
+          label="Misprint"
+          defaultValue={Math.round(p.offset * 1000)}
+          minValue={0}
+          maxValue={30}
+          onChange={(v) => updateShaderParam("riso", "offset", v / 1000)}
+        />
       </>
     );
   }

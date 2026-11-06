@@ -3,11 +3,28 @@ import {
   HalftoneCmyk,
   HalftoneDots,
   ImageDithering,
+  PaperTexture,
+  ShaderMount,
+  Water,
 } from '@paper-design/shaders-react'
 import { useMemo } from 'react'
 
 import type { DitheringPresetName, ShaderName, ShaderParamsMap } from '../../types/canvas'
 import { solidColorDataUrl } from '../../utils/solidColorDataUrl'
+import { ENGRAVING_SHADER, RISO_SHADER } from './printShaders'
+
+const COVER = 2
+const printSizing = {
+  u_fit: COVER,
+  u_scale: 1,
+  u_rotation: 0,
+  u_offsetX: 0,
+  u_offsetY: 0,
+  u_originX: 0.5,
+  u_originY: 0.5,
+  u_worldWidth: 0,
+  u_worldHeight: 0,
+}
 
 const DITHERING_PRESETS: Record<
   DitheringPresetName,
@@ -146,6 +163,43 @@ export function ShaderLayer({
           {...common}
           {...DITHERING_PRESETS[shaderParams['image-dithering'].preset]}
           size={shaderParams['image-dithering'].size}
+        />
+      ) : null}
+      {activeShader === 'paper-texture' ? (
+        <PaperTexture
+          {...common}
+          fit="cover"
+          scale={1}
+          {...shaderParams['paper-texture']}
+        />
+      ) : null}
+      {activeShader === 'water' ? (
+        <Water {...common} fit="cover" scale={1} {...shaderParams.water} />
+      ) : null}
+      {activeShader === 'engraving' ? (
+        <ShaderMount
+          className={common.className}
+          speed={0}
+          fragmentShader={ENGRAVING_SHADER}
+          uniforms={{
+            ...printSizing,
+            u_image: baseImage,
+            u_size: shaderParams.engraving.size,
+            u_angle: shaderParams.engraving.angle,
+          }}
+        />
+      ) : null}
+      {activeShader === 'riso' ? (
+        <ShaderMount
+          className={common.className}
+          speed={0}
+          fragmentShader={RISO_SHADER}
+          uniforms={{
+            ...printSizing,
+            u_image: baseImage,
+            u_size: shaderParams.riso.size,
+            u_offset: shaderParams.riso.offset,
+          }}
         />
       ) : null}
     </div>

@@ -28,6 +28,10 @@ export type ShaderName =
   | 'fluted-glass'
   | 'halftone-cmyk'
   | 'image-dithering'
+  | 'paper-texture'
+  | 'water'
+  | 'engraving'
+  | 'riso'
 
 /** Matches @paper-design/shaders HalftoneDotsType */
 export type HalftoneDotsStyle = 'classic' | 'gooey' | 'holes' | 'soft'
@@ -75,4 +79,8 @@ export type ShaderParamsMap = {
   'fluted-glass': FlutedGlassUiParams
   'halftone-cmyk': HalftoneCmykUiParams
   'image-dithering': ImageDitheringUiParams
+  'paper-texture': { folds: number; crumples: number; roughness: number }
+  water: { size: number; waves: number; caustic: number }
+  engraving: { size: number; angle: number }
+  riso: { size: number; offset: number }
 }

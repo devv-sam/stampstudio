@@ -71,12 +71,12 @@ export function CropStep({
 
   return (
     <Modal open onClose={onCancel} labelledBy="crop-step-title">
-      <div className="flex flex-col gap-3 p-3">
-        <h2 id="crop-step-title" className="px-2 pt-1 text-lg font-semibold">
+      <div className="flex flex-col gap-2 p-2">
+        <h2 id="crop-step-title" className="px-2 py-1 text-lg font-semibold">
           Crop & adjust
         </h2>
 
-        <div className="relative h-[360px] w-full overflow-hidden rounded-2xl bg-desk max-md:h-[280px]">
+        <div className="relative h-[360px] w-full overflow-hidden rounded-xl bg-desk max-md:h-[280px]">
           <Cropper
             image={src}
             crop={crop}
@@ -103,7 +103,7 @@ export function CropStep({
         <div
           role="radiogroup"
           aria-label="Aspect ratio"
-          className="flex flex-wrap gap-1 rounded-2xl bg-zinc-900 p-1"
+          className="flex flex-wrap gap-1 rounded-xl bg-zinc-900 p-1"
         >
           {ASPECT_CHOICES.map((choice) => {
             const active = aspect.id === choice.id;
@@ -114,13 +114,13 @@ export function CropStep({
                 role="radio"
                 aria-checked={active}
                 onClick={() => setAspect(choice)}
-                className="relative flex h-10 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl text-sm whitespace-nowrap"
+                className="relative flex h-10 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg text-sm whitespace-nowrap"
               >
                 {active ? (
                   <motion.span
                     layoutId="crop-aspect-pill"
                     transition={springy}
-                    className="absolute inset-0 rounded-xl bg-card shadow-sm"
+                    className="absolute inset-0 rounded-lg bg-card shadow-sm"
                   />
                 ) : null}
                 <motion.span

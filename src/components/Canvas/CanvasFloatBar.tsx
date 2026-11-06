@@ -46,7 +46,7 @@ function resolutionToMultiplier(
 }
 
 const chipBase =
-  "rounded-xl px-3 py-1.5 text-sm transition-[color,background-color] duration-200 ease-out";
+  "rounded-lg px-3 py-1.5 text-sm transition-[color,background-color] duration-200 ease-out";
 const chipInactive = "cursor-pointer text-zinc-500 hover:text-zinc-300";
 const chipActive = "cursor-default bg-zinc-800 text-zinc-100";
 
@@ -390,7 +390,7 @@ export function CanvasFloatBar() {
                 </div>
               </div>
 
-              <div className="flex gap-2 px-3 pb-3">
+              <div className="flex gap-2 p-2 pt-0">
                 <Button
                   variant="primary"
                   disabled={exportBusy}
@@ -445,7 +445,7 @@ export function CanvasFloatBar() {
         </AnimatePresence>
 
         <div
-          className="desk-card relative flex items-center !rounded-2xl p-1"
+          className="desk-card relative flex items-center p-2"
           onPointerLeave={hideTip}
           onBlur={hideTip}
         >

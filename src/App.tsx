@@ -19,11 +19,11 @@ export default function App() {
             <Route path="/changelog" element={<ChangelogPage />} />
           </Routes>
         </MotionConfig>
-        <DialRoot position="bottom-left" theme="light" defaultOpen={false} />
+        <DialRoot position="top-right" theme="light" defaultOpen={false} />
         {import.meta.env.DEV ? (
           <Agentation
             endpoint="http://localhost:4747"
-            className="!top-16 !bottom-auto"
+            className="!top-20 !bottom-auto"
           />
         ) : null}
       </ExperimentsProvider>

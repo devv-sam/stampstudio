@@ -1,5 +1,4 @@
 import { useEffect, useState, type PointerEvent, type ReactNode } from "react";
-import { useDialKit } from "dialkit";
 import { motion, useSpring, type SpringOptions } from "framer-motion";
 
 import { useStampEditor } from "../../hooks/useStampEditor";
@@ -20,6 +19,12 @@ const FILLS = [
 const BOX = 184;
 const RING = 58;
 const CHIP = 32;
+const SIZE = 1.25;
+const SWELL = 1.5;
+const PUSH = 4;
+const PULL = 0.24;
+const PULL_RANGE = 86;
+const CHIP_SPRING: SpringOptions = { visualDuration: 0.35, bounce: DESK_BOUNCE };
 
 const CENTER_INDEX = FILLS.length;
 
@@ -32,25 +37,23 @@ const SPOTS = [
 ];
 
 type Point = { x: number; y: number };
-type Magnet = { swell: number; push: number; pull: number; pullRange: number };
 
 // pressed chip swells, the rest shove away from it, and all of them lean toward the pointer
 function placeChip(
   index: number,
   selected: number,
   pointer: Point | null,
-  { swell, push: pushBy, pull, pullRange }: Magnet,
 ) {
   const spot = SPOTS[index]!;
   let { x, y } = spot;
-  let scale = index === selected ? swell : 1;
+  let scale = index === selected ? SWELL : 1;
 
   if (index !== selected) {
     const origin = SPOTS[selected]!;
     const dx = spot.x - origin.x;
     const dy = spot.y - origin.y;
     const dist = Math.hypot(dx, dy);
-    const push = pushBy * Math.max(0, 1 - dist / (RING * 2));
+    const push = PUSH * Math.max(0, 1 - dist / (RING * 2));
     x += (dx / dist) * push;
     y += (dy / dist) * push;
   }
@@ -58,9 +61,9 @@ function placeChip(
   if (pointer) {
     const dx = pointer.x - spot.x;
     const dy = pointer.y - spot.y;
-    const near = Math.max(0, 1 - Math.hypot(dx, dy) / pullRange);
-    x += dx * pull * near;
-    y += dy * pull * near;
+    const near = Math.max(0, 1 - Math.hypot(dx, dy) / PULL_RANGE);
+    x += dx * PULL * near;
+    y += dy * PULL * near;
     scale += 0.14 * near;
   }
 
@@ -68,7 +71,6 @@ function placeChip(
 }
 
 function Chip({
-  spring,
   target,
   label,
   selected,
@@ -76,7 +78,6 @@ function Chip({
   background,
   children,
 }: {
-  spring: SpringOptions;
   target: { x: number; y: number; scale: number };
   label: string;
   selected: boolean;
@@ -84,9 +85,9 @@ function Chip({
   background?: string;
   children?: ReactNode;
 }) {
-  const x = useSpring(target.x, spring);
-  const y = useSpring(target.y, spring);
-  const scale = useSpring(target.scale, spring);
+  const x = useSpring(target.x, CHIP_SPRING);
+  const y = useSpring(target.y, CHIP_SPRING);
+  const scale = useSpring(target.scale, CHIP_SPRING);
   const [held, setHeld] = useState(false);
   useEffect(() => {
     x.set(target.x);
@@ -126,19 +127,6 @@ function Chip({
 
 export function MagneticPicker() {
   const { stampColor, pickSolidStampColor, backgroundAsset } = useStampEditor();
-  const magnet = useDialKit(
-    "Color picker",
-    {
-      spring: { type: "spring", visualDuration: 0.35, bounce: DESK_BOUNCE },
-      size: [1.25, 0.6, 1.8, 0.05],
-      swell: [1.5, 1, 2.2, 0.05],
-      push: [4, 0, 40, 1],
-      pull: [0.24, 0, 0.6, 0.01],
-      pullRange: [86, 30, 140, 2],
-    },
-    { id: "color-picker-v2", persist: true },
-  );
-  const chipSpring = magnet.spring as SpringOptions;
   const [pointer, setPointer] = useState<Point | null>(null);
   const [pickerAnchor, setPickerAnchor] = useState<HTMLElement | null>(null);
 
@@ -149,8 +137,8 @@ export function MagneticPicker() {
     if (e.pointerType !== "mouse") return;
     const box = e.currentTarget.getBoundingClientRect();
     setPointer({
-      x: (e.clientX - box.left - box.width / 2) / magnet.size,
-      y: (e.clientY - box.top - box.height / 2) / magnet.size,
+      x: (e.clientX - box.left - box.width / 2) / SIZE,
+      y: (e.clientY - box.top - box.height / 2) / SIZE,
     });
   };
 
@@ -164,15 +152,14 @@ export function MagneticPicker() {
       style={{
         width: BOX,
         height: BOX,
-        transform: `scale(${magnet.size})`,
+        transform: `scale(${SIZE})`,
         transformOrigin: "bottom right",
       }}
     >
       {FILLS.map(({ hex, name }, i) => (
         <Chip
           key={hex}
-          spring={chipSpring}
-          target={placeChip(i, selected, pointer, magnet)}
+          target={placeChip(i, selected, pointer)}
           label={name}
           selected={selected === i}
           background={hex}
@@ -184,8 +171,7 @@ export function MagneticPicker() {
       ))}
 
       <Chip
-        spring={chipSpring}
-        target={placeChip(CENTER_INDEX, selected, pointer, magnet)}
+        target={placeChip(CENTER_INDEX, selected, pointer)}
         label="Custom color"
         selected={selected === CENTER_INDEX}
         background={

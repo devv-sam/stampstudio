@@ -69,3 +69,9 @@ export function mixOutlines(from: Outline, to: Outline, t: number): Outline {
 export function outlineToPath(outline: Outline) {
   return `M${outline.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join('L')}Z`
 }
+
+// padded viewBox, the star's tips run past the logo's 217 box
+export function outlineToFavicon(outline: Outline, color: string) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -8 233 233" fill="none"><path d="${outlineToPath(outline)}" stroke="${color}" stroke-width="20" stroke-linejoin="round"/></svg>`
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}

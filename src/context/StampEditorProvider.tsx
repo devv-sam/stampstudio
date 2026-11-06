@@ -1,4 +1,4 @@
-import defaultStampUrl from '../assets/default-stamp.svg'
+import { DEFAULT_SHADER_PARAMS, DEFAULT_STAMP_ASSET } from '../data/editorDefaults'
 import {
   useCallback,
   useEffect,
@@ -67,32 +67,6 @@ function writeSnapToPresetsEnabled(enabled: boolean) {
   }
 }
 
-const defaultShaderParams: ShaderParamsMap = {
-  'halftone-dots': { size: 0.5, type: 'gooey', contrast: 0.4 },
-  'fluted-glass': { size: 0.5, distortion: 0.5, shape: 'lines' },
-  'halftone-cmyk': {
-    size: 0.2,
-    type: 'ink',
-    softness: 1,
-    colorBack: '#fbfaf5',
-    colorC: '#00b4ff',
-    colorM: '#fc519f',
-    colorY: '#ffd800',
-    colorK: '#231f20',
-  },
-  'image-dithering': { preset: 'natural', size: 2 },
-}
-
-const DEFAULT_ASSET: ImageAsset = {
-  id: 'default-stamp',
-  fileName: 'Default stamp',
-  src: defaultStampUrl,
-  width: 1920,
-  height: 1080,
-  role: 'background',
-  createdAt: new Date(0).toISOString(),
-}
-
 export function StampEditorProvider({ children }: { children: ReactNode }) {
   const apiRef = useRef<StampCanvasApi | null>(null)
   const detachRef = useRef<(() => void) | null>(null)
@@ -132,7 +106,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
   }, [activeShader])
 
   const [shaderParams, setShaderParams] = useState<ShaderParamsMap>(() => ({
-    ...defaultShaderParams,
+    ...DEFAULT_SHADER_PARAMS,
   }))
 
   const updateShaderParam = useCallback(
@@ -148,7 +122,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     },
     [],
   )
-  const [imageAssets, setImageAssets] = useState<ImageAsset[]>([DEFAULT_ASSET])
+  const [imageAssets, setImageAssets] = useState<ImageAsset[]>([DEFAULT_STAMP_ASSET])
   /**
    * Bumped whenever the Fabric canvas (re-)registers so reconciliation
    * effects re-run against the fresh canvas instance — covers HMR remounts
