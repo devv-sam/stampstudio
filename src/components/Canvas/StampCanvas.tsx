@@ -217,6 +217,14 @@ export function StampCanvas() {
   } = useStampEditor()
 
   const [hovering, setHovering] = useState(false)
+  // the stamp sizes itself across the first frames, only spring after that
+  const [settled, setSettled] = useState(false)
+  useEffect(() => {
+    let id = requestAnimationFrame(() => {
+      id = requestAnimationFrame(() => setSettled(true))
+    })
+    return () => cancelAnimationFrame(id)
+  }, [])
   const { springy } = useDeskMotion()
   const stampDial = useDialKit(
     'Stamp',
@@ -905,6 +913,7 @@ export function StampCanvas() {
               width: stampRect.width,
               height: stampRect.height,
               boxSizing: 'border-box',
+              visibility: settled ? 'visible' : 'hidden',
               filter: outlineMode
                 ? undefined
                 : `drop-shadow(0 1px 2px rgb(0 0 0 / 0.12)) drop-shadow(0 ${stampDial.shadow.offset}px ${stampDial.shadow.blur}px rgb(0 0 0 / ${stampDial.shadow.opacity}))`,
@@ -914,7 +923,7 @@ export function StampCanvas() {
               scale: canvasZoom * deskScale,
               rotate: tilted ? -stampDial.tilt : 0,
             }}
-            transition={springy}
+            transition={settled ? springy : { duration: 0 }}
             onPointerEnter={() => setHovering(true)}
             onPointerLeave={() => setHovering(false)}
             onPointerDown={() => setHovering(false)}
@@ -1018,7 +1027,11 @@ export function StampCanvas() {
         {stampRect ? (
           <motion.div
             className="pointer-events-none absolute text-center"
-            style={{ left: stampRect.left, width: stampRect.width }}
+            style={{
+              left: stampRect.left,
+              width: stampRect.width,
+              visibility: settled ? 'visible' : 'hidden',
+            }}
             initial={false}
             animate={{
               top:
@@ -1027,7 +1040,7 @@ export function StampCanvas() {
                 (stampRect.height / 2) * canvasZoom * deskScale +
                 12,
             }}
-            transition={springy}
+            transition={settled ? springy : { duration: 0 }}
           >
             <StampSizeHud />
           </motion.div>
