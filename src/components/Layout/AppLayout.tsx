@@ -1,7 +1,6 @@
-import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState, type ReactNode } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import { Analytics } from "@vercel/analytics/react";
 
 import { StampCanvas } from "../Canvas/StampCanvas";
 import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
@@ -14,35 +13,33 @@ import { getLatestVersion } from "../../data/changelog";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useExperiments } from "../../hooks/useExperiments";
 import { HOME_TITLE } from "../../seo";
-import { hasUnseenChangelog } from "../../utils/changelogStorage";
-
-function ChangelogLink() {
-  const latest = getLatestVersion();
-  const unread = hasUnseenChangelog(latest);
-
-  return (
-    <Link
-      to="/changelog"
-      className="relative inline-flex cursor-pointer items-center gap-1.5 text-sm hover:text-ink-soft"
-    >
-      Updates
-      {unread ? (
-        <span
-          className="h-2 w-2 rounded-full bg-peony"
-          aria-label="Unread updates"
-        />
-      ) : null}
-    </Link>
-  );
-}
+import {
+  hasUnseenChangelog,
+  markChangelogSeen,
+} from "../../utils/changelogStorage";
+import { UpdatesModal } from "../Updates/UpdatesModal";
 
 export function AppLayout({ header }: { header?: ReactNode }) {
   useDocumentTitle(HOME_TITLE);
   const { active } = useExperiments();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const latest = getLatestVersion();
+  const [updatesOpen, setUpdatesOpen] = useState(
+    Boolean((location.state as { updates?: boolean } | null)?.updates),
+  );
+
+  // clear the /changelog redirect flag so a reload doesn't reopen the popup
+  useEffect(() => {
+    if (location.state) navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, navigate]);
+
+  useEffect(() => {
+    if (updatesOpen && latest) markChangelogSeen(latest);
+  }, [updatesOpen, latest]);
 
   return (
     <>
-      <Analytics />
       <div className="relative h-full min-h-0 overflow-hidden bg-desk text-ink">
         <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-4 px-5 py-4">
           <div className="flex items-center gap-6">
@@ -54,7 +51,19 @@ export function AppLayout({ header }: { header?: ReactNode }) {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <ChangelogLink />
+            <button
+              type="button"
+              onClick={() => setUpdatesOpen(true)}
+              className="relative inline-flex cursor-pointer items-center gap-1.5 text-sm hover:text-ink-soft"
+            >
+              Updates
+              {hasUnseenChangelog(latest) ? (
+                <span
+                  className="h-2 w-2 rounded-full bg-peony"
+                  aria-label="Unread updates"
+                />
+              ) : null}
+            </button>
             {header}
             <a
               href="https://devvsam.com"
@@ -89,6 +98,11 @@ export function AppLayout({ header }: { header?: ReactNode }) {
         <CanvasFloatBar />
 
       </div>
+
+      <UpdatesModal
+        open={updatesOpen}
+        onClose={() => setUpdatesOpen(false)}
+      />
 
       <AnimatePresence>
         {active === "stampsheet" ? <StampSheetExperiment /> : null}

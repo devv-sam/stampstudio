@@ -31,9 +31,9 @@ import {
   readTextLayerId,
 } from '../../utils/textHelpers'
 import { punchPerforationHoles } from '../../utils/exportHelpers'
+import { buildPerforationClipPathD } from '../../utils/stampPerforationLayout'
 import { applyOutlineMode, restoreOutlineMode } from '../../utils/outlineMode'
 import { StampSizeHud } from '../Layout/StampSizeHud'
-import { StampPerforations } from './StampPerforations'
 import { ShaderLayer } from './ShaderLayer'
 import { StampResizeEdges } from './StampResizeEdges'
 
@@ -379,7 +379,8 @@ export function StampCanvas() {
       clampStampBoundsAndCenter(fabricCanvas, stamp, room.w, room.h)
       syncStampScreenRect()
       syncFrameTravelOverlay()
-      fabricCanvas.requestRenderAll()
+      // resizing the canvas clears it, so paint now rather than next frame
+      fabricCanvas.renderAll()
     }
 
     syncStampScreenRect()
@@ -675,6 +676,12 @@ export function StampCanvas() {
     stampRef.current?.fire('modified', {} as never)
   }
 
+  // inline path() so holes land in the same frame as the size, an svg url() clip repaints a frame late
+  const perforationClip =
+    stampRect && perforationCount > 0 && !outlineMode
+      ? `path(evenodd, "${buildPerforationClipPathD(stampRect.width, stampRect.height, perforationCount)}")`
+      : undefined
+
   const shaderRect =
     stampRect === null
       ? null
@@ -691,12 +698,6 @@ export function StampCanvas() {
         ref={stageRef}
         className="relative h-full min-h-0 w-full"
       >
-        <StampPerforations
-          width={stampRect?.width ?? 0}
-          height={stampRect?.height ?? 0}
-          userDensity={outlineMode ? 0 : perforationCount}
-        />
-
         {stampRect ? (
           <motion.div
             className={`absolute z-0 rounded-[2px] ${
@@ -721,10 +722,7 @@ export function StampCanvas() {
               ref={contentRef}
               className="relative flex h-full w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[2px]"
               style={{
-                clipPath:
-                  perforationCount > 0
-                    ? 'url(#stamp-perf-clip)'
-                    : undefined,
+                clipPath: perforationClip,
               }}
             >
               <ShaderLayer

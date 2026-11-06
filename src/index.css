@@ -2,7 +2,6 @@
 
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-sans);
   --text-sm: 0.8125rem; /* 13px */
 
   --color-clover: #00cc55;
@@ -78,10 +77,6 @@ body,
 body {
   margin: 0;
   @apply bg-zinc-950 font-sans text-zinc-100 antialiased;
-}
-
-.font-display {
-  font-family: var(--font-display);
 }
 
 /* Icon column in font menu — stay in UI sans (preview is on sibling / parent `div`, not `button`). */

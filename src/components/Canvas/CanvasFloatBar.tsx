@@ -355,7 +355,7 @@ export function CanvasFloatBar() {
   const hideTip = () => setTip((t) => ({ ...t, visible: false }));
 
   const tipShown =
-    (tip.visible || textPlacementActive) && !drawerOpen && !exportPopoverOpen;
+    tip.visible && !textPlacementActive && !drawerOpen && !exportPopoverOpen;
 
   return (
     <>
@@ -506,11 +506,21 @@ export function CanvasFloatBar() {
             }}
           >
             <span className="desk-card block -translate-x-1/2 !rounded-xl px-2.5 py-1 text-sm whitespace-nowrap">
-              {textPlacementActive
-                ? "Click the stamp to place text"
-                : tip.label}
+              {tip.label}
             </span>
           </motion.div>
+
+          <AnimatePresence>
+            {textPlacementActive ? (
+              <motion.span
+                {...blurPop}
+                className="desk-card pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 !rounded-xl px-2.5 py-1 text-sm whitespace-nowrap"
+                style={{ marginBottom: nav.labelGap }}
+              >
+                Click the stamp to place text
+              </motion.span>
+            ) : null}
+          </AnimatePresence>
 
           {groups.map((group, g) => (
             <Fragment key={group[0]!.label}>
