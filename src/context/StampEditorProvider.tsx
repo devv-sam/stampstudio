@@ -1,4 +1,4 @@
-import { DEFAULT_SHADER_PARAMS, DEFAULT_STAMP_ASSET } from '../data/editorDefaults'
+import { DEFAULT_SHADER_PARAMS } from '../data/editorDefaults'
 import {
   useCallback,
   useEffect,
@@ -122,7 +122,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     },
     [],
   )
-  const [imageAssets, setImageAssets] = useState<ImageAsset[]>([DEFAULT_STAMP_ASSET])
+  const [imageAssets, setImageAssets] = useState<ImageAsset[]>([])
   /**
    * Bumped whenever the Fabric canvas (re-)registers so reconciliation
    * effects re-run against the fresh canvas instance — covers HMR remounts

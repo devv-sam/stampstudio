@@ -5,6 +5,7 @@ import {
   type TPointerEventInfo,
 } from 'fabric'
 import type { Group } from 'fabric'
+import { useDialKit } from 'dialkit'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
@@ -14,12 +15,13 @@ import { useStampEditor } from '../../hooks/useStampEditor'
 import type { TextLayer } from '../../types/text'
 import type { StampCanvasApi } from '../../types/canvas'
 import {
-  applyStampResizeHandles,
+  disableStampControls,
   clampStampBoundsAndCenter,
   createStampGroup,
   STAMP_BASE_HEIGHT,
   STAMP_BASE_WIDTH,
   STAMP_MAX_CANVAS_FRACTION,
+  STAMP_MIN_SIDE,
 } from '../../utils/fabricHelpers'
 import {
   STAMP_SNAP_COMMIT_THRESHOLD_PX,
@@ -38,14 +40,11 @@ import { applyOutlineMode, restoreOutlineMode } from '../../utils/outlineMode'
 import { StampSizeHud } from '../Layout/StampSizeHud'
 import { StampPerforations } from './StampPerforations'
 import { ShaderLayer } from './ShaderLayer'
-import {
-  StampResizeChromeOverlay,
-  type ChromeRect,
-} from './StampResizeChromeOverlay'
+import { StampResizeEdges } from './StampResizeEdges'
 
 const DESK_FILL = 0.82
 const DESK_MAX_SCALE = 1.7
-const SNAP_GUIDE_GAP = 4
+const SNAP_GUIDE_GAP = 2
 const STAMP_SHADOW =
   'drop-shadow(0 1px 2px rgb(0 0 0 / 0.12)) drop-shadow(0 16px 24px rgb(0 0 0 / 0.14))'
 
@@ -68,37 +67,6 @@ function roomForStamp(stageW: number, stageH: number) {
   return { w: stageW / scale, h: stageH / scale }
 }
 
-function readChromeFromStamp(stamp: Group): ChromeRect {
-  const box = stamp.getBoundingRect()
-  const sx = stamp.scaleX || 1
-  const clip = stamp.clipPath as { rx?: number } | undefined
-  const baseRx = (clip?.rx || 0) * sx
-  const rx = Math.min(
-    Math.max(0, baseRx),
-    box.width / 2 - 0.5,
-    box.height / 2 - 0.5,
-  )
-  return {
-    left: box.left,
-    top: box.top,
-    width: box.width,
-    height: box.height,
-    rx,
-  }
-}
-
-function chromeEqual(a: ChromeRect | null, b: ChromeRect | null) {
-  if (a === b) return true
-  if (!a || !b) return false
-  return (
-    a.left === b.left &&
-    a.top === b.top &&
-    a.width === b.width &&
-    a.height === b.height &&
-    a.rx === b.rx
-  )
-}
-
 /** Stamp canvas matches the stamp; allow a tiny epsilon at edges for float/retina. */
 function pointerOnStampCanvas(
   canvas: Canvas,
@@ -109,39 +77,6 @@ function pointerOnStampCanvas(
   const { x, y } = opt.scenePoint
   const e = 0.5
   return x >= -e && y >= -e && x <= w + e && y <= h + e
-}
-
-/** Hover resize UX: only auto-select stamp (show L-brackets + Fabric corners) near corners — not the whole interior. */
-function isNearStampResizeCorner(
-  stamp: Group,
-  scenePoint: { x: number; y: number },
-  marginPx: number,
-) {
-  stamp.setCoords()
-  const box = stamp.getBoundingRect()
-  const corners = [
-    { x: box.left, y: box.top },
-    { x: box.left + box.width, y: box.top },
-    { x: box.left, y: box.top + box.height },
-    { x: box.left + box.width, y: box.top + box.height },
-  ]
-  return corners.some(
-    (c) =>
-      Math.abs(scenePoint.x - c.x) <= marginPx &&
-      Math.abs(scenePoint.y - c.y) <= marginPx,
-  )
-}
-
-function pointerButtonsDown(e: unknown): boolean {
-  if (
-    e &&
-    typeof e === 'object' &&
-    'buttons' in e &&
-    typeof (e as PointerEvent).buttons === 'number'
-  ) {
-    return (e as PointerEvent).buttons !== 0
-  }
-  return false
 }
 
 function centeredStampScreenRect(
@@ -199,7 +134,6 @@ export function StampCanvas() {
   /** Fresh stage size for Fabric handlers (init effect closure is otherwise stale). */
   const stageSizeRef = useRef({ w: stageW, h: stageH })
 
-  const [chromeRect, setChromeRect] = useState<ChromeRect | null>(null)
   const [stampRect, setStampRect] = useState<RectBounds | null>(() =>
     centeredStampScreenRect(800, 600, 420, 300),
   )
@@ -213,8 +147,6 @@ export function StampCanvas() {
     snapped: boolean
   } | null>(null)
   const stampRectRef = useRef<RectBounds | null>(stampRect)
-  /** True while dragging a stamp corner — must not discard selection on pointerleave (shell re-centers during resize). */
-  const isStampResizingRef = useRef(false)
 
   const {
     register,
@@ -235,7 +167,14 @@ export function StampCanvas() {
     canvasZoom,
     setCanvasZoom,
     outlineMode,
+    applyStampSizePreset,
   } = useStampEditor()
+
+  const { scale: defaultScale } = useDialKit(
+    'Default stamp',
+    { scale: [0.65, 0.3, 2, 0.05] },
+    { id: 'default-stamp-scale', persist: true },
+  )
 
   // the stamp sizes itself across the first frames, only spring after that
   const [settled, setSettled] = useState(false)
@@ -423,7 +362,7 @@ export function StampCanvas() {
     })
 
     const stamp = createStampGroup()
-    applyStampResizeHandles(stamp)
+    disableStampControls(stamp)
     fabricCanvas.add(stamp)
     const initialRoom = roomForStamp(
       stageSizeRef.current.w,
@@ -464,12 +403,6 @@ export function StampCanvas() {
       setStampRect(centeredStampScreenRect(w, h, rw, rh))
     }
 
-    const syncChromeIfActive = () => {
-      if (fabricCanvas.getActiveObject() !== stamp) return
-      const next = readChromeFromStamp(stamp)
-      setChromeRect((prev) => (chromeEqual(prev, next) ? prev : next))
-    }
-
     const syncFrameTravelOverlay = () => {
       const active = fabricCanvas.getActiveObject()
       if (!isFrameObject(active)) {
@@ -505,7 +438,6 @@ export function StampCanvas() {
             : null,
         )
       }
-      syncChromeIfActive()
       syncStampScreenRect()
       syncFrameTravelOverlay()
       fabricCanvas.requestRenderAll()
@@ -515,67 +447,6 @@ export function StampCanvas() {
 
     fabricCanvas.discardActiveObject()
     fabricCanvas.requestRenderAll()
-
-    const showChrome = () => {
-      const currentActive = fabricCanvas.getActiveObject()
-      if (isFrameObject(currentActive)) return
-      if (isTextObject(currentActive)) return
-      if (currentActive !== stamp) {
-        fabricCanvas.setActiveObject(stamp)
-      }
-      const next = readChromeFromStamp(stamp)
-      setChromeRect((prev) => (chromeEqual(prev, next) ? prev : next))
-      fabricCanvas.requestRenderAll()
-    }
-
-    const hideChrome = () => {
-      if (fabricCanvas.getActiveObject() === stamp) {
-        fabricCanvas.discardActiveObject()
-      }
-      setChromeRect(null)
-      setSnapGuide(null)
-      fabricCanvas.requestRenderAll()
-    }
-
-    const CORNER_RESIZE_MARGIN_PX = 48
-
-    const onMouseMove = (opt: TPointerEventInfo) => {
-      const currentActive = fabricCanvas.getActiveObject()
-      if (isFrameObject(currentActive)) return
-      if (isTextObject(currentActive)) return
-
-      const scene = { x: opt.scenePoint.x, y: opt.scenePoint.y }
-
-      if (!pointerOnStampCanvas(fabricCanvas, opt)) {
-        if (!isStampResizingRef.current) hideChrome()
-        return
-      }
-
-      const nearCorner = isNearStampResizeCorner(
-        stamp,
-        scene,
-        CORNER_RESIZE_MARGIN_PX,
-      )
-      const dragging = pointerButtonsDown(opt.e)
-
-      if (
-        nearCorner ||
-        (dragging && fabricCanvas.getActiveObject() === stamp)
-      ) {
-        showChrome()
-        return
-      }
-
-      if (
-        fabricCanvas.getActiveObject() === stamp &&
-        !isStampResizingRef.current
-      ) {
-        fabricCanvas.discardActiveObject()
-        setChromeRect(null)
-        setSnapGuide(null)
-        fabricCanvas.requestRenderAll()
-      }
-    }
 
     const onSelectionChange = () => {
       const active = fabricCanvas.getActiveObject()
@@ -604,16 +475,11 @@ export function StampCanvas() {
       syncFrameTravelOverlay()
     }
 
-    const onStampScaleStart = () => {
-      isStampResizingRef.current = true
-    }
-
     const onStampScaling = () => {
       runClampSync({ previewSnapOutline: true })
     }
 
     const onStampBoundsModified = () => {
-      isStampResizingRef.current = false
       setSnapGuide(null)
       runClampSync({ previewSnapOutline: false })
       userDesiredStampSizeRef.current = {
@@ -641,12 +507,10 @@ export function StampCanvas() {
       }
     }
 
-    stamp.on('scaling', onStampScaleStart)
     stamp.on('scaling', onStampScaling)
     stamp.on('modified', onStampBoundsModified)
 
     fabricCanvas.on('mouse:down', onPlacementMouseDown)
-    fabricCanvas.on('mouse:move', onMouseMove)
     fabricCanvas.on('mouse:move', onTextPlacementCursor)
     fabricCanvas.on('selection:created', onSelectionChange)
     fabricCanvas.on('selection:updated', onSelectionChange)
@@ -779,7 +643,6 @@ export function StampCanvas() {
       clampStampBoundsAndCenter(fabricCanvas, stamp, room.w, room.h)
       fabricCanvas.requestRenderAll()
       syncStampScreenRect()
-      syncChromeIfActive()
       setSnapGuide(null)
       return {
         width: fabricCanvas.getWidth(),
@@ -797,9 +660,7 @@ export function StampCanvas() {
     return () => {
       stamp.off('modified', onStampBoundsModified)
       stamp.off('scaling', onStampScaling)
-      stamp.off('scaling', onStampScaleStart)
       fabricCanvas.off('mouse:down', onPlacementMouseDown)
-      fabricCanvas.off('mouse:move', onMouseMove)
       fabricCanvas.off('mouse:move', onTextPlacementCursor)
       fabricCanvas.off('selection:created', onSelectionChange)
       fabricCanvas.off('selection:updated', onSelectionChange)
@@ -812,12 +673,18 @@ export function StampCanvas() {
       fabricCanvas.dispose()
       fabricRef.current = null
       stampRef.current = null
-      setChromeRect(null)
       setSnapGuide(null)
       setFrameTravelRect(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- init once; stage size handled below
   }, [register, unregister])
+
+  useEffect(() => {
+    const w = Math.round(STAMP_BASE_WIDTH * defaultScale)
+    const h = Math.round(STAMP_BASE_HEIGHT * defaultScale)
+    userDesiredStampSizeRef.current = { w, h }
+    applyStampSizePreset(w, h)
+  }, [defaultScale, applyStampSizePreset])
 
   useEffect(() => {
     const c = fabricRef.current
@@ -853,10 +720,6 @@ export function StampCanvas() {
     // the provider's size readout listens to stamp events, this clamp fires none
     s.fire('moving', {} as never)
     c.requestRenderAll()
-    if (c.getActiveObject() === s) {
-      const next = readChromeFromStamp(s)
-      setChromeRect((prev) => (chromeEqual(prev, next) ? prev : next))
-    }
     const active = c.getActiveObject()
     if (isFrameObject(active)) {
       setFrameTravelRect(readFrameTravelRectFabric(s, active))
@@ -866,6 +729,16 @@ export function StampCanvas() {
   }, [stageW, stageH])
 
   const viewScale = stageViewScale(stageW, stageH)
+  const room = roomForStamp(stageW, stageH)
+
+  const resizeStamp = (width: number, height: number) => {
+    const s = stampRef.current
+    if (!s) return
+    s.set({ scaleX: width / STAMP_BASE_WIDTH, scaleY: height / STAMP_BASE_HEIGHT })
+    s.fire('scaling', {} as never)
+  }
+
+  const finishStampResize = () => stampRef.current?.fire('modified', {} as never)
 
   const shaderRect =
     stampRect === null
@@ -918,20 +791,6 @@ export function StampCanvas() {
                     ? 'url(#stamp-perf-clip)'
                     : undefined,
               }}
-              onPointerLeave={() => {
-                if (isStampResizingRef.current) return
-                const c = fabricRef.current
-                const s = stampRef.current
-                if (!c || !s) return
-                const a = c.getActiveObject()
-                if (isFrameObject(a) || isTextObject(a)) return
-                if (c.getActiveObject() === s) {
-                  c.discardActiveObject()
-                }
-                setChromeRect(null)
-                setSnapGuide(null)
-                c.requestRenderAll()
-              }}
             >
               <ShaderLayer
                 rect={shaderRect}
@@ -970,7 +829,7 @@ export function StampCanvas() {
               {snapGuide && stampRect && !outlineMode ? (
                 <motion.div
                   key={`snap-guide-${snapGuide.w}-${snapGuide.h}`}
-                  className={`pointer-events-none absolute z-[14] box-border rounded-[3px] border-2 transition-colors duration-100 ${
+                  className={`pointer-events-none absolute z-[14] box-border rounded-lg border transition-colors duration-100 ${
                     snapGuide.snapped
                       ? 'border-clover'
                       : 'border-dashed border-cornflower'
@@ -992,11 +851,12 @@ export function StampCanvas() {
                   transition={{ duration: 0.16, ease: 'easeOut' }}
                 >
                   <span
-                    className={`absolute -top-8 left-1/2 -translate-x-1/2 rounded-lg px-2 py-0.5 text-xs whitespace-nowrap tabular-nums transition-colors duration-100 ${
+                    className={`absolute bottom-full left-1/2 mb-1 origin-bottom -translate-x-1/2 rounded px-1 text-[10px] leading-4 whitespace-nowrap tabular-nums transition-colors duration-100 ${
                       snapGuide.snapped
                         ? 'bg-clover text-ink'
                         : 'bg-cornflower text-ink'
                     }`}
+                    style={{ scale: 1 / (canvasZoom * viewScale) }}
                   >
                     {snapGuide.w} × {snapGuide.h}
                   </span>
@@ -1004,9 +864,18 @@ export function StampCanvas() {
               ) : null}
             </AnimatePresence>
 
-            <div className={`pointer-events-none absolute inset-0 z-[21] ${outlineMode ? 'opacity-0' : ''}`}>
-              <StampResizeChromeOverlay rect={chromeRect} />
-            </div>
+            {outlineMode ? null : (
+              <StampResizeEdges
+                width={stampRect.width}
+                height={stampRect.height}
+                scale={canvasZoom * viewScale}
+                minSide={STAMP_MIN_SIDE}
+                maxWidth={room.w * STAMP_MAX_CANVAS_FRACTION}
+                maxHeight={room.h * STAMP_MAX_CANVAS_FRACTION}
+                onResize={resizeStamp}
+                onEnd={finishStampResize}
+              />
+            )}
           </motion.div>
         ) : null}
 
@@ -1024,7 +893,7 @@ export function StampCanvas() {
                 stampRect.top +
                 stampRect.height / 2 +
                 (stampRect.height / 2) * canvasZoom * viewScale +
-                12,
+                22,
             }}
             transition={settled ? springy : { duration: 0 }}
           >

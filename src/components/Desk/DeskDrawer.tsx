@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { createPortal } from "react-dom";
 
-import { DEFAULT_STAMP_ASSET } from "../../data/editorDefaults";
 import { useStampEditor } from "../../hooks/useStampEditor";
 import { useDeskMotion } from "../../utils/deskMotion";
 import type { ImageAsset } from "../../types/assets";
@@ -62,8 +61,6 @@ export function DeskDrawer({
     setOutlineMode,
   } = useStampEditor();
 
-  const uploads = imageAssets.filter((a) => a.id !== DEFAULT_STAMP_ASSET.id);
-
   return (
     <div className="space-y-4">
       <SwitchRow
@@ -77,9 +74,9 @@ export function DeskDrawer({
         checked={outlineMode}
         onChange={setOutlineMode}
       />
-      {uploads.length > 0 ? (
+      {imageAssets.length > 0 ? (
         <AssetStrip
-          assets={uploads}
+          assets={imageAssets}
           onPromoteBackground={(id) => setAssetRole(id, "background")}
           onPromoteFrame={(id) => setAssetRole(id, "frame")}
           onUnuse={(id) => setAssetRole(id, "unused")}

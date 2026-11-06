@@ -1,18 +1,7 @@
 import defaultStampUrl from '../assets/default-stamp.svg'
-import type { ImageAsset } from '../types/assets'
 import type { ShaderParamsMap } from '../types/canvas'
 
 export { defaultStampUrl }
-
-export const DEFAULT_STAMP_ASSET: ImageAsset = {
-  id: 'default-stamp',
-  fileName: 'Default stamp',
-  src: defaultStampUrl,
-  width: 1920,
-  height: 1080,
-  role: 'background',
-  createdAt: new Date(0).toISOString(),
-}
 
 export const DEFAULT_SHADER_PARAMS: ShaderParamsMap = {
   'halftone-dots': { size: 0.5, type: 'gooey', contrast: 0.4 },

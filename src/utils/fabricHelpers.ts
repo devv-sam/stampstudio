@@ -1,10 +1,8 @@
 import {
   type Canvas,
-  Control,
-  Group,
   type InteractiveFabricObject,
+  Group,
   Rect,
-  controlsUtils,
 } from "fabric";
 
 import {
@@ -27,112 +25,9 @@ export const STAMP_MIN_SIDE = 90;
 /** Max stamp size as a fraction of the Fabric canvas (width / height independently). */
 export const STAMP_MAX_CANVAS_FRACTION = 0.85;
 
-type CornerKey = "tl" | "tr" | "bl" | "br";
-
-/**
- * Quarter-arc handles (visual reference: subtle arc outside rounded corners).
- */
-function createArcCornerRender(corner: CornerKey) {
-  return (
-    ctx: CanvasRenderingContext2D,
-    left: number,
-    top: number,
-    styleOverride: unknown,
-    fabricObject: InteractiveFabricObject,
-  ) => {
-    void styleOverride;
-    void fabricObject;
-    const radius = 14;
-    ctx.save();
-    ctx.strokeStyle = "rgba(28, 28, 30, 0.7)";
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-
-    let startAngle = 0;
-    let endAngle = Math.PI / 2;
-    let cx = left;
-    let cy = top;
-
-    switch (corner) {
-      case "tl":
-        cx = left + radius * 0.45;
-        cy = top + radius * 0.45;
-        startAngle = Math.PI;
-        endAngle = Math.PI * 1.5;
-        break;
-      case "tr":
-        cx = left - radius * 0.45;
-        cy = top + radius * 0.45;
-        startAngle = Math.PI * 1.5;
-        endAngle = Math.PI * 2;
-        break;
-      case "br":
-        cx = left - radius * 0.45;
-        cy = top - radius * 0.45;
-        startAngle = 0;
-        endAngle = Math.PI / 2;
-        break;
-      case "bl":
-        cx = left + radius * 0.45;
-        cy = top - radius * 0.45;
-        startAngle = Math.PI / 2;
-        endAngle = Math.PI;
-        break;
-    }
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, startAngle, endAngle);
-    ctx.stroke();
-    ctx.restore();
-  };
-}
-
-/**
- * Corner-only scaling with minimal arc handles (hides mids + rotation).
- */
-export function applyStampResizeHandles(stamp: Group) {
-  const defaults = controlsUtils.createObjectDefaultControls();
-  const corners: CornerKey[] = ["tl", "tr", "bl", "br"];
-
-  for (const key of corners) {
-    const base = defaults[key];
-    stamp.controls[key] = new Control({
-      x: base.x,
-      y: base.y,
-      actionHandler: base.actionHandler,
-      cursorStyleHandler: base.cursorStyleHandler,
-      actionName: base.actionName,
-      render: createArcCornerRender(key),
-      offsetX: base.offsetX,
-      offsetY: base.offsetY,
-      sizeX: 28,
-      sizeY: 28,
-      touchSizeX: 36,
-      touchSizeY: 36,
-    });
-  }
-
-  stamp.setControlsVisibility({
-    tl: true,
-    tr: true,
-    bl: true,
-    br: true,
-    ml: false,
-    mr: false,
-    mt: false,
-    mb: false,
-    mtr: false,
-  });
-
-  stamp.set({
-    cornerSize: 28,
-    touchCornerSize: 36,
-    transparentCorners: true,
-    hasBorders: false,
-    borderColor: "rgba(255, 255, 255, 0.4)",
-    borderDashArray: [6, 4],
-    lockRotation: true,
-  });
+/** Resizing lives in the DOM edge handles, so Fabric draws no controls. */
+export function disableStampControls(stamp: Group) {
+  stamp.set({ hasControls: false, hasBorders: false, lockRotation: true });
 }
 
 export function createStampGroup() {
@@ -145,8 +40,7 @@ export function createStampGroup() {
     rx: 0,
     ry: 0,
     fill: "#ffffff",
-    stroke: "rgba(15, 15, 20, 0.08)",
-    strokeWidth: 1,
+    strokeWidth: 0,
     originX: "center",
     originY: "center",
     selectable: false,
