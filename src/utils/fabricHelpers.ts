@@ -1,9 +1,15 @@
 import {
   type Canvas,
+  type FabricObject,
   type InteractiveFabricObject,
+  FixedLayout,
   Group,
+  LayoutManager,
+  Pattern,
   Rect,
 } from "fabric";
+
+import "./selectionControls";
 
 /** Fabric object name used to identify the stamp artboard */
 export const STAMP_NAME = "stampstudio-stamp";
@@ -44,11 +50,16 @@ export function createStampGroup() {
   });
 
   const group = new Group([bgRect], {
+    /** Fixed so adding or moving children never shifts the stamp's size or center. */
+    layoutManager: new LayoutManager(new FixedLayout()),
+    width: STAMP_BASE_WIDTH,
+    height: STAMP_BASE_HEIGHT,
     left: 0,
     top: 0,
     originX: "center",
     originY: "center",
-    selectable: true,
+    /** Not selectable so a drag on bare stamp starts the selection marquee. */
+    selectable: false,
     evented: true,
     /** Required (Fabric 6+) so pointer hit-testing returns nested text/frame objects, not only the group. */
     subTargetCheck: true,
@@ -74,6 +85,63 @@ export function createStampGroup() {
   });
 
   return group;
+}
+
+/** Patterns paint from the rect's top-left, so this centers a cover-fit image. */
+export function coverPatternTransform(
+  image: { width: number; height: number },
+  width: number,
+  height: number,
+): [number, number, number, number, number, number] {
+  const scale = Math.max(width / image.width, height / image.height);
+  return [
+    scale,
+    0,
+    0,
+    scale,
+    (width - image.width * scale) / 2,
+    (height - image.height * scale) / 2,
+  ];
+}
+
+/** Resize the artboard itself. The group stays at scale 1 so its contents never stretch. */
+export function setStampArtboard(stamp: Group, width: number, height: number) {
+  const bg = getStampBgRect(stamp);
+  bg?.set({ width, height, left: 0, top: 0 });
+  stamp.clipPath?.set({ width, height });
+  stamp.set({ width, height, scaleX: 1, scaleY: 1 });
+
+  const fill = bg?.fill;
+  if (fill instanceof Pattern) {
+    fill.patternTransform = coverPatternTransform(
+      fill.source as HTMLImageElement,
+      width,
+      height,
+    );
+    bg?.set("dirty", true);
+  }
+}
+
+/** Stops scaling once the object's rotated bounds reach a stamp edge. */
+export function capScaleToStamp(obj: FabricObject, stamp: Group) {
+  const center = obj.getCenterPoint();
+  const stampCenter = stamp.getCenterPoint();
+  const roomX = stamp.width / 2 - Math.abs(center.x - stampCenter.x);
+  const roomY = stamp.height / 2 - Math.abs(center.y - stampCenter.y);
+  // already past the edge, e.g. the stamp shrank around it, so leave it alone
+  if (roomX <= 0 || roomY <= 0) return;
+
+  const angle = (obj.angle * Math.PI) / 180;
+  const cos = Math.abs(Math.cos(angle));
+  const sin = Math.abs(Math.sin(angle));
+  const boundsW = obj.width * cos + obj.height * sin;
+  const boundsH = obj.width * sin + obj.height * cos;
+  const maxScale = Math.min((roomX * 2) / boundsW, (roomY * 2) / boundsH);
+
+  if (obj.scaleX > maxScale || obj.scaleY > maxScale) {
+    obj.set({ scaleX: maxScale, scaleY: maxScale });
+    obj.setCoords();
+  }
 }
 
 export function getStampBgRect(stamp: Group) {
@@ -116,8 +184,6 @@ export function clampStampBoundsAndCenter(
 ): void {
   const minSide = options?.minSide ?? STAMP_MIN_SIDE;
   const maxFrac = options?.maxFrac ?? STAMP_MAX_CANVAS_FRACTION;
-  const baseW = STAMP_BASE_WIDTH;
-  const baseH = STAMP_BASE_HEIGHT;
   const cw = Math.max(1, stageW);
   const ch = Math.max(1, stageH);
   const maxSw = cw * maxFrac;
@@ -126,8 +192,8 @@ export function clampStampBoundsAndCenter(
   const minSwEff = Math.min(minSide, maxSw);
   const minShEff = Math.min(minSide, maxSh);
 
-  let sw = stamp.getScaledWidth();
-  let sh = stamp.getScaledHeight();
+  let sw = stamp.width;
+  let sh = stamp.height;
 
   sw = Math.min(maxSw, Math.max(minSwEff, sw));
   sh = Math.min(maxSh, Math.max(minShEff, sh));
@@ -135,7 +201,7 @@ export function clampStampBoundsAndCenter(
   const rw = Math.max(1, Math.round(sw));
   const rh = Math.max(1, Math.round(sh));
 
-  stamp.set({ scaleX: rw / baseW, scaleY: rh / baseH });
+  setStampArtboard(stamp, rw, rh);
   canvas.setDimensions({ width: rw, height: rh });
   centerStampInCanvas(canvas, stamp);
   stamp.setCoords();

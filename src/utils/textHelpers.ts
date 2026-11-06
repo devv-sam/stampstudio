@@ -6,7 +6,6 @@ import {
   type Group,
 } from 'fabric'
 
-import { STAMP_BASE_HEIGHT, STAMP_BASE_WIDTH } from './fabricHelpers'
 import type { TextLayer } from '../types/text'
 
 export const TEXT_OBJECT_TAG = 'stampstudio-text'
@@ -15,14 +14,6 @@ function configureTextObject(text: IText) {
   text.set({
     originX: 'center',
     originY: 'center',
-    cornerStyle: 'circle',
-    cornerColor: 'rgba(255, 255, 255, 0.95)',
-    cornerStrokeColor: 'rgba(0, 0, 0, 0.4)',
-    transparentCorners: false,
-    cornerSize: 10,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-    borderScaleFactor: 1,
-    padding: 2,
   })
 }
 
@@ -81,7 +72,6 @@ export function addTextObject(
   ;(text as FabricObject & { stampstudioTextId?: string }).stampstudioTextId =
     layer.id
   text.on('moving', () => constrainTextInGroup(text))
-  text.on('scaling', () => constrainTextInGroup(text))
   if (options.onContentChange) {
     const cb = options.onContentChange
     /** Fires on every keystroke during in-place editing. */
@@ -119,8 +109,10 @@ export function constrainTextInGroup(text: IText) {
   text.setCoords()
   const textW = (text.width || 0) * Math.abs(text.scaleX || 1)
   const textH = (text.height || 0) * Math.abs(text.scaleY || 1)
-  const halfStampW = STAMP_BASE_WIDTH / 2
-  const halfStampH = STAMP_BASE_HEIGHT / 2
+  const stamp = text.parent
+  if (!stamp) return
+  const halfStampW = stamp.width / 2
+  const halfStampH = stamp.height / 2
   const halfTextW = textW / 2
   const halfTextH = textH / 2
 

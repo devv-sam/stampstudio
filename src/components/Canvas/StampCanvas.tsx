@@ -1,4 +1,5 @@
 import {
+  ActiveSelection,
   Canvas,
   Point,
   type FabricObject,
@@ -16,7 +17,9 @@ import type { TextLayer } from '../../types/text'
 import type { StampCanvasApi } from '../../types/canvas'
 import {
   disableStampControls,
+  capScaleToStamp,
   clampStampBoundsAndCenter,
+  setStampArtboard,
   createStampGroup,
   STAMP_BASE_HEIGHT,
   STAMP_BASE_WIDTH,
@@ -37,6 +40,8 @@ import { StampSizeHud } from '../Layout/StampSizeHud'
 import { ShaderLayer } from './ShaderLayer'
 import { StampResizeEdges } from './StampResizeEdges'
 
+const TEXT_MIN_SIZE = 6
+const TEXT_MAX_SIZE = 200
 const DESK_FILL = 0.82
 const DESK_MAX_SCALE = 1.7
 const STAMP_SHADOW =
@@ -155,6 +160,8 @@ export function StampCanvas() {
     setCanvasZoom,
     outlineMode,
     setStampSize,
+    removeTextLayer,
+    setAssetRole,
   } = useStampEditor()
 
   const { scale: defaultScale } = useDialKit(
@@ -235,6 +242,37 @@ export function StampCanvas() {
     }
     c.requestRenderAll()
   }, [outlineMode, textLayers, backgroundAsset, frameAssets, activeShader])
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Backspace' && e.key !== 'Delete') return
+      const el = e.target as HTMLElement
+      // fabric types into a hidden textarea, so this also skips in-place text editing
+      if (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) {
+        return
+      }
+      const c = fabricRef.current
+      const active = c?.getActiveObject()
+      if (!c || !active) return
+      const targets =
+        active instanceof ActiveSelection ? active.getObjects() : [active]
+      e.preventDefault()
+      c.discardActiveObject()
+      for (const obj of targets) {
+        const textId = readTextLayerId(obj)
+        if (textId) removeTextLayer(textId)
+        else if (isFrameObject(obj)) {
+          const { stampstudioAssetId: id } = obj as typeof obj & {
+            stampstudioAssetId?: string
+          }
+          if (id) void setAssetRole(id, 'unused')
+        }
+      }
+      c.requestRenderAll()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [removeTextLayer, setAssetRole])
 
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
@@ -346,8 +384,16 @@ export function StampCanvas() {
       backgroundColor: undefined,
       preserveObjectStacking: true,
       centeredScaling: true,
-      uniformScaling: false,
+      uniformScaling: true,
+      selectionColor: 'rgba(59, 132, 238, 0.12)',
+      selectionBorderColor: '#3b84ee',
+      selectionLineWidth: 1,
     })
+
+    // draw at on-screen size, the stage's css scale would otherwise blur the canvas
+    fabricCanvas.getRetinaScaling = () =>
+      window.devicePixelRatio *
+      stageViewScale(stageSizeRef.current.w, stageSizeRef.current.h)
 
     const stamp = createStampGroup()
     disableStampControls(stamp)
@@ -398,7 +444,8 @@ export function StampCanvas() {
       syncFrameTravelOverlay()
     }
 
-    const onObjectScaling = () => {
+    const onObjectScaling = ({ target }: { target: FabricObject }) => {
+      capScaleToStamp(target, stamp)
       syncFrameTravelOverlay()
     }
 
@@ -406,9 +453,19 @@ export function StampCanvas() {
       const active = fabricCanvas.getActiveObject()
       const tid = readTextLayerId(active)
       if (tid && isTextObject(active)) {
+        // corners only ever scale evenly, bake that into the font size so text stays real type
+        const fontSize = Math.round(
+          Math.min(
+            TEXT_MAX_SIZE,
+            Math.max(TEXT_MIN_SIZE, active.fontSize * active.scaleX),
+          ),
+        )
+        active.set({ fontSize, scaleX: 1, scaleY: 1 })
+        active.initDimensions()
+        active.setCoords()
         updateTextLayerRef.current(
           tid,
-          { content: active.text ?? '' },
+          { content: active.text ?? '', fontSize },
           { syncToFabric: false },
         )
       }
@@ -446,10 +503,49 @@ export function StampCanvas() {
       }
     }
 
+    let marqueeStart: Point | null = null
+
+    const onMarqueeDown = (opt: TPointerEventInfo) => {
+      const onObject = isTextObject(opt.target) || isFrameObject(opt.target)
+      marqueeStart =
+        onObject || textPlacementActiveRef.current ? null : opt.scenePoint
+    }
+
+    const onMarqueeUp = (opt: TPointerEventInfo) => {
+      const start = marqueeStart
+      marqueeStart = null
+      if (!start || start.distanceFrom(opt.scenePoint) < 3) return
+      const topLeft = new Point(
+        Math.min(start.x, opt.scenePoint.x),
+        Math.min(start.y, opt.scenePoint.y),
+      )
+      const bottomRight = new Point(
+        Math.max(start.x, opt.scenePoint.x),
+        Math.max(start.y, opt.scenePoint.y),
+      )
+      const hits = stamp
+        .getObjects()
+        .filter(
+          (o) =>
+            (isTextObject(o) || isFrameObject(o)) &&
+            (o.intersectsWithRect(topLeft, bottomRight) ||
+              o.isContainedWithinRect(topLeft, bottomRight)),
+        )
+      if (hits.length === 0) return
+      fabricCanvas.setActiveObject(
+        hits.length === 1
+          ? hits[0]!
+          : new ActiveSelection(hits, { canvas: fabricCanvas }),
+      )
+      fabricCanvas.requestRenderAll()
+    }
+
     stamp.on('scaling', onStampScaling)
     stamp.on('modified', onStampBoundsModified)
 
     fabricCanvas.on('mouse:down', onPlacementMouseDown)
+    fabricCanvas.on('mouse:down', onMarqueeDown)
+    fabricCanvas.on('mouse:up', onMarqueeUp)
     fabricCanvas.on('mouse:move', onTextPlacementCursor)
     fabricCanvas.on('selection:created', onSelectionChange)
     fabricCanvas.on('selection:updated', onSelectionChange)
@@ -469,7 +565,9 @@ export function StampCanvas() {
       const savedVis = nonTextObjs.map((obj) => obj.visible)
       nonTextObjs.forEach((obj) => { obj.visible = false })
       syncingOverlay = true
-      const tempEl = fabricCanvas.toCanvasElement()
+      const tempEl = fabricCanvas.toCanvasElement(
+        fabricCanvas.getRetinaScaling(),
+      )
       syncingOverlay = false
       nonTextObjs.forEach((obj, i) => { obj.visible = savedVis[i]! })
       overlay.width = tempEl.width
@@ -513,22 +611,8 @@ export function StampCanvas() {
         'canvas:not(.lower-canvas):not(.upper-canvas):not(.stampstudio-text-overlay)',
       ) as HTMLCanvasElement | null
 
-      const fabricLower = content.querySelector(
-        'canvas.lower-canvas',
-      ) as HTMLCanvasElement | null
-      if (fabricLower && fabricLower.width > 0 && fabricLower.height > 0) {
-        ctx.drawImage(
-          fabricLower,
-          0,
-          0,
-          fabricLower.width,
-          fabricLower.height,
-          0,
-          0,
-          outW,
-          outH,
-        )
-      }
+      // paint fresh at export size, the on-screen canvas would upscale soft
+      ctx.drawImage(fabricCanvas.toCanvasElement(multiplier), 0, 0, outW, outH)
 
       if (shaderCanvas && shaderCanvas.width > 0 && shaderCanvas.height > 0) {
         ctx.globalCompositeOperation = 'multiply'
@@ -551,7 +635,7 @@ export function StampCanvas() {
           const nonTextObjs = stamp.getObjects().filter((obj) => !isTextObject(obj))
           const savedVis = nonTextObjs.map((obj) => obj.visible)
           nonTextObjs.forEach((obj) => { obj.visible = false })
-          const textOnlyEl = fabricCanvas.toCanvasElement()
+          const textOnlyEl = fabricCanvas.toCanvasElement(multiplier)
           nonTextObjs.forEach((obj, i) => { obj.visible = savedVis[i]! })
           ctx.drawImage(textOnlyEl, 0, 0, textOnlyEl.width, textOnlyEl.height, 0, 0, outW, outH)
         }
@@ -573,10 +657,7 @@ export function StampCanvas() {
     > = (targetW, targetH) => {
       const tw = Math.max(1, Math.round(targetW))
       const th = Math.max(1, Math.round(targetH))
-      stamp.set({
-        scaleX: tw / STAMP_BASE_WIDTH,
-        scaleY: th / STAMP_BASE_HEIGHT,
-      })
+      setStampArtboard(stamp, tw, th)
       stamp.setCoords()
       const room = roomForStamp(stageSizeRef.current.w, stageSizeRef.current.h)
       clampStampBoundsAndCenter(fabricCanvas, stamp, room.w, room.h)
@@ -603,6 +684,8 @@ export function StampCanvas() {
       stamp.off('modified', onStampBoundsModified)
       stamp.off('scaling', onStampScaling)
       fabricCanvas.off('mouse:down', onPlacementMouseDown)
+      fabricCanvas.off('mouse:down', onMarqueeDown)
+      fabricCanvas.off('mouse:up', onMarqueeUp)
       fabricCanvas.off('mouse:move', onTextPlacementCursor)
       fabricCanvas.off('selection:created', onSelectionChange)
       fabricCanvas.off('selection:updated', onSelectionChange)
@@ -641,10 +724,7 @@ export function StampCanvas() {
       (room.w * STAMP_MAX_CANVAS_FRACTION) / desired.w,
       (room.h * STAMP_MAX_CANVAS_FRACTION) / desired.h,
     )
-    s.set({
-      scaleX: (desired.w * fit) / STAMP_BASE_WIDTH,
-      scaleY: (desired.h * fit) / STAMP_BASE_HEIGHT,
-    })
+    setStampArtboard(s, desired.w * fit, desired.h * fit)
     clampStampBoundsAndCenter(c, s, room.w, room.h)
     const rw = c.getWidth()
     const rh = c.getHeight()
@@ -667,7 +747,7 @@ export function StampCanvas() {
     const s = stampRef.current
     if (!s) return
     setResizing(true)
-    s.set({ scaleX: width / STAMP_BASE_WIDTH, scaleY: height / STAMP_BASE_HEIGHT })
+    setStampArtboard(s, width, height)
     s.fire('scaling', {} as never)
   }
 
