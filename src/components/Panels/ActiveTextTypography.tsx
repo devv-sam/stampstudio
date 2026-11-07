@@ -320,7 +320,7 @@ export function ActiveTextTypography() {
   };
 
   const dropdownBelow =
-    "absolute top-full left-0 right-0 z-50 mt-1 max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-xl border border-zinc-700 bg-zinc-950 py-1 shadow-chunky";
+    "absolute top-full left-0 right-0 z-50 mt-1 max-md:top-auto max-md:bottom-full max-md:mt-0 max-md:mb-1 max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-xl border border-zinc-700 bg-zinc-950 py-1 shadow-chunky";
 
   if (!selected) return null;
 

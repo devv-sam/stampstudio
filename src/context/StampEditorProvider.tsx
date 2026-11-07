@@ -652,6 +652,17 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
   const produceSvgMarkup = useCallback(async (): Promise<string | null> => {
     const api = apiRef.current
     if (!api) return null
+    // holes stay vector, so the raster body goes in unpunched
+    const body = await api
+      .exportCompositedRaster?.({
+        format: 'png',
+        multiplier: 2,
+        perforationCount: 0,
+      })
+      .catch(() => null)
+    if (body) {
+      return exportStampSvg(api.canvas, api.stamp, perforationCount, body)
+    }
     return withExportFallbackFill(() =>
       exportStampSvg(api.canvas, api.stamp, perforationCount),
     )

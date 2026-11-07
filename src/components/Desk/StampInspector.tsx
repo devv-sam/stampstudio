@@ -75,7 +75,7 @@ function CommitInput({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-1.5">
-      <h2 className="px-1 pt-1 text-sm text-ink-soft">{title}</h2>
+      <h2 className="px-1 pt-1 text-sm text-ink-soft max-md:hidden">{title}</h2>
       {children}
     </section>
   );
@@ -113,7 +113,7 @@ function BlendSelect() {
         <ul
           role="listbox"
           aria-label="Blend mode"
-          className="desk-card absolute top-full right-0 left-0 z-50 mt-1 !rounded-xl p-0.5"
+          className="desk-card absolute top-full right-0 left-0 z-50 mt-1 !rounded-xl p-0.5 max-md:top-auto max-md:bottom-full max-md:mt-0 max-md:mb-1 max-md:w-40"
         >
           {BLEND_MODES.map(({ value, label }) => (
             <li key={value} role="none">
@@ -250,7 +250,7 @@ export function StampInspector() {
       className="pointer-events-auto relative"
     >
       <motion.div
-        className={`desk-card box-content w-[212px] p-1.5 max-md:w-[148px] ${
+        className={`desk-card box-content w-[212px] p-1.5 max-md:w-auto ${
           morphing ? "overflow-hidden" : ""
         }`}
         initial={false}
@@ -275,10 +275,11 @@ export function StampInspector() {
                 key="stamp"
                 ref={stampViewRef}
                 {...fade}
-                className="absolute inset-x-0 top-0 space-y-3"
+                className="absolute inset-x-0 top-0 space-y-3 max-md:space-y-1.5"
               >
         <Section title="Canvas">
-          <div className="grid grid-cols-2 gap-1.5 max-md:grid-cols-1">
+          <div className="grid grid-cols-2 gap-1.5 md:grid-cols-1">
+          <div className="col-span-2 grid grid-cols-2 gap-1.5 md:col-span-1">
             <label className={field}>
               <span className="text-ink-soft">W</span>
               <CommitInput
@@ -306,6 +307,7 @@ export function StampInspector() {
             }
           />
           <BlendSelect />
+          </div>
         </Section>
 
         <Section title="Color">

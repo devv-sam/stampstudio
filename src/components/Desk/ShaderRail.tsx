@@ -56,7 +56,7 @@ const SHADERS: readonly { name: ShaderName; label: string }[] = [
 
 export function ShaderRail() {
   const { blurPop, press, springy } = useDeskMotion();
-  const { activeShader, setActiveShader } = useStampEditor();
+  const { activeShader, setActiveShader, selectedTextId } = useStampEditor();
   const rail = useDialKit(
     "Shader rail",
     {
@@ -124,13 +124,19 @@ export function ShaderRail() {
   };
 
   return (
-    <div ref={rootRef} className="pointer-events-auto relative">
+    // text controls need the room on phones, or they cover the stamp
+    <div
+      ref={rootRef}
+      className={`pointer-events-auto relative ${
+        selectedTextId ? "max-md:hidden" : ""
+      }`}
+    >
       <div
         role="group"
         aria-label="Print effects"
         onPointerLeave={hideTip}
         onBlur={hideTip}
-        className="desk-card grid w-max grid-cols-[repeat(var(--rail-columns),max-content)] max-md:grid-cols-3"
+        className="desk-card grid w-max grid-cols-[repeat(var(--rail-columns),max-content)] max-md:w-full max-md:grid-cols-4"
         style={
           {
             "--rail-columns": rail.columns,
@@ -152,7 +158,7 @@ export function ShaderRail() {
               onFocus={(e) => showTip(name, label, e.currentTarget)}
               aria-pressed={on}
               onClick={() => onThumb(name)}
-              className={`relative block cursor-pointer overflow-hidden bg-[#fff] ${
+              className={`relative block cursor-pointer overflow-hidden bg-[#fff] max-md:!h-12 max-md:!w-full max-md:[&>div]:!h-full max-md:[&>div]:!w-full ${
                 on ? "outline-3 outline-offset-1 outline-cornflower" : ""
               }`}
               style={{
@@ -180,7 +186,7 @@ export function ShaderRail() {
 
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute top-0 left-full z-40 ml-2"
+        className="pointer-events-none absolute top-0 left-full z-40 ml-2 max-md:hidden"
         initial={false}
         animate={{
           y: tip.y,

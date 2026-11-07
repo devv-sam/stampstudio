@@ -21,12 +21,14 @@ export default function App() {
             />
           </Routes>
         </MotionConfig>
-        <DialRoot position="top-right" theme="light" defaultOpen={false} />
         {import.meta.env.DEV ? (
-          <Agentation
-            endpoint="http://localhost:4747"
-            className="!top-20 !bottom-auto"
-          />
+          <>
+            <DialRoot position="top-right" theme="light" defaultOpen={false} />
+            <Agentation
+              endpoint="http://localhost:4747"
+              className="!top-20 !bottom-auto"
+            />
+          </>
         ) : null}
       </ExperimentsProvider>
     </StampEditorProvider>
