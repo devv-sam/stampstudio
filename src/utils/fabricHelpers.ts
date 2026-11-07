@@ -20,6 +20,9 @@ export const STAMP_BG_NAME = "stampstudio-bg";
 export const STAMP_BASE_WIDTH = 420;
 export const STAMP_BASE_HEIGHT = 300;
 
+/** Text stays this far inside the stamp, clear of the perforations and resize rail. */
+export const STAMP_SAFE_INSET = 16;
+
 /** Minimum scaled width and height on the canvas. */
 export const STAMP_MIN_SIDE = 90;
 
@@ -123,11 +126,11 @@ export function setStampArtboard(stamp: Group, width: number, height: number) {
 }
 
 /** Stops scaling once the object's rotated bounds reach a stamp edge. */
-export function capScaleToStamp(obj: FabricObject, stamp: Group) {
+export function capScaleToStamp(obj: FabricObject, stamp: Group, inset = 0) {
   const center = obj.getCenterPoint();
   const stampCenter = stamp.getCenterPoint();
-  const roomX = stamp.width / 2 - Math.abs(center.x - stampCenter.x);
-  const roomY = stamp.height / 2 - Math.abs(center.y - stampCenter.y);
+  const roomX = stamp.width / 2 - inset - Math.abs(center.x - stampCenter.x);
+  const roomY = stamp.height / 2 - inset - Math.abs(center.y - stampCenter.y);
   // already past the edge, e.g. the stamp shrank around it, so leave it alone
   if (roomX <= 0 || roomY <= 0) return;
 

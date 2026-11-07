@@ -24,10 +24,12 @@ import {
   STAMP_BASE_HEIGHT,
   STAMP_BASE_WIDTH,
   STAMP_MAX_CANVAS_FRACTION,
+  STAMP_SAFE_INSET,
   STAMP_MIN_SIDE,
 } from '../../utils/fabricHelpers'
 import { FRAME_OBJECT_TAG } from '../../utils/stampImageHelpers'
 import {
+  constrainTextInGroup,
   findTextByLayerId,
   getAllTextObjects,
   isTextObject,
@@ -445,7 +447,7 @@ export function StampCanvas() {
     }
 
     const onObjectScaling = ({ target }: { target: FabricObject }) => {
-      capScaleToStamp(target, stamp)
+      capScaleToStamp(target, stamp, isFrameObject(target) ? 0 : STAMP_SAFE_INSET)
       syncFrameTravelOverlay()
     }
 
@@ -473,6 +475,7 @@ export function StampCanvas() {
     }
 
     const onStampScaling = () => {
+      getAllTextObjects(stamp).forEach(constrainTextInGroup)
       runClampSync()
     }
 

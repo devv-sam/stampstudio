@@ -6,6 +6,7 @@ import {
   type Group,
 } from 'fabric'
 
+import { STAMP_SAFE_INSET } from './fabricHelpers'
 import type { TextLayer } from '../types/text'
 
 export const TEXT_OBJECT_TAG = 'stampstudio-text'
@@ -107,19 +108,23 @@ export function addTextObject(
 
 export function constrainTextInGroup(text: IText) {
   text.setCoords()
-  const textW = (text.width || 0) * Math.abs(text.scaleX || 1)
-  const textH = (text.height || 0) * Math.abs(text.scaleY || 1)
   const stamp = text.parent
   if (!stamp) return
-  const halfStampW = stamp.width / 2
-  const halfStampH = stamp.height / 2
-  const halfTextW = textW / 2
-  const halfTextH = textH / 2
 
-  const minX = -halfStampW + halfTextW
-  const maxX = halfStampW - halfTextW
-  const minY = -halfStampH + halfTextH
-  const maxY = halfStampH - halfTextH
+  const angle = ((text.angle || 0) * Math.PI) / 180
+  const cos = Math.abs(Math.cos(angle))
+  const sin = Math.abs(Math.sin(angle))
+  const textW = (text.width || 0) * Math.abs(text.scaleX || 1)
+  const textH = (text.height || 0) * Math.abs(text.scaleY || 1)
+  const halfTextW = (textW * cos + textH * sin) / 2
+  const halfTextH = (textW * sin + textH * cos) / 2
+  const halfSafeW = stamp.width / 2 - STAMP_SAFE_INSET
+  const halfSafeH = stamp.height / 2 - STAMP_SAFE_INSET
+
+  const minX = -halfSafeW + halfTextW
+  const maxX = halfSafeW - halfTextW
+  const minY = -halfSafeH + halfTextH
+  const maxY = halfSafeH - halfTextH
 
   const nextLeft =
     minX > maxX ? 0 : Math.max(minX, Math.min(maxX, text.left ?? 0))

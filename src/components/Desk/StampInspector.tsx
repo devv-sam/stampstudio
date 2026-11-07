@@ -18,8 +18,12 @@ import {
   toTransition,
   useDeskMotion,
 } from "../../utils/deskMotion";
+import { PERFORATION_REF_DENSITY } from "../../utils/stampPerforationLayout";
 import { ActiveTextTypography } from "../Panels/ActiveTextTypography";
+import { PerforationSlider } from "../UI/PerforationSlider";
 import { StampColorPicker } from "./StampColorPicker";
+
+const PERFORATION_SNAPS = [0, 7, 14, 21, 28];
 
 const field =
   "flex h-10 min-w-0 items-center gap-2 rounded-xl bg-zinc-900 px-3 text-sm transition-colors focus-within:bg-zinc-800";
@@ -75,6 +79,8 @@ export function StampInspector() {
   const {
     stampDimensions,
     setStampSize,
+    perforationCount,
+    setPerforationCount,
     stampColor,
     pickSolidStampColor,
     backgroundAsset,
@@ -225,6 +231,15 @@ export function StampInspector() {
               />
             </label>
           </div>
+          <PerforationSlider
+            label="Perforation"
+            defaultValue={perforationCount}
+            snaps={PERFORATION_SNAPS}
+            onInput={setPerforationCount}
+            format={(v) =>
+              v === 0 ? "Off" : `${(v / PERFORATION_REF_DENSITY).toFixed(1)}×`
+            }
+          />
         </Section>
 
         <Section title="Color">

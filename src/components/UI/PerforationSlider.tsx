@@ -1,6 +1,7 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import {
   type ChangeEvent,
+  type KeyboardEvent,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -25,6 +26,8 @@ interface PerforationSliderProps {
   onInput?: (value: number) => void
   /** Render the read-out; defaults to the raw stepped number. */
   format?: (value: number) => string
+  /** Ascending values the handle pulls to; arrow keys hop between them. */
+  snaps?: number[]
 }
 
 /** % of inner-bar width the handle starts fading before hitting label/value text. */
@@ -34,6 +37,8 @@ const MIN_SCALE = 0.4
 const MIN_OPACITY = 0.3
 /** How many px the handle sits inside the fill's right edge. */
 const HANDLE_INSET_PX = 5
+/** How close (in % of the bar) the handle gets before a snap point grabs it. */
+const SNAP_PULL_PCT = 5
 
 export function PerforationSlider({
   label,
@@ -46,6 +51,7 @@ export function PerforationSlider({
   onChange,
   onInput,
   format,
+  snaps,
 }: PerforationSliderProps) {
   const range = maxValue - minValue
   const clampedDefault = Math.min(Math.max(defaultValue, minValue), maxValue)
@@ -53,6 +59,14 @@ export function PerforationSlider({
 
   const [currentValue, setCurrentValue] = useState(clampedDefault)
   const x = useSpring(initialPercent, { damping, stiffness })
+  // where the handle is headed, the spring can still be travelling on release
+  const target = useRef(initialPercent)
+
+  const toPct = (value: number) => ((value - minValue) / range) * 100
+  const aim = (pct: number) => {
+    target.current = pct
+    x.set(pct)
+  }
 
   const fillWidth = useTransform(x, (v) => `${v}%`)
   const handleLeft = useTransform(x, (v) => `${v}%`)
@@ -124,13 +138,29 @@ export function PerforationSlider({
   }, [x, range, step, minValue])
 
   const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    x.set(parseFloat(e.target.value))
+    const pct = parseFloat(e.target.value)
+    const snap = snaps?.find((s) => Math.abs(toPct(s) - pct) <= SNAP_PULL_PCT)
+    aim(snap === undefined ? pct : toPct(snap))
   }
 
   const onDragEnd = () => {
-    const snappedX = ((currentValue - minValue) / range) * 100
-    x.set(snappedX)
-    onChange?.(currentValue)
+    const value =
+      Math.round(((target.current / 100) * range) / step) * step + minValue
+    aim(toPct(value))
+    onChange?.(value)
+  }
+
+  // the pull would trap the native 0.1% key step on a snap point
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    const by = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1 }[e.key]
+    if (!snaps || !by) return
+    e.preventDefault()
+    const pct = target.current
+    const next =
+      by > 0
+        ? snaps.find((s) => toPct(s) > pct)
+        : snaps.findLast((s) => toPct(s) < pct)
+    if (next !== undefined) aim(toPct(next))
   }
 
   return (
@@ -145,6 +175,15 @@ export function PerforationSlider({
           className="absolute inset-y-0 left-0 z-0 rounded-md bg-zinc-800"
           style={{ width: fillWidth }}
         />
+
+        {snaps?.map((snap) => (
+          <span
+            key={snap}
+            aria-hidden
+            className="pointer-events-none absolute bottom-0.5 z-0 h-1 w-px -translate-x-1/2 bg-zinc-600"
+            style={{ left: `${toPct(snap)}%` }}
+          />
+        ))}
 
         {/* Label — pinned left */}
         <span
@@ -184,6 +223,7 @@ export function PerforationSlider({
         step={0.1}
         value={x.get()}
         onChange={onInputChange}
+        onKeyDown={onKeyDown}
         onPointerUp={onDragEnd}
         onKeyUp={onDragEnd}
         aria-valuemin={minValue}

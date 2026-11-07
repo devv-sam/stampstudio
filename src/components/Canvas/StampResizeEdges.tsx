@@ -10,6 +10,7 @@ import {
 const RAIL_GAP = 10
 const CORNER_RADIUS = 14
 const GRIP_LENGTH = 56
+const GRIP_PRESSED_LENGTH = 38
 const HIT_WIDTH = 36
 const CORNER_REACH = 30
 const KEY_STEP = 2
@@ -106,7 +107,13 @@ export function StampResizeEdges({
   } | null>(null)
 
   const grip = useSpring(rail.rightLength / 2, GRIP_SPRING)
-  const gripOffset = useTransform(grip, (v) => GRIP_LENGTH / 2 - v)
+  const gripLength = useSpring(GRIP_LENGTH, GRIP_SPRING)
+  const gripDash = useTransform(gripLength, (length) => `${length} 100000`)
+  // offset by half the live length so the grip shrinks toward its center
+  const gripOffset = useTransform(
+    [grip, gripLength],
+    ([along, length]: number[]) => length! / 2 - along!,
+  )
 
   // the rail changes length as the stamp resizes, so the grip re-anchors to the corner or the far end
   const anchor = useRef<'corner' | number | null>(null)
@@ -173,12 +180,14 @@ export function StampResizeEdges({
       w: width,
       h: height,
     }
+    gripLength.set(GRIP_PRESSED_LENGTH)
     setHot(true)
   }
 
   const onPointerUp = () => {
     if (!drag.current) return
     drag.current = null
+    gripLength.set(GRIP_LENGTH)
     onEnd()
   }
 
@@ -226,12 +235,11 @@ export function StampResizeEdges({
           strokeWidth={4}
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeDasharray={`${GRIP_LENGTH} ${rail.total}`}
           className="stroke-ink"
           initial={false}
           animate={{ opacity: hot ? 1 : 0 }}
           transition={{ duration: 0.12 }}
-          style={{ strokeDashoffset: gripOffset }}
+          style={{ strokeDasharray: gripDash, strokeDashoffset: gripOffset }}
         />
         <path
           d={rail.d}

@@ -16,14 +16,13 @@ import {
   FlaskConical,
   Frame,
   Image as ImageIcon,
-  SlidersHorizontal,
+  Library,
   Stamp,
   Type,
 } from "lucide-react";
 
 import { useImageUploadFlow } from "../../hooks/useImageUploadFlow";
 import { useStampEditor } from "../../hooks/useStampEditor";
-import { useExperiments } from "../../hooks/useExperiments";
 import { useDeskMotion } from "../../utils/deskMotion";
 import { playThunk } from "../../utils/playThunk";
 import { Button } from "../UI/Button";
@@ -74,7 +73,8 @@ type NavTool = {
   tint: string;
   on?: string;
   active?: boolean;
-  onClick: () => void;
+  disabled?: boolean;
+  onClick?: () => void;
 };
 
 export function CanvasFloatBar() {
@@ -111,7 +111,6 @@ export function CanvasFloatBar() {
   );
   const frameUpload = useImageUploadFlow({ defaultRole: "frame" });
   const bgUpload = useImageUploadFlow();
-  const { launch: launchExperiment } = useExperiments();
 
   const [exportPopoverOpen, setExportPopoverOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -311,7 +310,7 @@ export function CanvasFloatBar() {
       },
       {
         label: "Library",
-        icon: SlidersHorizontal,
+        icon: Library,
         tint: "hover:text-peony focus-visible:text-peony",
         on: "text-peony",
         active: drawerOpen,
@@ -321,10 +320,10 @@ export function CanvasFloatBar() {
         },
       },
       {
-        label: "Experiments",
+        label: "Experiments (Coming soon)",
         icon: FlaskConical,
-        tint: "hover:text-cornflower focus-visible:text-cornflower",
-        onClick: () => launchExperiment("stampsheet"),
+        tint: "",
+        disabled: true,
       },
     ],
     [
@@ -534,18 +533,19 @@ export function CanvasFloatBar() {
                   }}
                 />
               ) : null}
-              {group.map(({ label, icon: Icon, tint, on, active, onClick }) => (
+              {group.map(({ label, icon: Icon, tint, on, active, disabled, onClick }) => (
                 <motion.button
                   key={label}
                   type="button"
-                  {...press}
+                  {...(disabled ? {} : press)}
                   aria-label={label}
+                  aria-disabled={disabled}
                   onClick={onClick}
                   onPointerEnter={(e) => showTip(label, e.currentTarget)}
                   onFocus={(e) => showTip(label, e.currentTarget)}
-                  className={`flex shrink-0 cursor-pointer items-center justify-center transition-colors duration-150 ${tint} ${
-                    active ? on : "text-ink"
-                  }`}
+                  className={`flex shrink-0 items-center justify-center transition-colors duration-150 ${tint} ${
+                    disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
+                  } ${active ? on : "text-ink"}`}
                   style={{
                     width: nav.buttonSize,
                     height: nav.buttonSize,
