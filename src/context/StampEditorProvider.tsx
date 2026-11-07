@@ -1,3 +1,4 @@
+import type { BlendMode } from '../utils/blendModes'
 import { DEFAULT_SHADER_PARAMS } from '../data/editorDefaults'
 import {
   useCallback,
@@ -69,6 +70,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
   const [stampColor, _setStampColor] = useState('#ffffff')
 
   const [activeShader, setActiveShader] = useState<ShaderName | null>(null)
+  const [blendMode, setBlendMode] = useState<BlendMode>('normal')
   const activeShaderRef = useRef<ShaderName | null>(null)
   useEffect(() => {
     activeShaderRef.current = activeShader
@@ -709,7 +711,9 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       copySvg,
       activeShader,
       setActiveShader,
+      setBlendMode,
       shaderParams,
+      blendMode,
       updateShaderParam,
     }),
     [
@@ -747,6 +751,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       copySvg,
       activeShader,
       shaderParams,
+      blendMode,
       updateShaderParam,
     ],
   )

@@ -1,6 +1,8 @@
+import { CheckIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { useDialKit } from "dialkit";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -9,6 +11,7 @@ import {
 } from "react";
 
 import { useStampEditor } from "../../hooks/useStampEditor";
+import { BLEND_MODES } from "../../utils/blendModes";
 import {
   colorResultToHex,
   joinHexAlpha,
@@ -19,7 +22,10 @@ import {
   useDeskMotion,
 } from "../../utils/deskMotion";
 import { PERFORATION_REF_DENSITY } from "../../utils/stampPerforationLayout";
-import { ActiveTextTypography } from "../Panels/ActiveTextTypography";
+import {
+  ActiveTextTypography,
+  useDismissOnOutside,
+} from "../Panels/ActiveTextTypography";
 import { PerforationSlider } from "../UI/PerforationSlider";
 import { StampColorPicker } from "./StampColorPicker";
 
@@ -72,6 +78,65 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       <h2 className="px-1 pt-1 text-sm text-ink-soft">{title}</h2>
       {children}
     </section>
+  );
+}
+
+function BlendSelect() {
+  const { activeShader, blendMode, setBlendMode } = useStampEditor();
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  const ref = useDismissOnOutside<HTMLDivElement>(open, close);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        disabled={!activeShader}
+        title={activeShader ? undefined : "Add a shader to blend it"}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl bg-zinc-900 px-3 text-left text-sm transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-zinc-900"
+      >
+        <span className="text-ink-soft">Blend</span>
+        <span className="ml-auto truncate">
+          {BLEND_MODES.find((m) => m.value === blendMode)?.label}
+        </span>
+        <ChevronDownIcon
+          aria-hidden
+          className={`h-4 w-4 shrink-0 text-ink-soft transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+      {open && activeShader ? (
+        <ul
+          role="listbox"
+          aria-label="Blend mode"
+          className="desk-card absolute top-full right-0 left-0 z-50 mt-1 !rounded-xl p-0.5"
+        >
+          {BLEND_MODES.map(({ value, label }) => (
+            <li key={value} role="none">
+              <button
+                type="button"
+                role="option"
+                aria-selected={blendMode === value}
+                onClick={() => {
+                  setBlendMode(value);
+                  close();
+                }}
+                className="flex h-8 w-full cursor-pointer items-center justify-between rounded-md px-2.5 text-left text-sm transition-colors hover:bg-zinc-900"
+              >
+                {label}
+                {blendMode === value ? (
+                  <CheckIcon aria-hidden className="h-3.5 w-3.5" />
+                ) : null}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 
@@ -240,6 +305,7 @@ export function StampInspector() {
               v === 0 ? "Off" : `${(v / PERFORATION_REF_DENSITY).toFixed(1)}×`
             }
           />
+          <BlendSelect />
         </Section>
 
         <Section title="Color">

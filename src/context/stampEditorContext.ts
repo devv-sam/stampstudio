@@ -1,3 +1,4 @@
+import type { BlendMode } from '../utils/blendModes'
 import { createContext } from 'react'
 
 import type {
@@ -102,6 +103,9 @@ export type StampEditorContextValue = {
   activeShader: ShaderName | null
   setActiveShader: (name: ShaderName | null) => void
   shaderParams: ShaderParamsMap
+  /** How the active shader blends with the stamp fill. */
+  blendMode: BlendMode
+  setBlendMode: (mode: BlendMode) => void
   updateShaderParam: <K extends ShaderName>(
     shader: K,
     param: keyof ShaderParamsMap[K],

@@ -19,7 +19,7 @@ import { STAMP_FONTS, STAMP_FONT_SIZES } from "../../types/text";
 
 let fontsWarmed = false;
 
-function useDismissOnOutside<E extends HTMLElement>(
+export function useDismissOnOutside<E extends HTMLElement>(
   open: boolean,
   onDismiss: () => void,
 ) {

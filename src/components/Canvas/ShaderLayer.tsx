@@ -7,9 +7,16 @@ import {
   ShaderMount,
   Water,
 } from '@paper-design/shaders-react'
-import { useMemo } from 'react'
+import { useId, useMemo } from 'react'
 
 import type { DitheringPresetName, ShaderName, ShaderParamsMap } from '../../types/canvas'
+import {
+  isMixMode,
+  LMS_TO_RGB,
+  RGB_TO_LMS,
+  type BlendMode,
+  type MixMode,
+} from '../../utils/blendModes'
 import { solidColorDataUrl } from '../../utils/solidColorDataUrl'
 import { ENGRAVING_SHADER, RISO_SHADER } from './printShaders'
 
@@ -83,19 +90,85 @@ const DITHERING_PRESETS: Record<
 
 type RectBounds = { left: number; top: number; width: number; height: number }
 
+const colorMatrix = (m: number[][]) =>
+  `${m.map((row) => `${row.join(' ')} 0 0`).join(' ')} 0 0 0 1 0`
+
+const gamma = (exponent: number) => (
+  <feComponentTransfer>
+    <feFuncR type="gamma" exponent={exponent} />
+    <feFuncG type="gamma" exponent={exponent} />
+    <feFuncB type="gamma" exponent={exponent} />
+  </feComponentTransfer>
+)
+
+// css has no color space blends, so filters run the mix. they work in linear rgb by default
+function MixFilter({
+  id,
+  mode,
+  fill,
+  width,
+  height,
+}: {
+  id: string
+  mode: MixMode
+  fill: string
+  width: number
+  height: number
+}) {
+  const oklab = mode === 'oklab'
+  return (
+    <svg aria-hidden className="absolute h-0 w-0">
+      <filter id={id} x="0" y="0" width="100%" height="100%">
+        <feImage
+          href={fill}
+          x="0"
+          y="0"
+          width={width}
+          height={height}
+          preserveAspectRatio="xMidYMid slice"
+          result="fill"
+        />
+        {oklab ? (
+          <>
+            <feColorMatrix in="fill" values={colorMatrix(RGB_TO_LMS)} />
+            {gamma(1 / 3)}
+            <feOffset result="base" />
+            <feColorMatrix in="SourceGraphic" values={colorMatrix(RGB_TO_LMS)} />
+            {gamma(1 / 3)}
+            <feComposite in2="base" operator="arithmetic" k2={0.5} k3={0.5} />
+            {gamma(3)}
+            <feColorMatrix values={colorMatrix(LMS_TO_RGB)} />
+          </>
+        ) : (
+          <feComposite
+            in="SourceGraphic"
+            in2="fill"
+            operator="arithmetic"
+            k2={0.5}
+            k3={0.5}
+          />
+        )}
+      </filter>
+    </svg>
+  )
+}
+
 export function ShaderLayer({
   rect,
   imageSrc,
   stampColor,
   activeShader,
   shaderParams,
+  blendMode = 'normal',
 }: {
   rect: RectBounds | null
   imageSrc: string
   stampColor: string
   activeShader: ShaderName | null
   shaderParams: ShaderParamsMap
+  blendMode?: BlendMode
 }) {
+  const filterId = useId()
   const hasPhotoFill = imageSrc.trim().length > 0
   const baseImage = useMemo(
     () => (hasPhotoFill ? imageSrc : solidColorDataUrl(stampColor)),
@@ -124,6 +197,29 @@ export function ShaderLayer({
         mixBlendMode: 'multiply',
       }}
     >
+      {blendMode === 'normal' ? null : (
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url("${baseImage}")` }}
+        />
+      )}
+      {isMixMode(blendMode) ? (
+        <MixFilter
+          id={filterId}
+          mode={blendMode}
+          fill={baseImage}
+          width={w}
+          height={h}
+        />
+      ) : null}
+      <div
+        className="absolute inset-0"
+        style={
+          isMixMode(blendMode)
+            ? { filter: `url("#${filterId}")` }
+            : { mixBlendMode: blendMode }
+        }
+      >
       {activeShader === 'halftone-dots' ? (
         <HalftoneDots
           {...common}
@@ -202,6 +298,7 @@ export function ShaderLayer({
           }}
         />
       ) : null}
+      </div>
     </div>
   )
 }

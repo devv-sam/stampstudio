@@ -11,6 +11,7 @@ All notable changes to Stampstudio are documented here.
 - Four new shaders: paper, water, engraving, and riso. Shader previews sit on the left and show their name on hover.
 - A sidebar for canvas size, perforation, hex color, and opacity. It turns into text controls when you select text.
 - A new color picker with opacity.
+- Blend modes for shaders, right in the sidebar.
 - Resize from the right or bottom edge, or drag the corner to keep proportions.
 - Rotate text and frames by hovering just outside a corner.
 - Drag across the stamp to select several things at once.

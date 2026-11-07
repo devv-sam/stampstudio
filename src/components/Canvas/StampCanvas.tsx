@@ -35,7 +35,9 @@ import {
   isTextObject,
   readTextLayerId,
 } from '../../utils/textHelpers'
+import { blendShaderOverFill } from '../../utils/blendModes'
 import { punchPerforationHoles } from '../../utils/exportHelpers'
+import { solidColorDataUrl } from '../../utils/solidColorDataUrl'
 import { buildPerforationClipPathD } from '../../utils/stampPerforationLayout'
 import { applyOutlineMode, restoreOutlineMode } from '../../utils/outlineMode'
 import { StampSizeHud } from '../Layout/StampSizeHud'
@@ -149,6 +151,7 @@ export function StampCanvas() {
     perforationCount,
     activeShader,
     shaderParams,
+    blendMode,
     backgroundAsset,
     frameAssets,
     stampColor,
@@ -186,6 +189,11 @@ export function StampCanvas() {
   const canvasZoomRef = useRef(canvasZoom)
   const textOverlayRef = useRef<HTMLCanvasElement>(null)
   const activeShaderRef = useRef(activeShader)
+  const shaderBlendRef = useRef({ blendMode, fill: '' })
+  shaderBlendRef.current = {
+    blendMode,
+    fill: backgroundAsset?.src ?? solidColorDataUrl(stampColor),
+  }
 
   const updateTextLayerRef = useRef<
     (
@@ -618,9 +626,11 @@ export function StampCanvas() {
       ctx.drawImage(fabricCanvas.toCanvasElement(multiplier), 0, 0, outW, outH)
 
       if (shaderCanvas && shaderCanvas.width > 0 && shaderCanvas.height > 0) {
+        const { blendMode: mode, fill } = shaderBlendRef.current
+        const shaderLayer = await blendShaderOverFill(shaderCanvas, fill, mode)
         ctx.globalCompositeOperation = 'multiply'
         ctx.drawImage(
-          shaderCanvas,
+          shaderLayer,
           0,
           0,
           shaderCanvas.width,
@@ -814,6 +824,7 @@ export function StampCanvas() {
                 stampColor={stampColor}
                 activeShader={outlineMode ? null : activeShader}
                 shaderParams={shaderParams}
+                blendMode={blendMode}
               />
               <div
                 className="pointer-events-auto relative z-20 min-h-0 min-w-0 flex-1"
