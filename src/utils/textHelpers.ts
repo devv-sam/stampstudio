@@ -73,6 +73,7 @@ export function addTextObject(
   ;(text as FabricObject & { stampstudioTextId?: string }).stampstudioTextId =
     layer.id
   text.on('moving', () => constrainTextInGroup(text))
+  text.on('changed', () => constrainTextInGroup(text))
   if (options.onContentChange) {
     const cb = options.onContentChange
     /** Fires on every keystroke during in-place editing. */

@@ -389,6 +389,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
         height: next.height,
       })
     }
+    return next
   }, [])
 
   // ────────────────────────────────────────────────────────────────────────

@@ -31,6 +31,7 @@ export type ShaderName =
   | 'paper-texture'
   | 'water'
   | 'engraving'
+  | 'intaglio'
   | 'riso'
 
 /** Matches @paper-design/shaders HalftoneDotsType */
@@ -82,5 +83,6 @@ export type ShaderParamsMap = {
   'paper-texture': { folds: number; crumples: number; roughness: number }
   water: { size: number; waves: number; caustic: number }
   engraving: { size: number; angle: number }
+  intaglio: { size: number; contrast: number; ink: string }
   riso: { size: number; offset: number }
 }

@@ -6,6 +6,7 @@ import {
   PaperTexture,
   ShaderMount,
   Water,
+  getShaderColorFromString,
 } from '@paper-design/shaders-react'
 import { useId, useMemo } from 'react'
 
@@ -18,7 +19,7 @@ import {
   type MixMode,
 } from '../../utils/blendModes'
 import { solidColorDataUrl } from '../../utils/solidColorDataUrl'
-import { ENGRAVING_SHADER, RISO_SHADER } from './printShaders'
+import { ENGRAVING_SHADER, INTAGLIO_SHADER, RISO_SHADER } from './printShaders'
 
 const COVER = 2
 const printSizing = {
@@ -270,7 +271,14 @@ export function ShaderLayer({
         />
       ) : null}
       {activeShader === 'water' ? (
-        <Water {...common} fit="cover" scale={1} {...shaderParams.water} />
+        // the waves pull the image past its edges, the zoom keeps that out of frame
+        <Water
+          {...common}
+          fit="cover"
+          scale={1.1}
+          colorBack={stampColor}
+          {...shaderParams.water}
+        />
       ) : null}
       {activeShader === 'engraving' ? (
         <ShaderMount
@@ -282,6 +290,20 @@ export function ShaderLayer({
             u_image: baseImage,
             u_size: shaderParams.engraving.size,
             u_angle: shaderParams.engraving.angle,
+          }}
+        />
+      ) : null}
+      {activeShader === 'intaglio' ? (
+        <ShaderMount
+          className={common.className}
+          speed={0}
+          fragmentShader={INTAGLIO_SHADER}
+          uniforms={{
+            ...printSizing,
+            u_image: baseImage,
+            u_size: shaderParams.intaglio.size,
+            u_contrast: shaderParams.intaglio.contrast,
+            u_ink: getShaderColorFromString(shaderParams.intaglio.ink),
           }}
         />
       ) : null}

@@ -2,6 +2,24 @@
 
 All notable changes to Stampstudio are documented here.
 
+## [2.0.1] - 2026-11-07 - Sharper prints
+
+### Added
+
+- Intaglio, a new shader that prints your stamp in fine lines with a single ink.
+- Rotation now snaps to right angles.
+- On phones, drag any side of the stamp to resize it.
+
+### Fixed
+
+- Shaders now export at full resolution instead of being stretched from screen size.
+- The crop box now matches what gets applied, even if you don't move it.
+- Match stamp now follows your stamp's real size.
+- Text stays inside the stamp while you type.
+- The sidebar tells you when a size is too big for your window, and large stamps no longer run under it.
+- Removed a grey patch in the corner of the Water shader.
+- Font weights show their full names, and font search is ready to type in.
+
 ## [2.0.0] - 2026-11-06 - A fresh new look
 
 ### Added
