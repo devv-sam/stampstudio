@@ -200,6 +200,7 @@ export function StampInspector() {
     return () => observer.disconnect();
   }, [textActive]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [sizeLimit, setSizeLimit] = useState<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -223,10 +224,11 @@ export function StampInspector() {
   const commitSize = (raw: string, axis: "width" | "height") => {
     const n = parseInt(raw, 10);
     if (Number.isNaN(n)) return;
-    setStampSize(
+    const next = setStampSize(
       axis === "width" ? n : stampDimensions.width,
       axis === "height" ? n : stampDimensions.height,
     );
+    setSizeLimit(next && next[axis] < n ? next[axis] : null);
   };
 
   const commitHex = (raw: string) => {
@@ -297,6 +299,11 @@ export function StampInspector() {
               />
             </label>
           </div>
+          {sizeLimit !== null ? (
+            <p role="status" className="col-span-2 px-1 text-sm text-ink-soft md:col-span-1">
+              {sizeLimit} is the most that fits this window.
+            </p>
+          ) : null}
           <PerforationSlider
             label="Perforation"
             defaultValue={perforationCount}

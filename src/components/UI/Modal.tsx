@@ -13,6 +13,7 @@ export function Modal({
   labelledBy,
   panelClassName = '',
   animatePanel = true,
+  onSettled,
 }: {
   open: boolean
   onClose: () => void
@@ -21,6 +22,8 @@ export function Modal({
   panelClassName?: string
   /** When false, only the backdrop fades — panel appears instantly (no scale/slide). */
   animatePanel?: boolean
+  /** Fires once the panel has finished animating, for content that measures itself. */
+  onSettled?: () => void
 }) {
   const { blurPop } = useDeskMotion()
 
@@ -55,6 +58,7 @@ export function Modal({
           />
           <motion.div
             {...(animatePanel ? blurPop : {})}
+            onAnimationComplete={onSettled}
             className={`desk-card relative z-10 flex max-h-[90vh] w-[min(560px,92vw)] flex-col overflow-y-auto ${panelClassName}`}
           >
             {children}

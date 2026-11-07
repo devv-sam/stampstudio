@@ -88,6 +88,8 @@ Object.assign(InteractiveFabricObject.ownDefaults, {
   transparentCorners: false,
   padding: 0,
   lockScalingFlip: true,
+  snapAngle: 90,
+  snapThreshold: 4,
 })
 
 InteractiveFabricObject.createControls = () => {

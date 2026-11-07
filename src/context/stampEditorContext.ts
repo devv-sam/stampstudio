@@ -81,7 +81,11 @@ export type StampEditorContextValue = {
   removeTextLayer: (id: string) => void
 
   /** Resize stamp to exact dimensions (px), clamped to the canvas stage. */
-  setStampSize: (width: number, height: number) => void
+  /** Returns the size the stamp ended up at, which the window can limit. */
+  setStampSize: (
+    width: number,
+    height: number,
+  ) => { width: number; height: number } | undefined
 
   /** CSS-level view zoom applied to the stamp (1 = 100%, 0.25–4). Does not affect stamp pixel dimensions. */
   canvasZoom: number

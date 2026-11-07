@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Cropper, { type Area } from "react-easy-crop";
 
 import { Button } from "../UI/Button";
 import { Modal } from "../UI/Modal";
+import { useStampEditor } from "../../hooks/useStampEditor";
 import { PerforationSlider } from "../UI/PerforationSlider";
 import { useDeskMotion } from "../../utils/deskMotion";
 import { cropImageToDataUrl } from "../../utils/imageHelpers";
@@ -51,6 +52,8 @@ export function CropStep({
   // remounts the uncontrolled slider when scroll or pinch zooms the cropper
   const [zoomSyncKey, setZoomSyncKey] = useState(0);
   const [aspect, setAspect] = useState<AspectChoice>(ASPECT_CHOICES[1]);
+  const { stampDimensions } = useStampEditor();
+  const cropperRef = useRef<Cropper>(null);
   const [pixelArea, setPixelArea] = useState<Area | null>(null);
   const [isCropping, setIsCropping] = useState(false);
 
@@ -70,7 +73,13 @@ export function CropStep({
   };
 
   return (
-    <Modal open onClose={onCancel} labelledBy="crop-step-title">
+    <Modal
+      open
+      onClose={onCancel}
+      labelledBy="crop-step-title"
+      // the cropper measures itself while the modal is still scaled down
+      onSettled={() => cropperRef.current?.computeSizes()}
+    >
       <div className="flex flex-col gap-1.5 p-1.5">
         <h2 id="crop-step-title" className="px-2 py-1 text-lg font-semibold">
           Crop & adjust
@@ -78,11 +87,16 @@ export function CropStep({
 
         <div className="relative h-[360px] w-full overflow-hidden rounded-xl bg-desk max-md:h-[280px]">
           <Cropper
+            ref={cropperRef}
             image={src}
             crop={crop}
             zoom={zoom}
             maxZoom={MAX_ZOOM}
-            aspect={aspect.value}
+            aspect={
+              aspect.id === "stamp"
+                ? stampDimensions.width / stampDimensions.height
+                : aspect.value
+            }
             onCropChange={setCrop}
             onZoomChange={(next) => {
               setZoom(next);

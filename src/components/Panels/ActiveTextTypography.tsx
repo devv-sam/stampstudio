@@ -377,6 +377,7 @@ export function ActiveTextTypography() {
               <label className="sr-only">Filter fonts</label>
               <input
                 type="search"
+                autoFocus
                 value={fontSearch}
                 placeholder="Search fonts…"
                 onChange={(e) => setFontSearch(e.target.value)}
@@ -453,7 +454,7 @@ export function ActiveTextTypography() {
               />
             </button>
             {weightDropdownOpen ? (
-              <ul role="listbox" className={`${dropdownBelow} py-1`}>
+              <ul role="listbox" className={`${dropdownBelow} w-max min-w-full py-1`}>
                 {weights.map((w) => {
                   const isActive = selected.fontWeight === w;
                   return (

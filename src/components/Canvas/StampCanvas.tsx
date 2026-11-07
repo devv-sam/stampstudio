@@ -35,7 +35,7 @@ import {
   isTextObject,
   readTextLayerId,
 } from '../../utils/textHelpers'
-import { blendShaderOverFill } from '../../utils/blendModes'
+import { blendShaderOverFill, isMixMode } from '../../utils/blendModes'
 import { punchPerforationHoles } from '../../utils/exportHelpers'
 import { solidColorDataUrl } from '../../utils/solidColorDataUrl'
 import { buildPerforationClipPathD } from '../../utils/stampPerforationLayout'
@@ -48,10 +48,17 @@ const TEXT_MIN_SIZE = 6
 const TEXT_MAX_SIZE = 200
 const DESK_FILL = 0.82
 const DESK_MAX_SCALE = 1.7
+// shortcut: linear and oklab blend on the cpu, so they export at this size at most, move them to webgl if the softness shows
+const MIX_MAX_SIDE = 2400
 const STAMP_SHADOW =
   'drop-shadow(0 1px 2px rgb(0 0 0 / 0.12)) drop-shadow(0 16px 24px rgb(0 0 0 / 0.14))'
 
 // view-only and fixed per stage, so resizing tracks the pointer and sizes read true
+type ShaderRenderer = {
+  setMaxPixelCount: (count?: number) => void
+  setMinPixelRatio: (ratio?: number) => void
+}
+
 function stageViewScale(stageW: number, stageH: number) {
   return Math.min(
     DESK_MAX_SCALE,
@@ -646,6 +653,17 @@ export function StampCanvas() {
 
       if (shaderCanvas && shaderCanvas.width > 0 && shaderCanvas.height > 0) {
         const { blendMode: mode, fill } = shaderBlendRef.current
+        // the shader canvas is sized for the screen, so render it again at the export size
+        const mount = (
+          shaderCanvas.parentElement as
+            | (HTMLElement & { paperShaderMount?: ShaderRenderer })
+            | null
+        )?.paperShaderMount
+        const longSide = Math.max(stampBounds.width, stampBounds.height)
+        mount?.setMaxPixelCount(outW * outH)
+        mount?.setMinPixelRatio(
+          isMixMode(mode) ? Math.min(multiplier, MIX_MAX_SIDE / longSide) : multiplier,
+        )
         const shaderLayer = await blendShaderOverFill(shaderCanvas, fill, mode)
         ctx.globalCompositeOperation = 'multiply'
         ctx.drawImage(
@@ -660,6 +678,8 @@ export function StampCanvas() {
           outH,
         )
         ctx.globalCompositeOperation = 'source-over'
+        mount?.setMinPixelRatio()
+        mount?.setMaxPixelCount()
 
         // Redraw text clean on top so shader doesn't affect it
         const textObjs = getAllTextObjects(stamp)

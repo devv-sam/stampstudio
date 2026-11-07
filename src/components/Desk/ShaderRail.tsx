@@ -51,6 +51,7 @@ const SHADERS: readonly { name: ShaderName; label: string }[] = [
   { name: "paper-texture", label: "Paper" },
   { name: "water", label: "Water" },
   { name: "engraving", label: "Engraving" },
+  { name: "intaglio", label: "Intaglio" },
   { name: "riso", label: "Riso" },
 ];
 
@@ -136,7 +137,7 @@ export function ShaderRail() {
         aria-label="Print effects"
         onPointerLeave={hideTip}
         onBlur={hideTip}
-        className="desk-card grid w-max grid-cols-[repeat(var(--rail-columns),max-content)] max-md:w-full max-md:grid-cols-4"
+        className="desk-card grid w-max grid-cols-[repeat(var(--rail-columns),max-content)] max-md:w-full max-md:grid-cols-5"
         style={
           {
             "--rail-columns": rail.columns,
@@ -163,7 +164,8 @@ export function ShaderRail() {
               }`}
               style={{
                 width: rail.windowWidth,
-                height: rail.windowHeight,
+                // leaves the logo and nav clear on short windows
+                height: `min(${rail.windowHeight}px, calc((100dvh - 12rem) / ${SHADERS.length} - ${rail.gap}px))`,
                 borderRadius: rail.windowRadius,
               }}
             >
@@ -502,6 +504,50 @@ function ShaderParams({ shader }: { shader: ShaderName }) {
           format={(v) => `${v}°`}
           onChange={(v) => updateShaderParam("engraving", "angle", v)}
         />
+      </>
+    );
+  }
+
+  if (shader === "intaglio") {
+    const p = shaderParams.intaglio;
+    return (
+      <>
+        <PerforationSlider
+          key={`intaglio-size-${p.size}`}
+          label="Line"
+          defaultValue={Math.round(p.size * 10)}
+          minValue={12}
+          maxValue={60}
+          onChange={(v) => updateShaderParam("intaglio", "size", v / 10)}
+        />
+        <PerforationSlider
+          key={`intaglio-contrast-${p.contrast}`}
+          label="Softness"
+          defaultValue={Math.round(p.contrast * 100)}
+          minValue={5}
+          maxValue={50}
+          onChange={(v) => updateShaderParam("intaglio", "contrast", v / 100)}
+        />
+        <div className="space-y-1">
+          <span className="text-sm text-zinc-500">Ink</span>
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Ink">
+            {(
+              [
+                ["#1b1b1f", "Black"],
+                ["#8e2a2a", "Red"],
+                ["#1f4f3a", "Green"],
+                ["#1c3560", "Blue"],
+              ] as const
+            ).map(([value, label]) => (
+              <SegmentTab
+                key={value}
+                pressed={p.ink === value}
+                onClick={() => updateShaderParam("intaglio", "ink", value)}
+                label={label}
+              />
+            ))}
+          </div>
+        </div>
       </>
     );
   }

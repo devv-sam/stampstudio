@@ -18,6 +18,14 @@ const GRIP_SPRING = { visualDuration: 0.18, bounce: 0.15 }
 
 type Mode = 'width' | 'height' | 'corner'
 
+// phones have no rail, each side of the stamp drags instead
+const SIDES = [
+  { mode: 'width', sign: 1, className: 'inset-y-6 -right-4 w-8 cursor-ew-resize' },
+  { mode: 'width', sign: -1, className: 'inset-y-6 -left-4 w-8 cursor-ew-resize' },
+  { mode: 'height', sign: 1, className: 'inset-x-6 -bottom-4 h-8 cursor-ns-resize' },
+  { mode: 'height', sign: -1, className: 'inset-x-6 -top-4 h-8 cursor-ns-resize' },
+] as const
+
 type ResizeProps = {
   width: number
   height: number
@@ -100,6 +108,7 @@ export function StampResizeEdges({
   const svgRef = useRef<SVGSVGElement>(null)
   const drag = useRef<{
     mode: Mode
+    sign: 1 | -1
     x: number
     y: number
     w: number
@@ -133,7 +142,7 @@ export function StampResizeEdges({
     grip.set(next)
   }
 
-  const alongFromPointer = (e: PointerEvent<SVGPathElement>) => {
+  const alongFromPointer = (e: PointerEvent<Element>) => {
     const box = svgRef.current!.getBoundingClientRect()
     return projectOntoRail(
       (e.clientX - box.left) / scale,
@@ -142,15 +151,15 @@ export function StampResizeEdges({
     )
   }
 
-  const onPointerMove = (e: PointerEvent<SVGPathElement>) => {
+  const onPointerMove = (e: PointerEvent<Element>) => {
     const start = drag.current
     if (!start) {
       placeGrip(alongFromPointer(e))
       return
     }
 
-    const w = start.w + ((e.clientX - start.x) / scale) * 2
-    const h = start.h + ((e.clientY - start.y) / scale) * 2
+    const w = start.w + ((e.clientX - start.x) / scale) * 2 * start.sign
+    const h = start.h + ((e.clientY - start.y) / scale) * 2 * start.sign
 
     if (start.mode === 'width') {
       onResize(Math.round(w), start.h)
@@ -171,10 +180,11 @@ export function StampResizeEdges({
     }
   }
 
-  const onPointerDown = (e: PointerEvent<SVGPathElement>) => {
+  const startDrag = (e: PointerEvent<Element>, mode: Mode, sign: 1 | -1) => {
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = {
-      mode: modeAt(alongFromPointer(e), rail),
+      mode,
+      sign,
       x: e.clientX,
       y: e.clientY,
       w: width,
@@ -217,7 +227,7 @@ export function StampResizeEdges({
       <svg
         ref={svgRef}
         aria-hidden
-        className="pointer-events-none absolute inset-0 z-[22] h-full w-full overflow-visible"
+        className="pointer-events-none absolute inset-0 z-[22] h-full w-full overflow-visible max-md:hidden"
       >
         <path
           d={rail.d}
@@ -262,11 +272,23 @@ export function StampResizeEdges({
             if (!drag.current) setHot(false)
           }}
           onPointerMove={onPointerMove}
-          onPointerDown={onPointerDown}
+          onPointerDown={(e) => startDrag(e, modeAt(alongFromPointer(e), rail), 1)}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         />
       </svg>
+
+      {SIDES.map(({ mode, sign, className }) => (
+        <div
+          key={`${mode}${sign}`}
+          aria-hidden
+          className={`absolute z-[22] touch-none md:hidden ${className}`}
+          onPointerDown={(e) => startDrag(e, mode, sign)}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+        />
+      ))}
 
       {(['width', 'height'] as const).map((axis) => (
         <div
