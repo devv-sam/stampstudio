@@ -1,3 +1,5 @@
+import type { BlendMode } from '../utils/blendModes'
+import { DEFAULT_SHADER_PARAMS } from '../data/editorDefaults'
 import {
   useCallback,
   useEffect,
@@ -46,42 +48,6 @@ import { addStampToLibrary } from '../utils/stampLibraryStorage'
 
 export type { StampDimensions }
 
-const SNAP_TO_PRESETS_STORAGE_KEY = 'stampstudio-snap-to-presets'
-
-function readSnapToPresetsEnabled(): boolean {
-  try {
-    const stored = localStorage.getItem(SNAP_TO_PRESETS_STORAGE_KEY)
-    if (stored === null) return true
-    return stored === 'true'
-  } catch {
-    return true
-  }
-}
-
-function writeSnapToPresetsEnabled(enabled: boolean) {
-  try {
-    localStorage.setItem(SNAP_TO_PRESETS_STORAGE_KEY, String(enabled))
-  } catch {
-    /* ignore quota / private mode */
-  }
-}
-
-const defaultShaderParams: ShaderParamsMap = {
-  'halftone-dots': { size: 0.5, type: 'gooey', contrast: 0.4 },
-  'fluted-glass': { size: 0.5, distortion: 0.5, shape: 'lines' },
-  'halftone-cmyk': {
-    size: 0.2,
-    type: 'ink',
-    softness: 1,
-    colorBack: '#fbfaf5',
-    colorC: '#00b4ff',
-    colorM: '#fc519f',
-    colorY: '#ffd800',
-    colorK: '#231f20',
-  },
-  'image-dithering': { preset: 'natural', size: 2 },
-}
-
 export function StampEditorProvider({ children }: { children: ReactNode }) {
   const apiRef = useRef<StampCanvasApi | null>(null)
   const detachRef = useRef<(() => void) | null>(null)
@@ -100,28 +66,18 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
   const toggleOutlineMode = useCallback(() => {
     setOutlineMode((on) => !on)
   }, [])
-  const [snapToPresetsEnabled, setSnapToPresetsEnabledState] = useState(
-    readSnapToPresetsEnabled,
-  )
-  const snapToPresetsEnabledRef = useRef(snapToPresetsEnabled)
-
-  const setSnapToPresetsEnabled = useCallback((enabled: boolean) => {
-    setSnapToPresetsEnabledState(enabled)
-    writeSnapToPresetsEnabled(enabled)
-  }, [])
-
-  snapToPresetsEnabledRef.current = snapToPresetsEnabled
   const [perforationCount, setPerforationCount] = useState(14)
   const [stampColor, _setStampColor] = useState('#ffffff')
 
   const [activeShader, setActiveShader] = useState<ShaderName | null>(null)
+  const [blendMode, setBlendMode] = useState<BlendMode>('normal')
   const activeShaderRef = useRef<ShaderName | null>(null)
   useEffect(() => {
     activeShaderRef.current = activeShader
   }, [activeShader])
 
   const [shaderParams, setShaderParams] = useState<ShaderParamsMap>(() => ({
-    ...defaultShaderParams,
+    ...DEFAULT_SHADER_PARAMS,
   }))
 
   const updateShaderParam = useCallback(
@@ -232,8 +188,8 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
 
     const syncDimensions = () => {
       setStampDimensions({
-        width: Math.round(api.stamp.getScaledWidth()),
-        height: Math.round(api.stamp.getScaledHeight()),
+        width: api.canvas.getWidth(),
+        height: api.canvas.getHeight(),
       })
     }
 
@@ -425,8 +381,8 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
     setSelectedTextId((cur) => (cur === id ? null : cur))
   }, [])
 
-  const applyStampSizePreset = useCallback((width: number, height: number) => {
-    const next = apiRef.current?.applySizePreset?.(width, height)
+  const setStampSize = useCallback((width: number, height: number) => {
+    const next = apiRef.current?.setSize?.(width, height)
     if (next) {
       setStampDimensions({
         width: next.width,
@@ -696,6 +652,17 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
   const produceSvgMarkup = useCallback(async (): Promise<string | null> => {
     const api = apiRef.current
     if (!api) return null
+    // holes stay vector, so the raster body goes in unpunched
+    const body = await api
+      .exportCompositedRaster?.({
+        format: 'png',
+        multiplier: 2,
+        perforationCount: 0,
+      })
+      .catch(() => null)
+    if (body) {
+      return exportStampSvg(api.canvas, api.stamp, perforationCount, body)
+    }
     return withExportFallbackFill(() =>
       exportStampSvg(api.canvas, api.stamp, perforationCount),
     )
@@ -720,9 +687,6 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       register,
       unregister,
       stampDimensions,
-      snapToPresetsEnabled,
-      setSnapToPresetsEnabled,
-      snapToPresetsEnabledRef,
       perforationCount,
       setPerforationCount,
       stampColor,
@@ -745,7 +709,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       addTextLayerAtScene,
       updateTextLayer,
       removeTextLayer,
-      applyStampSizePreset,
+      setStampSize,
       canvasZoom,
       setCanvasZoom,
       outlineMode,
@@ -758,15 +722,15 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       copySvg,
       activeShader,
       setActiveShader,
+      setBlendMode,
       shaderParams,
+      blendMode,
       updateShaderParam,
     }),
     [
       register,
       unregister,
       stampDimensions,
-      snapToPresetsEnabled,
-      setSnapToPresetsEnabled,
       perforationCount,
       stampColor,
       setStampColor,
@@ -787,7 +751,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       addTextLayerAtScene,
       updateTextLayer,
       removeTextLayer,
-      applyStampSizePreset,
+      setStampSize,
       canvasZoom,
       outlineMode,
       toggleOutlineMode,
@@ -798,6 +762,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       copySvg,
       activeShader,
       shaderParams,
+      blendMode,
       updateShaderParam,
     ],
   )

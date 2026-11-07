@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from 'react'
+import { useLayoutEffect, useState, type RefObject } from 'react'
 
 /**
  * Track container size so the Fabric canvas can fill the workspace.
@@ -6,7 +6,8 @@ import { useEffect, useState, type RefObject } from 'react'
 export function useCanvasSize(containerRef: RefObject<HTMLElement | null>) {
   const [size, setSize] = useState({ width: 800, height: 600 })
 
-  useEffect(() => {
+  // layout effect so the first paint already has the real stage size
+  useLayoutEffect(() => {
     const el = containerRef.current
     if (!el) return
 

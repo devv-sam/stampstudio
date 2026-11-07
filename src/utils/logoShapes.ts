@@ -1,0 +1,77 @@
+export const LOGO_D =
+  'M54.1526 17.2151C49.5356 12.5967 43.2732 10.0014 36.7427 10H34.625C28.094 10 21.8306 12.5944 17.2125 17.2125C12.5944 21.8306 10 28.094 10 34.625V36.7427C10.0014 43.2732 12.5967 49.5356 17.2151 54.1526C21.8316 58.7705 24.425 65.0328 24.425 71.5625C24.425 78.0922 21.8316 84.3545 17.2151 88.9724C12.5967 93.5894 10.0014 99.8518 10 106.382V110.618C10.0014 117.148 12.5967 123.411 17.2151 128.028C22.1401 132.953 24.5411 139.454 24.4179 145.905C24.2948 152.062 21.9062 158.156 17.2151 162.847C12.5967 167.464 10.0014 173.727 10 180.257V182.375C10 188.906 12.5944 195.169 17.2125 199.787C21.8306 204.406 28.094 207 34.625 207H36.7427C43.2732 206.999 49.5356 204.403 54.1526 199.785C58.7705 195.168 65.0328 192.575 71.5625 192.575C78.0922 192.575 84.3545 195.168 88.9724 199.785C93.5894 204.403 99.8518 206.999 106.382 207H110.618C117.148 206.999 123.411 204.403 128.028 199.785C132.645 195.168 138.908 192.575 145.438 192.575C151.967 192.575 158.229 195.168 162.847 199.785C167.464 204.403 173.727 206.999 180.257 207H182.375C188.906 207 195.169 204.406 199.787 199.787C204.406 195.169 207 188.906 207 182.375V180.257C206.999 173.727 204.403 167.464 199.785 162.847C197.493 160.564 195.675 157.851 194.434 154.863C193.193 151.876 192.555 148.673 192.555 145.438C192.555 142.202 193.193 138.999 194.434 136.012C195.675 133.024 197.493 130.311 199.785 128.028C204.403 123.411 206.999 117.148 207 110.618V106.382C206.999 99.8518 204.403 93.5894 199.785 88.9724C195.168 84.3545 192.575 78.0922 192.575 71.5625C192.575 65.0328 195.168 58.7705 199.785 54.1526C204.403 49.5356 206.999 43.2732 207 36.7427V34.625C207 28.094 204.406 21.8306 199.787 17.2125C195.169 12.5944 188.906 10 182.375 10H180.257C173.727 10.0014 167.464 12.5967 162.847 17.2151C158.229 21.8316 151.967 24.425 145.438 24.425C138.908 24.425 132.645 21.8316 128.028 17.2151C123.411 12.5967 117.148 10.0014 110.618 10H106.382C99.8518 10.0014 93.5894 12.5967 88.9724 17.2151C84.3545 21.8316 78.0922 24.425 71.5625 24.425C65.0328 24.425 58.7705 21.8316 54.1526 17.2151Z'
+
+export const LOGO_VIEWBOX = '0 0 217 217'
+
+const POINTS = 240
+const CENTER = 108.5
+
+export type Outline = [number, number][]
+
+function sampleLogo(): Outline {
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+  path.setAttribute('d', LOGO_D)
+  const length = path.getTotalLength()
+  return Array.from({ length: POINTS }, (_, i) => {
+    const p = path.getPointAtLength((i / POINTS) * length)
+    return [p.x, p.y]
+  })
+}
+
+function polar(radius: (angle: number) => number, start: Outline[number]): Outline {
+  const startAngle = Math.atan2(start[1] - CENTER, start[0] - CENTER)
+  return Array.from({ length: POINTS }, (_, i) => {
+    // the logo path runs counterclockwise, so every shape must too or the morph twists
+    const a = startAngle - (i / POINTS) * Math.PI * 2
+    const r = radius(a)
+    return [CENTER + r * Math.cos(a), CENTER + r * Math.sin(a)]
+  })
+}
+
+const scallop = (a: number) => 76 + 26 * Math.abs(Math.sin(2 * a))
+
+const plus = (a: number) => {
+  const c = Math.abs(Math.cos(a))
+  const s = Math.abs(Math.sin(a))
+  return Math.min(98 / Math.max(c, s), 36 / Math.min(c, s))
+}
+
+const circle = () => 84
+
+const star = (a: number) => {
+  const p = 0.66
+  const sum = Math.abs(Math.cos(a)) ** p + Math.abs(Math.sin(a)) ** p
+  return 104 / sum ** (1 / p)
+}
+
+const flower = (a: number) => 80 + 18 * Math.cos(8 * a)
+
+export function buildLogoShapes() {
+  const logo = sampleLogo()
+  const start = logo[0]!
+  return [
+    { outline: logo, color: '#00cc55' },
+    { outline: polar(scallop, start), color: '#ff271f' },
+    { outline: polar(plus, start), color: '#ff5a24' },
+    { outline: polar(circle, start), color: '#3b84ee' },
+    { outline: polar(star, start), color: '#ffe122' },
+    { outline: polar(flower, start), color: '#ff31c6' },
+  ]
+}
+
+export function mixOutlines(from: Outline, to: Outline, t: number): Outline {
+  return from.map(([x, y], i) => [
+    x + (to[i]![0] - x) * t,
+    y + (to[i]![1] - y) * t,
+  ])
+}
+
+export function outlineToPath(outline: Outline) {
+  return `M${outline.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join('L')}Z`
+}
+
+// padded viewBox, the star's tips run past the logo's 217 box
+export function outlineToFavicon(outline: Outline, color: string) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -8 233 233" fill="none"><path d="${outlineToPath(outline)}" stroke="${color}" stroke-width="20" stroke-linejoin="round"/></svg>`
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}

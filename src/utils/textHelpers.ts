@@ -6,7 +6,7 @@ import {
   type Group,
 } from 'fabric'
 
-import { STAMP_BASE_HEIGHT, STAMP_BASE_WIDTH } from './fabricHelpers'
+import { STAMP_SAFE_INSET } from './fabricHelpers'
 import type { TextLayer } from '../types/text'
 
 export const TEXT_OBJECT_TAG = 'stampstudio-text'
@@ -15,14 +15,6 @@ function configureTextObject(text: IText) {
   text.set({
     originX: 'center',
     originY: 'center',
-    cornerStyle: 'circle',
-    cornerColor: 'rgba(255, 255, 255, 0.95)',
-    cornerStrokeColor: 'rgba(0, 0, 0, 0.4)',
-    transparentCorners: false,
-    cornerSize: 10,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-    borderScaleFactor: 1,
-    padding: 2,
   })
 }
 
@@ -81,7 +73,6 @@ export function addTextObject(
   ;(text as FabricObject & { stampstudioTextId?: string }).stampstudioTextId =
     layer.id
   text.on('moving', () => constrainTextInGroup(text))
-  text.on('scaling', () => constrainTextInGroup(text))
   if (options.onContentChange) {
     const cb = options.onContentChange
     /** Fires on every keystroke during in-place editing. */
@@ -117,17 +108,23 @@ export function addTextObject(
 
 export function constrainTextInGroup(text: IText) {
   text.setCoords()
+  const stamp = text.parent
+  if (!stamp) return
+
+  const angle = ((text.angle || 0) * Math.PI) / 180
+  const cos = Math.abs(Math.cos(angle))
+  const sin = Math.abs(Math.sin(angle))
   const textW = (text.width || 0) * Math.abs(text.scaleX || 1)
   const textH = (text.height || 0) * Math.abs(text.scaleY || 1)
-  const halfStampW = STAMP_BASE_WIDTH / 2
-  const halfStampH = STAMP_BASE_HEIGHT / 2
-  const halfTextW = textW / 2
-  const halfTextH = textH / 2
+  const halfTextW = (textW * cos + textH * sin) / 2
+  const halfTextH = (textW * sin + textH * cos) / 2
+  const halfSafeW = stamp.width / 2 - STAMP_SAFE_INSET
+  const halfSafeH = stamp.height / 2 - STAMP_SAFE_INSET
 
-  const minX = -halfStampW + halfTextW
-  const maxX = halfStampW - halfTextW
-  const minY = -halfStampH + halfTextH
-  const maxY = halfStampH - halfTextH
+  const minX = -halfSafeW + halfTextW
+  const maxX = halfSafeW - halfTextW
+  const minY = -halfSafeH + halfTextH
+  const maxY = halfSafeH - halfTextH
 
   const nextLeft =
     minX > maxX ? 0 : Math.max(minX, Math.min(maxX, text.left ?? 0))

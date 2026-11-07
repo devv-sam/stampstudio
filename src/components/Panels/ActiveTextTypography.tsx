@@ -17,7 +17,9 @@ import { createPortal } from "react-dom";
 import { useStampEditor } from "../../hooks/useStampEditor";
 import { STAMP_FONTS, STAMP_FONT_SIZES } from "../../types/text";
 
-function useDismissOnOutside<E extends HTMLElement>(
+let fontsWarmed = false;
+
+export function useDismissOnOutside<E extends HTMLElement>(
   open: boolean,
   onDismiss: () => void,
 ) {
@@ -182,7 +184,7 @@ function ColorPickerPortal({
       style={{ left: position?.left ?? -9999, top: position?.top ?? -9999, visibility: position ? "visible" : "hidden" }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <div className="rounded-xl border border-zinc-700 bg-[#141416] shadow-2xl">
+      <div className="overflow-hidden rounded-2xl bg-card shadow-chunky">
         <ChromePicker color={colorHex} onChange={(c) => onPick(c.hex)} disableAlpha />
       </div>
     </div>,
@@ -233,12 +235,17 @@ export function ActiveTextTypography() {
     closeSizeDropdown,
   );
 
-  const selected = useMemo(
+  const current = useMemo(
     () => textLayers.find((t) => t.id === selectedTextId) ?? null,
     [textLayers, selectedTextId],
   );
 
-  const visible = !!selected && !textPlacementActive;
+  // keeps showing the last layer while the sidebar crossfades away after a deselect
+  const [lastLayer, setLastLayer] = useState(current);
+  if (current && current !== lastLayer) setLastLayer(current);
+  const selected = current ?? lastLayer;
+
+  const visible = !!current && !textPlacementActive;
 
   const fontDef = useMemo(
     () => STAMP_FONTS.find((f) => f.family === selected?.fontFamily),
@@ -271,7 +278,8 @@ export function ActiveTextTypography() {
   // Warm up the browser's FontFaceSet for every stamp font so dropdown
   // previews render in the correct typeface instead of falling back to serif.
   useEffect(() => {
-    if (typeof document === "undefined" || !document.fonts) return;
+    if (fontsWarmed || typeof document === "undefined" || !document.fonts) return;
+    fontsWarmed = true;
     for (const f of STAMP_FONTS) {
       for (const w of f.weights) {
         document.fonts.load(`${w} 16px "${f.family}"`).catch(() => {});
@@ -312,20 +320,19 @@ export function ActiveTextTypography() {
   };
 
   const dropdownBelow =
-    "absolute top-full left-0 right-0 z-50 mt-1 max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-md border border-zinc-700 bg-zinc-950 py-1 shadow-xl shadow-black/40 ring-1 ring-white/10";
+    "absolute top-full left-0 right-0 z-50 mt-1 max-md:top-auto max-md:bottom-full max-md:mt-0 max-md:mb-1 max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-xl border border-zinc-700 bg-zinc-950 py-1 shadow-chunky";
 
-  if (!visible || !selected) return null;
+  if (!selected) return null;
 
   return (
-    <section className="space-y-3 border-t border-zinc-800 pt-5">
+    <div className="space-y-3">
+      <section className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-          Typography
-        </p>
+        <h2 className="px-1 pt-1 text-sm text-ink-soft">Typography</h2>
         <button
           type="button"
           onClick={() => removeTextLayer(selected.id)}
-          className="flex h-8 w-8 shrink-0 items-center cursor-pointer justify-center rounded-md text-zinc-400 transition-colors hover:bg-red-950/45 hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+          className="flex h-7 w-7 shrink-0 items-center cursor-pointer justify-center rounded-xl text-ink-soft transition-colors hover:bg-red-950/45 hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
           title="Remove text layer"
           aria-label="Remove text layer"
         >
@@ -333,7 +340,7 @@ export function ActiveTextTypography() {
         </button>
       </div>
 
-      <div className="space-y-2.5">
+      <div className="space-y-1.5">
         <div ref={fontTrayRef} className="relative">
           {/*
            * Native <button> gets Tailwind preflight `font` shorthand — use div+role instead
@@ -351,10 +358,10 @@ export function ActiveTextTypography() {
             }}
             aria-expanded={fontDropdownOpen}
             aria-haspopup="listbox"
-            className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md border border-zinc-700/90 bg-zinc-900/50 px-2.5 py-2 text-left font-normal transition-colors hover:border-zinc-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
+            className="flex h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl bg-zinc-900 px-3 text-left font-normal transition-colors hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
             style={{ fontFamily: quotedFontFamily(selected.fontFamily) }}
           >
-            <span className="min-w-0 flex-1 truncate text-xs text-zinc-100">
+            <span className="min-w-0 flex-1 truncate text-sm text-zinc-100">
               {fontDef?.label ?? selected.fontFamily}
             </span>
             <span className="font-preview-ui inline-flex shrink-0">
@@ -366,7 +373,7 @@ export function ActiveTextTypography() {
           </div>
 
           {fontDropdownOpen ? (
-            <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border border-zinc-700 bg-zinc-950 shadow-xl shadow-black/40 ring-1 ring-white/10">
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 shadow-chunky">
               <label className="sr-only">Filter fonts</label>
               <input
                 type="search"
@@ -395,7 +402,7 @@ export function ActiveTextTypography() {
                         }}
                         className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left font-normal transition-colors select-none ${
                           isActive
-                            ? "bg-zinc-800/95 text-white"
+                            ? "bg-zinc-800/95 text-zinc-100"
                             : "text-zinc-200 hover:bg-zinc-800/60"
                         }`}
                         style={{ fontFamily: quotedFontFamily(f.family) }}
@@ -406,7 +413,7 @@ export function ActiveTextTypography() {
                           ) : null}
                         </span>
                         <span
-                          className={`min-w-0 flex-1 truncate text-left text-[12px] leading-snug ${isActive ? "text-white" : "text-zinc-200"}`}
+                          className={`min-w-0 flex-1 truncate text-left text-[12px] leading-snug ${isActive ? "text-zinc-100" : "text-zinc-200"}`}
                         >
                           {f.label}
                         </span>
@@ -424,16 +431,16 @@ export function ActiveTextTypography() {
           ) : null}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
           <div ref={weightTrayRef} className="relative">
             <button
               type="button"
               onClick={toggleWeightDropdown}
               aria-expanded={weightDropdownOpen}
               aria-haspopup="listbox"
-              className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md border border-zinc-700/90 bg-zinc-900/50 px-2.5 py-2 text-left transition-colors hover:border-zinc-600"
+              className="flex h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl bg-zinc-900 px-3 text-left transition-colors hover:bg-zinc-800"
             >
-              <span className="min-w-0 truncate text-xs text-zinc-100">
+              <span className="min-w-0 truncate text-sm text-zinc-100">
                 {weightLabel(
                   weights.includes(selected.fontWeight)
                     ? selected.fontWeight
@@ -461,7 +468,7 @@ export function ActiveTextTypography() {
                         }}
                         className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-[12px] transition-colors ${
                           isActive
-                            ? "bg-zinc-800/95 text-white"
+                            ? "bg-zinc-800/95 text-zinc-100"
                             : "text-zinc-200 hover:bg-zinc-800/60"
                         }`}
                       >
@@ -486,9 +493,9 @@ export function ActiveTextTypography() {
 
           <div ref={sizeTrayRef} className="relative">
             <div
-              className={`flex overflow-hidden rounded-md border border-zinc-700/90 bg-zinc-900/50 transition-colors hover:border-zinc-600 ${sizeDropdownOpen ? "border-zinc-600" : ""}`}
+              className={"flex h-10 overflow-hidden rounded-xl bg-zinc-900 transition-colors focus-within:bg-zinc-800"}
             >
-              <div className="flex min-w-0 flex-1 items-center px-2.5 py-2">
+              <div className="flex min-w-0 flex-1 items-center px-3">
                 <input
                   type="text"
                   inputMode="numeric"
@@ -499,7 +506,7 @@ export function ActiveTextTypography() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") e.currentTarget.blur();
                   }}
-                  className="min-w-0 flex-1 cursor-text bg-transparent text-xs tabular-nums text-zinc-100 outline-none"
+                  className="w-full min-w-0 flex-1 cursor-text bg-transparent text-sm tabular-nums text-zinc-100 outline-none"
                   placeholder="px"
                 />
               </div>
@@ -538,7 +545,7 @@ export function ActiveTextTypography() {
                       }}
                       className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-left tabular-nums transition-colors ${
                         selected.fontSize === px
-                          ? "bg-zinc-800/95 text-white"
+                          ? "bg-zinc-800/95 text-zinc-100"
                           : "hover:bg-zinc-800/60"
                       }`}
                     >
@@ -556,8 +563,12 @@ export function ActiveTextTypography() {
           </div>
         </div>
 
+      </div>
+      </section>
+
+      <section className="space-y-1.5">
         <div className="space-y-1.5">
-          <p className="text-[11px] text-zinc-500">Color</p>
+          <h2 className="px-1 pt-1 text-sm text-ink-soft">Color</h2>
           <div className="flex flex-wrap items-center gap-2">
             {TEXT_COLOR_PRESETS.map((color) => {
               const hex = color.toLowerCase();
@@ -570,12 +581,12 @@ export function ActiveTextTypography() {
                     setPickerOpen(false);
                   }}
                   title={color}
-                  className="h-5 w-5 rounded-full transition-transform hover:scale-110 focus:outline-none"
+                  className="h-7 w-7 cursor-pointer rounded-full transition-transform hover:scale-110 focus:outline-none"
                   style={{
                     background: color,
                     outline:
                       selected.color.toLowerCase() === hex
-                        ? "2px solid white"
+                        ? "2px solid var(--color-ink)"
                         : "2px solid transparent",
                     outlineOffset: "1px",
                     boxShadow: TEXT_LIGHT_SWATCH.has(hex)
@@ -592,14 +603,14 @@ export function ActiveTextTypography() {
                 type="button"
                 onClick={() => setPickerOpen((o) => !o)}
                 title="Custom color"
-                className="h-5 w-5 rounded-full transition-transform hover:scale-110 focus:outline-none"
+                className="h-7 w-7 cursor-pointer rounded-full transition-transform hover:scale-110 focus:outline-none"
                 style={{
                   background:
                     "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)",
                   outline:
                     !TEXT_PRESET_HEX.has(selected.color.toLowerCase()) &&
                     pickerOpen
-                      ? "2px solid white"
+                      ? "2px solid var(--color-ink)"
                       : "2px solid transparent",
                   outlineOffset: "1px",
                 }}
@@ -615,7 +626,7 @@ export function ActiveTextTypography() {
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }

@@ -8,11 +8,7 @@ import {
 } from 'fabric'
 
 import { loadHtmlImage } from './imageHelpers'
-import {
-  getStampBgRect,
-  STAMP_BASE_HEIGHT,
-  STAMP_BASE_WIDTH,
-} from './fabricHelpers'
+import { coverPatternTransform, getStampBgRect } from './fabricHelpers'
 
 /** Marker put on every Fabric frame element so we can find/remove them. */
 export const FRAME_OBJECT_TAG = 'stampstudio-frame'
@@ -25,20 +21,16 @@ export const FRAME_OBJECT_TAG = 'stampstudio-frame'
  * so the image always covers the full unscaled stamp body — Fabric's own
  * scaling then sizes everything together.
  */
-export async function buildBackgroundPattern(src: string): Promise<Pattern> {
+export async function buildBackgroundPattern(
+  src: string,
+  width: number,
+  height: number,
+): Promise<Pattern> {
   const img = await loadHtmlImage(src)
-  const targetW = STAMP_BASE_WIDTH
-  const targetH = STAMP_BASE_HEIGHT
-  const scale = Math.max(targetW / img.width, targetH / img.height)
-  const scaledW = img.width * scale
-  const scaledH = img.height * scale
-  const offsetX = (targetW - scaledW) / 2
-  const offsetY = (targetH - scaledH) / 2
-
   return new Pattern({
     source: img,
     repeat: 'no-repeat',
-    patternTransform: [scale, 0, 0, scale, offsetX, offsetY],
+    patternTransform: coverPatternTransform(img, width, height),
   })
 }
 
@@ -57,7 +49,7 @@ export async function applyStampBackground(
     canvas.requestRenderAll()
     return
   }
-  const pattern = await buildBackgroundPattern(src)
+  const pattern = await buildBackgroundPattern(src, stamp.width, stamp.height)
   bgRect.set({ fill: pattern })
   canvas.requestRenderAll()
 }
@@ -78,7 +70,7 @@ export async function addFrameImage(
   const fabricImg = await FabricImage.fromURL(src)
   stamp.setCoords()
   const stampCenter = stamp.getCenterPoint()
-  const targetMax = Math.min(STAMP_BASE_WIDTH, STAMP_BASE_HEIGHT) * 0.5
+  const targetMax = Math.min(stamp.width, stamp.height) * 0.5
 
   const imgW = fabricImg.width || 1
   const imgH = fabricImg.height || 1
@@ -94,13 +86,6 @@ export async function addFrameImage(
     top: stampCenter.y,
     scaleX: fit,
     scaleY: fit,
-    cornerStyle: 'circle',
-    cornerColor: 'rgba(255, 255, 255, 0.95)',
-    cornerStrokeColor: 'rgba(0, 0, 0, 0.4)',
-    transparentCorners: false,
-    cornerSize: 10,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-    borderScaleFactor: 1,
     lockRotation: false,
   })
   fabricImg.setCoords()
@@ -112,9 +97,6 @@ export async function addFrameImage(
     assetId
 
   fabricImg.on('moving', () => {
-    constrainFrameInGroup(fabricImg)
-  })
-  fabricImg.on('scaling', () => {
     constrainFrameInGroup(fabricImg)
   })
 
@@ -139,8 +121,10 @@ function constrainFrameInGroup(frame: FabricImage) {
   // transforms and can over-constrain movement while dragging.
   const frameW = (frame.width || 0) * Math.abs(frame.scaleX || 1)
   const frameH = (frame.height || 0) * Math.abs(frame.scaleY || 1)
-  const halfStampW = STAMP_BASE_WIDTH / 2
-  const halfStampH = STAMP_BASE_HEIGHT / 2
+  const stamp = frame.parent
+  if (!stamp) return
+  const halfStampW = stamp.width / 2
+  const halfStampH = stamp.height / 2
   const halfFrameW = frameW / 2
   const halfFrameH = frameH / 2
 

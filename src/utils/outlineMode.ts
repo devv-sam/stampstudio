@@ -4,7 +4,7 @@ import { STAMP_BG_NAME } from './fabricHelpers'
 import { FRAME_OBJECT_TAG } from './stampImageHelpers'
 import { isTextObject } from './textHelpers'
 
-const OUTLINE_STROKE = 'rgba(255, 255, 255, 0.72)'
+const OUTLINE_STROKE = 'rgba(28, 28, 30, 0.72)'
 const OUTLINE_STROKE_WIDTH = 1
 export const OUTLINE_OVERLAY_TAG = 'stampstudio-outline-overlay'
 

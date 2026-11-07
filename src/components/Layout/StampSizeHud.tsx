@@ -1,16 +1,17 @@
 import { useStampEditor } from '../../hooks/useStampEditor'
+import { RollingNumber } from '../UI/RollingNumber'
 
-/** Bottom-right readout for live stamp pixel size (canvas area). */
+/** Live stamp pixel size readout. */
 export function StampSizeHud() {
   const { stampDimensions } = useStampEditor()
 
   return (
     <p
-      className="text-right font-mono text-[10px] font-medium tabular-nums tracking-tight text-zinc-500"
-      aria-live="polite"
+      className="text-sm tabular-nums text-ink-soft"
       aria-label="Stamp dimensions in pixels"
     >
-      {stampDimensions.width} × {stampDimensions.height}
+      <RollingNumber value={stampDimensions.width} /> ×{' '}
+      <RollingNumber value={stampDimensions.height} />
     </p>
   )
 }

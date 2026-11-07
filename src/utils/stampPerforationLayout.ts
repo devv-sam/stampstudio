@@ -77,6 +77,8 @@ function countForEdge(length: number, pitch: number): number {
   return Math.max(2, Math.min(cMax, raw))
 }
 
+const CLIP_OVERSHOOT_PX = 2
+
 export function buildPerforationClipPathD(
   width: number,
   height: number,
@@ -89,7 +91,11 @@ export function buildPerforationClipPathD(
   )
   if ((hCount === 0 && vCount === 0) || r <= 0) return ''
 
-  const parts: string[] = [`M 0 0 H ${width} V ${height} H 0 Z`]
+  // outer rect overshoots the edge, one drawn on it leaves a seam across each hole
+  const o = CLIP_OVERSHOOT_PX
+  const parts: string[] = [
+    `M ${-o} ${-o} H ${width + o} V ${height + o} H ${-o} Z`,
+  ]
 
   for (let i = 0; i < hCount; i += 1) {
     const cx = hSpacing * (i + 1)

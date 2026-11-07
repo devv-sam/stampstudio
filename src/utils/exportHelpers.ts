@@ -177,20 +177,24 @@ export async function exportStampSvg(
   canvas: Canvas,
   stamp: Group,
   perforationCount = 0,
+  /** Finished stamp art, shaders included. Falls back to the plain fabric render. */
+  body?: string,
 ): Promise<string> {
   const { left, top, width, height } = getStampBoundsOnCanvas(canvas, stamp)
   canvas.discardActiveObject()
   canvas.requestRenderAll()
 
-  const bodyHref = canvas.toDataURL({
-    format: 'png',
-    left,
-    top,
-    width,
-    height,
-    multiplier: 2,
-    enableRetinaScaling: false,
-  })
+  const bodyHref =
+    body ??
+    canvas.toDataURL({
+      format: 'png',
+      left,
+      top,
+      width,
+      height,
+      multiplier: 2,
+      enableRetinaScaling: false,
+    })
 
   const { hCount, vCount, hSpacing, vSpacing, r } = getPerforationGeometry(
     width,
@@ -202,21 +206,26 @@ export async function exportStampSvg(
   for (let i = 0; i < hCount; i += 1) {
     const cx = hSpacing * (i + 1)
     circles.push(
-      `<circle cx="${cx}" cy="0" r="${r}" fill="${CANVAS_BG}" />`,
-      `<circle cx="${cx}" cy="${height}" r="${r}" fill="${CANVAS_BG}" />`,
+      `<circle cx="${cx}" cy="0" r="${r}" />`,
+      `<circle cx="${cx}" cy="${height}" r="${r}" />`,
     )
   }
   for (let i = 0; i < vCount; i += 1) {
     const cy = vSpacing * (i + 1)
     circles.push(
-      `<circle cx="0" cy="${cy}" r="${r}" fill="${CANVAS_BG}" />`,
-      `<circle cx="${width}" cy="${cy}" r="${r}" fill="${CANVAS_BG}" />`,
+      `<circle cx="0" cy="${cy}" r="${r}" />`,
+      `<circle cx="${width}" cy="${cy}" r="${r}" />`,
     )
   }
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <image href="${bodyHref}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="none" />
-  ${circles.join('\n  ')}
+  <mask id="perforation" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}">
+    <rect width="${width}" height="${height}" fill="#fff" />
+    <g fill="#000">
+      ${circles.join('\n      ')}
+    </g>
+  </mask>
+  <image href="${bodyHref}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="none" mask="url(#perforation)" />
 </svg>`
 }

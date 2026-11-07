@@ -2,6 +2,42 @@
 
 All notable changes to Stampstudio are documented here.
 
+## [2.0.0] - 2026-11-06 - A fresh new look
+
+### Added
+
+- A full redesign. Stampstudio now has a light, playful desk with floating controls, a new logo, and new colors.
+- The logo changes shape and color when you click it, and the browser tab icon follows.
+- Four new shaders: paper, water, engraving, and riso. Shader previews sit on the left and show their name on hover.
+- A sidebar for canvas size, perforation, hex color, and opacity. It turns into text controls when you select text.
+- A new color picker with opacity.
+- Blend modes for shaders, right in the sidebar.
+- Resize from the right or bottom edge, or drag the corner to keep proportions.
+- Rotate text and frames by hovering just outside a corner.
+- Drag across the stamp to select several things at once.
+- Press Backspace or Delete to remove what you have selected.
+- Export now has a stamp press animation with a little thunk.
+- Updates now open in a popup right on the page.
+
+### Changed
+
+- Text stays sharp. Dragging a text corner changes the font size, and dragging a side stretches it.
+- Resizing the stamp crops your background image instead of stretching it.
+- Exported PNGs are sharper.
+- Text and frames can no longer be scaled past the edge of the stamp.
+- The outline view has its own button in the toolbar.
+- Copy shows its result on the button.
+
+### Fixed
+
+- Clicks on the stamp no longer get lost when a shader and text are both on.
+- Removed a faint line across the perforation holes.
+
+### Removed
+
+- Size presets and snapping. You can now type an exact size in the sidebar.
+- Experiments are paused for now and coming back soon.
+
 ## [1.2.0] - 2026-08-04 - Stampsheet
 
 ### Added
