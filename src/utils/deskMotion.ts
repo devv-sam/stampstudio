@@ -1,6 +1,18 @@
-import { useTransform, useVelocity, type MotionValue } from 'framer-motion'
+import type { TransitionConfig } from 'dialkit'
+import {
+  useTransform,
+  useVelocity,
+  type MotionValue,
+  type ValueAnimationTransition,
+} from 'framer-motion'
 
 export const DESK_BOUNCE = 0.15
+
+// dialkit marks easing curves with a type framer-motion doesn't know
+export function toTransition(config: TransitionConfig): ValueAnimationTransition {
+  if (config.type === 'spring') return config as ValueAnimationTransition
+  return { duration: config.duration, ease: config.ease }
+}
 
 const springy = {
   type: 'spring',

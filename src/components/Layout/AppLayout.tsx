@@ -4,7 +4,6 @@ import { AnimatePresence } from "framer-motion";
 
 import { StampCanvas } from "../Canvas/StampCanvas";
 import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
-import { ActiveTextTypography } from "../Panels/ActiveTextTypography";
 import { LogoMorph } from "../Brand/LogoMorph";
 import { StampInspector } from "../Desk/StampInspector";
 import { ShaderRail } from "../Desk/ShaderRail";
@@ -94,7 +93,6 @@ export function AppLayout({ header }: { header?: ReactNode }) {
           </div>
         </div>
 
-        <ActiveTextTypography />
         <CanvasFloatBar />
 
       </div>

@@ -1,5 +1,12 @@
+import { useDialKit } from "dialkit";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { useStampEditor } from "../../hooks/useStampEditor";
 import {
@@ -7,7 +14,11 @@ import {
   joinHexAlpha,
   splitHexAlpha,
 } from "../../utils/colorResultToHex";
-import { useDeskMotion } from "../../utils/deskMotion";
+import {
+  toTransition,
+  useDeskMotion,
+} from "../../utils/deskMotion";
+import { ActiveTextTypography } from "../Panels/ActiveTextTypography";
 import { StampColorPicker } from "./StampColorPicker";
 
 const field =
@@ -67,8 +78,56 @@ export function StampInspector() {
     stampColor,
     pickSolidStampColor,
     backgroundAsset,
+    selectedTextId,
+    textPlacementActive,
   } = useStampEditor();
   const { blurPop, press } = useDeskMotion();
+  const textActive = !!selectedTextId && !textPlacementActive;
+
+  const morph = useDialKit(
+    "Sidebar morph",
+    {
+      height: { type: "spring", visualDuration: 0.3, bounce: 0.1 },
+      fadeDuration: [0.2, 0.02, 0.6, 0.01],
+      blur: [6, 0, 24, 1],
+      slide: [0, -24, 24, 1],
+      scale: [0.98, 0.85, 1, 0.01],
+    },
+    { id: "sidebar-morph-v2", persist: true },
+  );
+
+  const hidden = {
+    opacity: 0,
+    y: morph.slide,
+    scale: morph.scale,
+    filter: `blur(${morph.blur}px)`,
+  };
+  const fade = {
+    initial: hidden,
+    animate: { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" },
+    exit: hidden,
+    transition: { duration: morph.fadeDuration },
+  };
+
+  const stampViewRef = useRef<HTMLDivElement>(null);
+  const textViewRef = useRef<HTMLDivElement>(null);
+  const [measure, setMeasure] = useState({ height: 0, first: true });
+  const [morphing, setMorphing] = useState(false);
+
+  // both views overlap while crossfading, so the card follows only the incoming one
+  useLayoutEffect(() => {
+    const el = (textActive ? textViewRef : stampViewRef).current;
+    if (!el) return;
+    const read = () =>
+      setMeasure((m) => ({
+        height: el.offsetHeight,
+        first: m.first && m.height === 0,
+      }));
+    read();
+    const observer = new ResizeObserver(read);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [textActive]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -114,8 +173,39 @@ export function StampInspector() {
   };
 
   return (
-    <div ref={rootRef} className="pointer-events-auto relative">
-      <div className="desk-card w-56 space-y-3 p-1.5 max-md:w-40">
+    <div
+      ref={rootRef}
+      data-text-panel
+      className="pointer-events-auto relative"
+    >
+      <motion.div
+        className={`desk-card box-content w-[212px] p-1.5 max-md:w-[148px] ${
+          morphing ? "overflow-hidden" : ""
+        }`}
+        initial={false}
+        animate={{ height: measure.height }}
+        transition={measure.first ? { duration: 0 } : toTransition(morph.height)}
+        onAnimationStart={() => setMorphing(true)}
+        onAnimationComplete={() => setMorphing(false)}
+      >
+        <div className="relative h-full">
+          <AnimatePresence initial={false}>
+            {textActive ? (
+              <motion.div
+                key="text"
+                ref={textViewRef}
+                {...fade}
+                className="absolute inset-x-0 top-0"
+              >
+                <ActiveTextTypography />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="stamp"
+                ref={stampViewRef}
+                {...fade}
+                className="absolute inset-x-0 top-0 space-y-3"
+              >
         <Section title="Canvas">
           <div className="grid grid-cols-2 gap-1.5 max-md:grid-cols-1">
             <label className={field}>
@@ -166,7 +256,11 @@ export function StampInspector() {
             </div>
           </div>
         </Section>
-      </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
 
       <AnimatePresence>
         {pickerOpen ? (

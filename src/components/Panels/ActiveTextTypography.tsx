@@ -17,6 +17,8 @@ import { createPortal } from "react-dom";
 import { useStampEditor } from "../../hooks/useStampEditor";
 import { STAMP_FONTS, STAMP_FONT_SIZES } from "../../types/text";
 
+let fontsWarmed = false;
+
 function useDismissOnOutside<E extends HTMLElement>(
   open: boolean,
   onDismiss: () => void,
@@ -233,12 +235,17 @@ export function ActiveTextTypography() {
     closeSizeDropdown,
   );
 
-  const selected = useMemo(
+  const current = useMemo(
     () => textLayers.find((t) => t.id === selectedTextId) ?? null,
     [textLayers, selectedTextId],
   );
 
-  const visible = !!selected && !textPlacementActive;
+  // keeps showing the last layer while the sidebar crossfades away after a deselect
+  const [lastLayer, setLastLayer] = useState(current);
+  if (current && current !== lastLayer) setLastLayer(current);
+  const selected = current ?? lastLayer;
+
+  const visible = !!current && !textPlacementActive;
 
   const fontDef = useMemo(
     () => STAMP_FONTS.find((f) => f.family === selected?.fontFamily),
@@ -271,7 +278,8 @@ export function ActiveTextTypography() {
   // Warm up the browser's FontFaceSet for every stamp font so dropdown
   // previews render in the correct typeface instead of falling back to serif.
   useEffect(() => {
-    if (typeof document === "undefined" || !document.fonts) return;
+    if (fontsWarmed || typeof document === "undefined" || !document.fonts) return;
+    fontsWarmed = true;
     for (const f of STAMP_FONTS) {
       for (const w of f.weights) {
         document.fonts.load(`${w} 16px "${f.family}"`).catch(() => {});
@@ -314,16 +322,17 @@ export function ActiveTextTypography() {
   const dropdownBelow =
     "absolute top-full left-0 right-0 z-50 mt-1 max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-xl border border-zinc-700 bg-zinc-950 py-1 shadow-chunky";
 
-  if (!visible || !selected) return null;
+  if (!selected) return null;
 
   return (
-    <section data-text-panel className="desk-card pointer-events-auto absolute z-30 space-y-1.5 p-1.5 max-md:inset-x-3 max-md:top-16 md:right-5 md:top-1/2 md:w-72 md:-translate-y-1/2">
-      <div className="flex items-center justify-between gap-2 pl-2">
-        <p className="text-base">Typography</p>
+    <div className="space-y-3">
+      <section className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="px-1 pt-1 text-sm text-ink-soft">Typography</h2>
         <button
           type="button"
           onClick={() => removeTextLayer(selected.id)}
-          className="flex h-8 w-8 shrink-0 items-center cursor-pointer justify-center rounded-xl text-zinc-400 transition-colors hover:bg-red-950/45 hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+          className="flex h-7 w-7 shrink-0 items-center cursor-pointer justify-center rounded-xl text-ink-soft transition-colors hover:bg-red-950/45 hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
           title="Remove text layer"
           aria-label="Remove text layer"
         >
@@ -349,10 +358,10 @@ export function ActiveTextTypography() {
             }}
             aria-expanded={fontDropdownOpen}
             aria-haspopup="listbox"
-            className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-zinc-700/90 bg-zinc-900/50 px-2.5 py-2 text-left font-normal transition-colors hover:border-zinc-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
+            className="flex h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl bg-zinc-900 px-3 text-left font-normal transition-colors hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
             style={{ fontFamily: quotedFontFamily(selected.fontFamily) }}
           >
-            <span className="min-w-0 flex-1 truncate text-xs text-zinc-100">
+            <span className="min-w-0 flex-1 truncate text-sm text-zinc-100">
               {fontDef?.label ?? selected.fontFamily}
             </span>
             <span className="font-preview-ui inline-flex shrink-0">
@@ -429,9 +438,9 @@ export function ActiveTextTypography() {
               onClick={toggleWeightDropdown}
               aria-expanded={weightDropdownOpen}
               aria-haspopup="listbox"
-              className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-zinc-700/90 bg-zinc-900/50 px-2.5 py-2 text-left transition-colors hover:border-zinc-600"
+              className="flex h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl bg-zinc-900 px-3 text-left transition-colors hover:bg-zinc-800"
             >
-              <span className="min-w-0 truncate text-xs text-zinc-100">
+              <span className="min-w-0 truncate text-sm text-zinc-100">
                 {weightLabel(
                   weights.includes(selected.fontWeight)
                     ? selected.fontWeight
@@ -484,9 +493,9 @@ export function ActiveTextTypography() {
 
           <div ref={sizeTrayRef} className="relative">
             <div
-              className={`flex overflow-hidden rounded-xl border border-zinc-700/90 bg-zinc-900/50 transition-colors hover:border-zinc-600 ${sizeDropdownOpen ? "border-zinc-600" : ""}`}
+              className={"flex h-10 overflow-hidden rounded-xl bg-zinc-900 transition-colors focus-within:bg-zinc-800"}
             >
-              <div className="flex min-w-0 flex-1 items-center px-2.5 py-2">
+              <div className="flex min-w-0 flex-1 items-center px-3">
                 <input
                   type="text"
                   inputMode="numeric"
@@ -497,7 +506,7 @@ export function ActiveTextTypography() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") e.currentTarget.blur();
                   }}
-                  className="min-w-0 flex-1 cursor-text bg-transparent text-xs tabular-nums text-zinc-100 outline-none"
+                  className="w-full min-w-0 flex-1 cursor-text bg-transparent text-sm tabular-nums text-zinc-100 outline-none"
                   placeholder="px"
                 />
               </div>
@@ -554,8 +563,12 @@ export function ActiveTextTypography() {
           </div>
         </div>
 
-        <div className="space-y-1.5 p-2">
-          <p className="text-sm text-zinc-500">Color</p>
+      </div>
+      </section>
+
+      <section className="space-y-1.5">
+        <div className="space-y-1.5">
+          <h2 className="px-1 pt-1 text-sm text-ink-soft">Color</h2>
           <div className="flex flex-wrap items-center gap-2">
             {TEXT_COLOR_PRESETS.map((color) => {
               const hex = color.toLowerCase();
@@ -613,7 +626,7 @@ export function ActiveTextTypography() {
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }
