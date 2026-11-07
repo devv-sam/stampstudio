@@ -21,7 +21,7 @@ All notable changes to Stampstudio are documented here.
 
 ### Changed
 
-- Text stays sharp and keeps its shape. Dragging a text corner changes the font size.
+- Text stays sharp. Dragging a text corner changes the font size, and dragging a side stretches it.
 - Resizing the stamp crops your background image instead of stretching it.
 - Exported PNGs are sharper.
 - Text and frames can no longer be scaled past the edge of the stamp.

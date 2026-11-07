@@ -126,25 +126,39 @@ export function setStampArtboard(stamp: Group, width: number, height: number) {
 }
 
 /** Stops scaling once the object's rotated bounds reach a stamp edge. */
-export function capScaleToStamp(obj: FabricObject, stamp: Group, inset = 0) {
+export function capScaleToStamp(
+  obj: FabricObject,
+  stamp: Group,
+  inset = 0,
+  axis?: "x" | "y",
+) {
   const center = obj.getCenterPoint();
   const stampCenter = stamp.getCenterPoint();
-  const roomX = stamp.width / 2 - inset - Math.abs(center.x - stampCenter.x);
-  const roomY = stamp.height / 2 - inset - Math.abs(center.y - stampCenter.y);
+  const maxW = (stamp.width / 2 - inset - Math.abs(center.x - stampCenter.x)) * 2;
+  const maxH = (stamp.height / 2 - inset - Math.abs(center.y - stampCenter.y)) * 2;
   // already past the edge, e.g. the stamp shrank around it, so leave it alone
-  if (roomX <= 0 || roomY <= 0) return;
+  if (maxW <= 0 || maxH <= 0) return;
 
   const angle = (obj.angle * Math.PI) / 180;
   const cos = Math.abs(Math.cos(angle));
   const sin = Math.abs(Math.sin(angle));
-  const boundsW = obj.width * cos + obj.height * sin;
-  const boundsH = obj.width * sin + obj.height * cos;
-  const maxScale = Math.min((roomX * 2) / boundsW, (roomY * 2) / boundsH);
+  const w = obj.width * obj.scaleX;
+  const h = obj.height * obj.scaleY;
+  const boundsW = w * cos + h * sin;
+  const boundsH = w * sin + h * cos;
+  if (boundsW <= maxW && boundsH <= maxH) return;
 
-  if (obj.scaleX > maxScale || obj.scaleY > maxScale) {
-    obj.set({ scaleX: maxScale, scaleY: maxScale });
-    obj.setCoords();
+  if (axis === "x") {
+    const room = Math.min((maxW - h * sin) / cos, (maxH - h * cos) / sin);
+    if (room > 0) obj.set({ scaleX: room / obj.width });
+  } else if (axis === "y") {
+    const room = Math.min((maxW - w * cos) / sin, (maxH - w * sin) / cos);
+    if (room > 0) obj.set({ scaleY: room / obj.height });
+  } else {
+    const fit = Math.min(maxW / boundsW, maxH / boundsH);
+    obj.set({ scaleX: obj.scaleX * fit, scaleY: obj.scaleY * fit });
   }
+  obj.setCoords();
 }
 
 export function getStampBgRect(stamp: Group) {

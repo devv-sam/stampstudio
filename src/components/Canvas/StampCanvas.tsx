@@ -454,8 +454,23 @@ export function StampCanvas() {
       syncFrameTravelOverlay()
     }
 
-    const onObjectScaling = ({ target }: { target: FabricObject }) => {
-      capScaleToStamp(target, stamp, isFrameObject(target) ? 0 : STAMP_SAFE_INSET)
+    const onObjectScaling = ({
+      target,
+      transform,
+    }: {
+      target: FabricObject
+      transform: { corner: string }
+    }) => {
+      const axis = { ml: 'x', mr: 'x', mt: 'y', mb: 'y' }[transform.corner] as
+        | 'x'
+        | 'y'
+        | undefined
+      capScaleToStamp(
+        target,
+        stamp,
+        isFrameObject(target) ? 0 : STAMP_SAFE_INSET,
+        axis,
+      )
       syncFrameTravelOverlay()
     }
 
@@ -463,14 +478,18 @@ export function StampCanvas() {
       const active = fabricCanvas.getActiveObject()
       const tid = readTextLayerId(active)
       if (tid && isTextObject(active)) {
-        // corners only ever scale evenly, bake that into the font size so text stays real type
+        // height becomes the font size so text stays real type, only a side drag leaves any stretch
         const fontSize = Math.round(
           Math.min(
             TEXT_MAX_SIZE,
-            Math.max(TEXT_MIN_SIZE, active.fontSize * active.scaleX),
+            Math.max(TEXT_MIN_SIZE, active.fontSize * active.scaleY),
           ),
         )
-        active.set({ fontSize, scaleX: 1, scaleY: 1 })
+        active.set({
+          fontSize,
+          scaleX: active.scaleX / active.scaleY,
+          scaleY: 1,
+        })
         active.initDimensions()
         active.setCoords()
         updateTextLayerRef.current(
