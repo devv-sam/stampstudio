@@ -1,6 +1,7 @@
 import { useDialKit } from "dialkit";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { TrashIcon } from "@heroicons/react/24/outline";
 
 import {
   DEFAULT_SHADER_PARAMS,
@@ -204,6 +205,24 @@ export function ShaderRail() {
             {...blurPop}
             className="desk-card absolute z-30 w-60 space-y-1.5 p-1.5 max-md:bottom-full max-md:left-0 max-md:mb-2 md:left-full md:top-0 md:ml-3"
           >
+            <div className="flex items-center justify-between pl-1">
+              <h2 className="text-sm text-ink-soft">
+                {SHADERS.find((s) => s.name === activeShader)?.label}
+              </h2>
+              <motion.button
+                type="button"
+                {...press}
+                aria-label="Remove shader"
+                title="Remove shader"
+                onClick={() => {
+                  setActiveShader(null);
+                  setSettingsOpen(false);
+                }}
+                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-ink-soft transition-colors hover:text-poppy"
+              >
+                <TrashIcon className="h-4 w-4" />
+              </motion.button>
+            </div>
             <ShaderParams shader={activeShader} />
           </motion.div>
         ) : null}
