@@ -1,10 +1,8 @@
 import { CheckIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
-import { useDialKit } from "dialkit";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -17,16 +15,14 @@ import {
   joinHexAlpha,
   splitHexAlpha,
 } from "../../utils/colorResultToHex";
-import {
-  toTransition,
-  useDeskMotion,
-} from "../../utils/deskMotion";
+import { useDeskMotion } from "../../utils/deskMotion";
 import { PERFORATION_REF_DENSITY } from "../../utils/stampPerforationLayout";
 import {
   ActiveTextTypography,
   useDismissOnOutside,
 } from "../Panels/ActiveTextTypography";
 import { PerforationSlider } from "../UI/PerforationSlider";
+import { SidebarMorph } from "./SidebarMorph";
 import { StampColorPicker } from "./StampColorPicker";
 
 const PERFORATION_SNAPS = [0, 7, 14, 21, 28];
@@ -72,7 +68,7 @@ function CommitInput({
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-1.5">
       <h2 className="px-1 pt-1 text-sm text-ink-soft max-md:hidden">{title}</h2>
@@ -81,7 +77,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function ColorRow({
+export function ColorRow({
   color,
   swatch = color,
   open,
@@ -211,50 +207,6 @@ export function StampInspector() {
   const { blurPop } = useDeskMotion();
   const textActive = !!selectedTextId && !textPlacementActive;
 
-  const morph = useDialKit(
-    "Sidebar morph",
-    {
-      height: { type: "spring", visualDuration: 0.3, bounce: 0.1 },
-      fadeDuration: [0.2, 0.02, 0.6, 0.01],
-      blur: [6, 0, 24, 1],
-      slide: [0, -24, 24, 1],
-      scale: [0.98, 0.85, 1, 0.01],
-    },
-    { id: "sidebar-morph-v2", persist: true },
-  );
-
-  const hidden = {
-    opacity: 0,
-    y: morph.slide,
-    scale: morph.scale,
-    filter: `blur(${morph.blur}px)`,
-  };
-  const fade = {
-    initial: hidden,
-    animate: { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" },
-    exit: hidden,
-    transition: { duration: morph.fadeDuration },
-  };
-
-  const stampViewRef = useRef<HTMLDivElement>(null);
-  const textViewRef = useRef<HTMLDivElement>(null);
-  const [measure, setMeasure] = useState({ height: 0, first: true });
-  const [morphing, setMorphing] = useState(false);
-
-  // both views overlap while crossfading, so the card follows only the incoming one
-  useLayoutEffect(() => {
-    const el = (textActive ? textViewRef : stampViewRef).current;
-    if (!el) return;
-    const read = () =>
-      setMeasure((m) => ({
-        height: el.offsetHeight,
-        first: m.first && m.height === 0,
-      }));
-    read();
-    const observer = new ResizeObserver(read);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [textActive]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sizeLimit, setSizeLimit] = useState<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -307,25 +259,10 @@ export function StampInspector() {
       data-text-panel
       className="pointer-events-auto relative"
     >
-      <motion.div
-        className={`desk-card box-content w-[212px] p-1.5 max-md:w-auto ${
-          morphing ? "overflow-hidden" : ""
-        }`}
-        initial={false}
-        animate={{ height: measure.height }}
-        transition={measure.first ? { duration: 0 } : toTransition(morph.height)}
-        onAnimationStart={() => setMorphing(true)}
-        onAnimationComplete={() => setMorphing(false)}
-      >
-        <div className="relative h-full">
-          <AnimatePresence initial={false}>
-            {textActive ? (
-              <motion.div
-                key="text"
-                ref={textViewRef}
-                {...fade}
-                className="absolute inset-x-0 top-0"
-              >
+      <SidebarMorph
+        showAlt={textActive}
+        mainClassName="space-y-3 max-md:space-y-1.5"
+        alt={
                 <ActiveTextTypography
                   renderColor={(color, setColor) => (
                     <ColorRow
@@ -336,14 +273,8 @@ export function StampInspector() {
                     />
                   )}
                 />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="stamp"
-                ref={stampViewRef}
-                {...fade}
-                className="absolute inset-x-0 top-0 space-y-3 max-md:space-y-1.5"
-              >
+        }
+      >
         <Section title="Canvas">
           <div className="grid grid-cols-2 gap-1.5 md:grid-cols-1">
           <div className="col-span-2 grid grid-cols-2 gap-1.5 md:col-span-1">
@@ -395,11 +326,7 @@ export function StampInspector() {
             onChange={(color) => void pickSolidStampColor(color)}
           />
         </Section>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
+      </SidebarMorph>
 
       <AnimatePresence>
         {pickerOpen ? (

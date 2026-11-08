@@ -1,10 +1,5 @@
 import type { TransitionConfig } from 'dialkit'
-import {
-  useTransform,
-  useVelocity,
-  type MotionValue,
-  type ValueAnimationTransition,
-} from 'framer-motion'
+import type { ValueAnimationTransition } from 'framer-motion'
 
 export const DESK_BOUNCE = 0.15
 
@@ -40,15 +35,18 @@ const DESK_MOTION = {
 
 export const useDeskMotion = () => DESK_MOTION
 
-export function useVelocityBlur(
-  a: MotionValue<number>,
-  b: MotionValue<number>,
-  maxPx = 4,
-) {
-  const va = useVelocity(a)
-  const vb = useVelocity(b)
-  return useTransform([va, vb], ([x, y]: number[]) => {
-    const px = Math.min(maxPx, Math.hypot(x!, y!) / 300)
-    return px < 0.2 ? 'none' : `blur(${px.toFixed(2)}px)`
-  })
-}
+/** slide chrome away, blur back in */
+export const tuck = (shown: boolean, away: { x?: string; y?: string }) => ({
+  initial: false,
+  animate: shown
+    ? { x: 0, y: 0, opacity: 1, filter: 'blur(0px)' }
+    : { ...away, opacity: 0, filter: 'blur(6px)' },
+  transition: {
+    ...springy,
+    visualDuration: 0.35,
+    opacity: { duration: 0.22 },
+    filter: { duration: 0.3, ease: 'easeOut' as const },
+  },
+  inert: !shown,
+})
+

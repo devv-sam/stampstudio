@@ -1,5 +1,4 @@
 import {
-  Fragment,
   useCallback,
   useEffect,
   useRef,
@@ -11,30 +10,33 @@ import {
 import { useDialKit } from "dialkit";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ArrowDownToLine,
   Check,
+  Disc3,
   Eye,
-  FlaskConical,
   Frame,
   Image as ImageIcon,
   Library,
-  Stamp,
   Type,
+  X,
 } from "lucide-react";
 
+import { useDiscEditor } from "../../hooks/useDiscEditor";
+import { useDiscUpload } from "../../hooks/useDiscUpload";
 import { useImageUploadFlow } from "../../hooks/useImageUploadFlow";
 import { useStampEditor } from "../../hooks/useStampEditor";
-import { useDeskMotion } from "../../utils/deskMotion";
-import { playThunk } from "../../utils/playThunk";
+import { tuck, useDeskMotion } from "../../utils/deskMotion";
 import { Button } from "../UI/Button";
 import { DeskDrawer } from "../Desk/DeskDrawer";
-import {
-  PRESS_DROP_SECONDS,
-  StampPress,
-  type PressPhase,
-} from "../Desk/StampPress";
 
 type ExportFormatChip = "png" | "svg";
 type ResolutionChip = "1080p" | "4k" | "6k";
+
+const RESOLUTION_PX: Record<ResolutionChip, number> = {
+  "1080p": 1080,
+  "4k": 3840,
+  "6k": 6144,
+};
 
 function resolutionToMultiplier(
   preset: ResolutionChip,
@@ -42,7 +44,7 @@ function resolutionToMultiplier(
   stampH: number,
 ): number {
   const longEdge = Math.max(1, stampW, stampH);
-  const target = preset === "1080p" ? 1080 : preset === "4k" ? 3840 : 6144;
+  const target = RESOLUTION_PX[preset];
   const m = target / longEdge;
   return Math.min(32, Math.max(1, Math.round(m * 1000) / 1000));
 }
@@ -77,7 +79,7 @@ type NavTool = {
   onClick?: () => void;
 };
 
-export function CanvasFloatBar() {
+export function CanvasFloatBar({ shown = true }: { shown?: boolean }) {
   const {
     textPlacementActive,
     setTextPlacementActive,
@@ -92,6 +94,9 @@ export function CanvasFloatBar() {
   } = useStampEditor();
 
   const { blurPop, press, springy } = useDeskMotion();
+  const disc = useDiscEditor();
+  const discUpload = useDiscUpload();
+  const discFrameUpload = useDiscUpload("frame");
   const nav = useDialKit(
     "Bottom nav",
     {
@@ -120,7 +125,6 @@ export function CanvasFloatBar() {
     visible: false,
     snap: true,
   });
-  const [pressPhase, setPressPhase] = useState<PressPhase>("idle");
   const [exportFormat, setExportFormat] = useState<ExportFormatChip>("png");
   const [resolution, setResolution] = useState<ResolutionChip>("4k");
   const [exportBusy, setExportBusy] = useState(false);
@@ -155,36 +159,29 @@ export function CanvasFloatBar() {
   const runExportAction = async (mode: "download" | "copy") => {
     setExportBusy(true);
     showBanner(null);
-    let pressed = false;
     try {
-      // copy skips the press, a delayed clipboard write can lose user activation
-      if (mode === "download") {
-        pressed = true;
-        setExportPopoverOpen(false);
-        setPressPhase("down");
-        playThunk(PRESS_DROP_SECONDS);
-        await new Promise((r) =>
-          window.setTimeout(r, PRESS_DROP_SECONDS * 1000 + 40),
-        );
-      }
+      if (mode === "download") setExportPopoverOpen(false);
+      // the disc exports a square at the chosen resolution, the stamp scales by multiplier
+      const discSize = RESOLUTION_PX[resolution];
       if (exportFormat === "png") {
-        if (mode === "download") await exportPng(multiplier);
+        if (disc.discMode) {
+          if (mode === "download") await disc.exportPng(discSize);
+          else await disc.copyPng(discSize);
+        } else if (mode === "download") await exportPng(multiplier);
         else await copyPng(multiplier);
+      } else if (disc.discMode) {
+        if (mode === "download") await disc.exportSvg();
+        else await disc.copySvg();
       } else {
         if (mode === "download") await exportSvg();
         else await copySvg();
       }
       if (mode === "copy") flashCopy("copied");
-      if (pressed) {
-        setPressPhase("mark");
-        window.setTimeout(() => setPressPhase("idle"), 900);
-      }
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Export failed — try again";
       if (mode === "copy") flashCopy("failed");
       else showBanner(msg);
-      setPressPhase("idle");
     } finally {
       setExportBusy(false);
     }
@@ -276,7 +273,91 @@ export function CanvasFloatBar() {
     { id: "6k", label: "6K" },
   ];
 
-  const groups: NavTool[][] = [
+  // outline, library and export work in both modes
+  const sharedGroups: NavTool[][] = [
+    [
+      {
+        label: "Outline",
+        icon: outlineMode ? Eye : EyeDashed,
+        tint: "hover:text-clover focus-visible:text-clover",
+        on: "text-clover",
+        active: outlineMode,
+        onClick: toggleOutlineMode,
+      },
+      {
+        label: "Library",
+        icon: Library,
+        tint: "hover:text-peony focus-visible:text-peony",
+        on: "text-peony",
+        active: drawerOpen,
+        onClick: () => {
+          setExportPopoverOpen(false);
+          setDrawerOpen((o) => !o);
+        },
+      },
+    ],
+    [
+      {
+        label: "Export",
+        icon: ArrowDownToLine,
+        tint: "",
+        // matches the mode toggle: clover for stamp, cornflower for disc
+        on: disc.discMode ? "text-cornflower" : "text-clover",
+        active: true,
+        onClick: () => {
+          setDrawerOpen(false);
+          setExportPopoverOpen((o) => !o);
+        },
+      },
+    ],
+  ];
+
+  const discGroups: NavTool[][] = [
+    [
+      {
+        label: "Add text",
+        icon: Type,
+        tint: "hover:text-cornflower focus-visible:text-cornflower",
+        onClick: disc.addText,
+      },
+      {
+        label: "Upload background",
+        icon: ImageIcon,
+        tint: "hover:text-clover focus-visible:text-clover",
+        onClick: discUpload.open,
+      },
+      {
+        label: "Upload frame",
+        icon: Frame,
+        tint: "hover:text-marigold focus-visible:text-marigold",
+        onClick: discFrameUpload.open,
+      },
+      ...(disc.image
+        ? [
+            {
+              label: "Remove background",
+              icon: X,
+              tint: "hover:text-poppy focus-visible:text-poppy",
+              onClick: () => disc.setImage(null),
+            },
+          ]
+        : []),
+    ],
+    [
+      {
+        label: "Preview",
+        icon: Disc3,
+        tint: "hover:text-cornflower focus-visible:text-cornflower",
+        onClick: () => {
+          disc.setSelectedId(null);
+          disc.setPreviewing(true);
+        },
+      },
+    ],
+    ...sharedGroups,
+  ];
+
+  const stampGroups: NavTool[][] = [
     [
       {
         label: "Add text",
@@ -299,47 +380,18 @@ export function CanvasFloatBar() {
         onClick: () => frameUpload.open(),
       },
     ],
-    [
-      {
-        label: "Outline",
-        icon: outlineMode ? Eye : EyeDashed,
-        tint: "hover:text-clover focus-visible:text-clover",
-        on: "text-clover",
-        active: outlineMode,
-        onClick: toggleOutlineMode,
-      },
-      {
-        label: "Library",
-        icon: Library,
-        tint: "hover:text-peony focus-visible:text-peony",
-        on: "text-peony",
-        active: drawerOpen,
-        onClick: () => {
-          setExportPopoverOpen(false);
-          setDrawerOpen((o) => !o);
-        },
-      },
-      {
-        label: "Experiments (Coming soon)",
-        icon: FlaskConical,
-        tint: "",
-        disabled: true,
-      },
-    ],
-    [
-      {
-        label: "Export",
-        icon: Stamp,
-        tint: "",
-        on: "text-clover",
-        active: true,
-        onClick: () => {
-          setDrawerOpen(false);
-          setExportPopoverOpen((o) => !o);
-        },
-      },
-    ],
+    ...sharedGroups,
   ];
+
+  const groups = disc.discMode ? discGroups : stampGroups;
+
+  // popovers show the other mode's content, so the top toggle closes them on the way across
+  const [wasDiscMode, setWasDiscMode] = useState(disc.discMode);
+  if (wasDiscMode !== disc.discMode) {
+    setWasDiscMode(disc.discMode);
+    setExportPopoverOpen(false);
+    setDrawerOpen(false);
+  }
 
   const showTip = (label: string, el: HTMLElement) => {
     if (textPlacementActive) return;
@@ -358,8 +410,9 @@ export function CanvasFloatBar() {
 
   return (
     <>
-      <div
+      <motion.div
         ref={floatRootRef}
+        {...tuck(shown, { y: "160%" })}
         className="pointer-events-auto absolute left-1/2 z-40 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-col items-center gap-2"
         style={{ bottom: nav.bottomOffset }}
       >
@@ -367,7 +420,7 @@ export function CanvasFloatBar() {
           {exportPopoverOpen ? (
             <motion.div
               role="dialog"
-              aria-label="Export stamp"
+              aria-label={disc.discMode ? "Export disc" : "Export stamp"}
               {...blurPop}
               className="desk-card w-[min(22rem,calc(100vw-2rem))] overflow-hidden"
             >
@@ -426,7 +479,7 @@ export function CanvasFloatBar() {
 
               <div className="flex gap-1.5 p-1.5 pt-0">
                 <Button
-                  variant="primary"
+                  variant={disc.discMode ? "primaryBlue" : "primary"}
                   disabled={exportBusy}
                   onClick={() => runExportAction("download")}
                   className="flex-1"
@@ -438,7 +491,9 @@ export function CanvasFloatBar() {
                   onClick={() => runExportAction("copy")}
                   className={`flex-1 ${
                     copyState === "copied"
-                      ? "!bg-clover"
+                      ? disc.discMode
+                        ? "!bg-cornflower !text-[#fff]"
+                        : "!bg-clover"
                       : copyState === "failed"
                         ? "!bg-poppy !text-[#fff]"
                         : ""
@@ -473,12 +528,19 @@ export function CanvasFloatBar() {
               {...blurPop}
               className="desk-card w-[min(20rem,calc(100vw-2rem))] p-4"
             >
-              <DeskDrawer onRecrop={(asset) => bgUpload.openRecrop(asset)} />
+              <DeskDrawer
+                onRecrop={(asset) => bgUpload.openRecrop(asset)}
+                {...(disc.discMode
+                  ? { onPick: disc.setImage, pickedSrc: disc.image }
+                  : {})}
+              />
             </motion.div>
           ) : null}
         </AnimatePresence>
 
-        <div
+        <motion.div
+          layout
+          transition={springy}
           className="desk-card relative flex items-center"
           style={{
             gap: nav.gap,
@@ -521,48 +583,59 @@ export function CanvasFloatBar() {
             ) : null}
           </AnimatePresence>
 
-          {groups.map((group, g) => (
-            <Fragment key={group[0]!.label}>
-              {g > 0 ? (
-                <span
-                  aria-hidden
-                  className="w-px bg-zinc-700"
-                  style={{
-                    height: nav.dividerHeight,
-                    marginInline: nav.dividerSpacing,
-                  }}
-                />
-              ) : null}
-              {group.map(({ label, icon: Icon, tint, on, active, disabled, onClick }) => (
-                <motion.button
-                  key={label}
-                  type="button"
-                  {...(disabled ? {} : press)}
-                  aria-label={label}
-                  aria-disabled={disabled}
-                  onClick={onClick}
-                  onPointerEnter={(e) => showTip(label, e.currentTarget)}
-                  onFocus={(e) => showTip(label, e.currentTarget)}
-                  className={`flex shrink-0 items-center justify-center transition-colors duration-150 ${tint} ${
-                    disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
-                  } ${active ? on : "text-ink"}`}
-                  style={{
-                    width: nav.buttonSize,
-                    height: nav.buttonSize,
-                    borderRadius: nav.buttonRadius,
-                  }}
-                >
-                  <Icon
-                    size={nav.iconSize}
-                    strokeWidth={nav.iconStroke}
-                    aria-hidden
-                  />
-                </motion.button>
-              ))}
-            </Fragment>
-          ))}
-        </div>
-      </div>
+          {/* animates mode swaps */}
+          <AnimatePresence mode="popLayout" initial={false}>
+            {groups.flatMap((group, g) => [
+              ...(g > 0
+                ? [
+                    <motion.span
+                      key={`divider-${group[0]!.label}`}
+                      layout="position"
+                      {...blurPop}
+                      aria-hidden
+                      className="w-px bg-zinc-700"
+                      style={{
+                        height: nav.dividerHeight,
+                        marginInline: nav.dividerSpacing,
+                      }}
+                    />,
+                  ]
+                : []),
+              ...group.map(
+                ({ label, icon: Icon, tint, on, active, disabled, onClick }) => (
+                  <motion.button
+                    key={label}
+                    layout="position"
+                    {...(disabled ? {} : press)}
+                    // last, so blur tweens
+                    {...blurPop}
+                    type="button"
+                    aria-label={label}
+                    aria-disabled={disabled}
+                    onClick={onClick}
+                    onPointerEnter={(e) => showTip(label, e.currentTarget)}
+                    onFocus={(e) => showTip(label, e.currentTarget)}
+                    className={`flex shrink-0 items-center justify-center transition-colors duration-150 ${tint} ${
+                      disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
+                    } ${active ? on : "text-ink"}`}
+                    style={{
+                      width: nav.buttonSize,
+                      height: nav.buttonSize,
+                      borderRadius: nav.buttonRadius,
+                    }}
+                  >
+                    <Icon
+                      size={nav.iconSize}
+                      strokeWidth={nav.iconStroke}
+                      aria-hidden
+                    />
+                  </motion.button>
+                ),
+              ),
+            ])}
+          </AnimatePresence>
+        </motion.div>
+      </motion.div>
 
       {exportBanner ? (
         <div
@@ -587,10 +660,11 @@ export function CanvasFloatBar() {
 
       {frameUpload.fileInputElement}
       {frameUpload.overlayElement}
+      {discUpload.inputElement}
+      {discFrameUpload.inputElement}
       {bgUpload.fileInputElement}
       {bgUpload.overlayElement}
 
-      <StampPress phase={pressPhase} />
     </>
   );
 }

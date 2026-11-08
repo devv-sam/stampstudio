@@ -6,12 +6,12 @@ import { Navigate, Routes, Route } from 'react-router-dom'
 
 import { AppLayout } from './components/Layout/AppLayout'
 import { StampEditorProvider } from './context/StampEditorProvider'
-import { ExperimentsProvider } from './context/ExperimentsProvider'
+import { DiscEditorProvider } from './context/DiscEditorProvider'
 
 export default function App() {
   return (
     <StampEditorProvider>
-      <ExperimentsProvider>
+      <DiscEditorProvider>
         <MotionConfig reducedMotion="user">
           <Routes>
             <Route path="/" element={<AppLayout />} />
@@ -30,7 +30,7 @@ export default function App() {
             />
           </>
         ) : null}
-      </ExperimentsProvider>
+      </DiscEditorProvider>
     </StampEditorProvider>
   )
 }

@@ -1,17 +1,19 @@
+import { motion } from "framer-motion";
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
 
 import { StampCanvas } from "../Canvas/StampCanvas";
 import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
-import { LogoMorph } from "../Brand/LogoMorph";
 import { StampInspector } from "../Desk/StampInspector";
 import { ShaderRail } from "../Desk/ShaderRail";
-import { StampSheetExperiment } from "../Experiments/StampSheetExperiment";
+import { DiscInspector } from "../Disc/DiscInspector";
+import { DiscStage } from "../Disc/DiscStage";
+import { ModeToggle } from "./ModeToggle";
 import { getLatestVersion } from "../../data/changelog";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { useExperiments } from "../../hooks/useExperiments";
+import { useDiscEditor } from "../../hooks/useDiscEditor";
 import { HOME_TITLE } from "../../seo";
+import { tuck } from "../../utils/deskMotion";
 import {
   hasUnseenChangelog,
   markChangelogSeen,
@@ -20,7 +22,8 @@ import { UpdatesModal } from "../Updates/UpdatesModal";
 
 export function AppLayout({ header }: { header?: ReactNode }) {
   useDocumentTitle(HOME_TITLE);
-  const { active } = useExperiments();
+  const { discMode, previewing } = useDiscEditor();
+  const chrome = !(discMode && previewing);
   const location = useLocation();
   const navigate = useNavigate();
   const latest = getLatestVersion();
@@ -30,7 +33,8 @@ export function AppLayout({ header }: { header?: ReactNode }) {
 
   // clear the /changelog redirect flag so a reload doesn't reopen the popup
   useEffect(() => {
-    if (location.state) navigate(location.pathname, { replace: true, state: null });
+    if (location.state)
+      navigate(location.pathname, { replace: true, state: null });
   }, [location.state, location.pathname, navigate]);
 
   useEffect(() => {
@@ -40,16 +44,18 @@ export function AppLayout({ header }: { header?: ReactNode }) {
   return (
     <>
       <div className="relative h-full min-h-0 overflow-hidden bg-desk text-ink">
-        <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-4 px-5 py-4">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2.5">
-              <LogoMorph />
-              <h1 className="sr-only">
-                stampstudio — online postage stamp maker and designer
-              </h1>
-            </div>
+        <motion.header
+          {...tuck(chrome, { y: "-120%" })}
+          className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-4 px-5 py-4"
+        >
+          <h1 className="sr-only">
+            stampstudio — online postage stamp maker and designer
+          </h1>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-md:top-[calc(100%+0.25rem)] max-md:translate-y-0">
+            <ModeToggle />
           </div>
-          <div className="flex items-center gap-4">
+          {/* ml-auto, the heading beside it is sr-only so it takes no space */}
+          <div className="ml-auto flex items-center gap-4">
             <button
               type="button"
               onClick={() => setUpdatesOpen(true)}
@@ -73,9 +79,14 @@ export function AppLayout({ header }: { header?: ReactNode }) {
               by @devvsam
             </a>
           </div>
-        </header>
+        </motion.header>
 
-        <main className="desk-stage flex min-h-0 min-w-0 flex-col">
+        {/* the stamp canvas stays mounted in disc mode so its work survives the switch.
+            opacity + inert, since canvas children force their own visibility and pointer events */}
+        <main
+          className={`desk-stage flex min-h-0 min-w-0 flex-col ${discMode ? "opacity-0" : ""}`}
+          inert={discMode}
+        >
           <p className="sr-only">
             Free online stamp maker to create custom postage stamps. Upload
             photos, add typography, adjust perforated edges, apply print-style
@@ -84,27 +95,27 @@ export function AppLayout({ header }: { header?: ReactNode }) {
           <StampCanvas />
         </main>
 
+        {discMode ? <DiscStage /> : null}
+
         <div className="pointer-events-none z-20 max-md:absolute max-md:inset-x-3 max-md:bottom-[5.5rem] max-md:flex max-md:flex-col-reverse max-md:gap-2">
-          <div className="min-w-0 md:absolute md:left-5 md:top-1/2 md:-translate-y-1/2">
+          <motion.div
+            {...tuck(chrome, { x: "-140%" })}
+            className="min-w-0 md:absolute md:left-5 md:top-1/2 md:-translate-y-1/2"
+          >
             <ShaderRail />
-          </div>
-          <div className="md:absolute md:right-6 md:top-1/2 md:-translate-y-1/2">
-            <StampInspector />
-          </div>
+          </motion.div>
+          <motion.div
+            {...tuck(chrome, { x: "140%" })}
+            className="md:absolute md:right-6 md:top-1/2 md:-translate-y-1/2"
+          >
+            {discMode ? <DiscInspector /> : <StampInspector />}
+          </motion.div>
         </div>
 
-        <CanvasFloatBar />
-
+        <CanvasFloatBar shown={chrome} />
       </div>
 
-      <UpdatesModal
-        open={updatesOpen}
-        onClose={() => setUpdatesOpen(false)}
-      />
-
-      <AnimatePresence>
-        {active === "stampsheet" ? <StampSheetExperiment /> : null}
-      </AnimatePresence>
+      <UpdatesModal open={updatesOpen} onClose={() => setUpdatesOpen(false)} />
     </>
   );
 }

@@ -18,7 +18,7 @@ import type {
   ShaderName,
   ShaderParamsMap,
 } from '../types/canvas'
-import type { ImageAsset } from '../types/assets'
+import type { ImageAsset, ImageAssetRole } from '../types/assets'
 import type { TextLayer } from '../types/text'
 import { STAMP_FONTS } from '../types/text'
 import { getStampBgRect } from '../utils/fabricHelpers'
@@ -70,6 +70,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
   const [stampColor, _setStampColor] = useState('#ffffff')
 
   const [activeShader, setActiveShader] = useState<ShaderName | null>(null)
+  const [shaderMenuOpen, setShaderMenuOpen] = useState(false)
   const [blendMode, setBlendMode] = useState<BlendMode>('normal')
   const activeShaderRef = useRef<ShaderName | null>(null)
   useEffect(() => {
@@ -244,7 +245,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       src: string
       width: number
       height: number
-      role: 'background' | 'frame'
+      role: ImageAssetRole
       fileName?: string
       originalSrc?: string
     }) => {
@@ -723,6 +724,8 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       copySvg,
       activeShader,
       setActiveShader,
+      shaderMenuOpen,
+      setShaderMenuOpen,
       setBlendMode,
       shaderParams,
       blendMode,
@@ -762,6 +765,7 @@ export function StampEditorProvider({ children }: { children: ReactNode }) {
       copyPng,
       copySvg,
       activeShader,
+      shaderMenuOpen,
       shaderParams,
       blendMode,
       updateShaderParam,

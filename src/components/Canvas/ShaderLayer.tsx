@@ -161,6 +161,7 @@ export function ShaderLayer({
   activeShader,
   shaderParams,
   blendMode = 'normal',
+  opacity = 1,
 }: {
   rect: RectBounds | null
   imageSrc: string
@@ -168,6 +169,7 @@ export function ShaderLayer({
   activeShader: ShaderName | null
   shaderParams: ShaderParamsMap
   blendMode?: BlendMode
+  opacity?: number
 }) {
   const filterId = useId()
   const hasPhotoFill = imageSrc.trim().length > 0
@@ -196,6 +198,7 @@ export function ShaderLayer({
         width: w,
         height: h,
         mixBlendMode: 'multiply',
+        opacity,
       }}
     >
       {blendMode === 'normal' ? null : (
@@ -304,6 +307,11 @@ export function ShaderLayer({
             u_size: shaderParams.intaglio.size,
             u_contrast: shaderParams.intaglio.contrast,
             u_ink: getShaderColorFromString(shaderParams.intaglio.ink),
+            // the shader counts y from the bottom
+            u_origin: [
+              shaderParams.intaglio.originX,
+              1 - shaderParams.intaglio.originY,
+            ],
           }}
         />
       ) : null}

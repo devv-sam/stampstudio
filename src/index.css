@@ -51,8 +51,9 @@
   box-shadow: var(--shadow-chunky);
 }
 
-.paper-ui :focus-visible:not(input),
-.desk-card :focus-visible:not(input) {
+/* text fields show focus through their own fill, so they skip the ring */
+.paper-ui :focus-visible:not(input, textarea),
+.desk-card :focus-visible:not(input, textarea) {
   outline: 3px solid var(--color-cornflower);
   outline-offset: 2px;
 }
@@ -64,7 +65,8 @@
 
 @media (max-width: 767px) {
   .desk-stage {
-    inset: 4rem 0.75rem 23.5rem;
+    /* top clears the stamp/disc toggle, which drops below the header on phones */
+    inset: 7rem 0.75rem 23.5rem;
   }
 }
 

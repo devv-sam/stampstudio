@@ -6,7 +6,7 @@ import type {
   ShaderName,
   ShaderParamsMap,
 } from '../types/canvas'
-import type { ImageAsset } from '../types/assets'
+import type { ImageAsset, ImageAssetRole } from '../types/assets'
 import type { TextLayer } from '../types/text'
 
 export type StampDimensions = { width: number; height: number }
@@ -43,7 +43,7 @@ export type StampEditorContextValue = {
     src: string
     width: number
     height: number
-    role: 'background' | 'frame'
+    role: ImageAssetRole
     fileName?: string
     originalSrc?: string
   }) => Promise<void>
@@ -106,6 +106,9 @@ export type StampEditorContextValue = {
   /** Shader applied on the stamp (`null` = normal fill only). Separate from accordion open state in the panel. */
   activeShader: ShaderName | null
   setActiveShader: (name: ShaderName | null) => void
+  /** shader settings card open */
+  shaderMenuOpen: boolean
+  setShaderMenuOpen: (open: boolean) => void
   shaderParams: ShaderParamsMap
   /** How the active shader blends with the stamp fill. */
   blendMode: BlendMode

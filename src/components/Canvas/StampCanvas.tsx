@@ -42,6 +42,7 @@ import { buildPerforationClipPathD } from '../../utils/stampPerforationLayout'
 import { applyOutlineMode, restoreOutlineMode } from '../../utils/outlineMode'
 import { StampSizeHud } from '../Layout/StampSizeHud'
 import { ShaderLayer } from './ShaderLayer'
+import { ShaderOriginGizmo } from './ShaderOriginGizmo'
 import { StampResizeEdges } from './StampResizeEdges'
 
 const TEXT_MIN_SIZE = 6
@@ -890,6 +891,8 @@ export function StampCanvas() {
                 />
               ) : null}
             </div>
+
+            <ShaderOriginGizmo scale={canvasZoom * viewScale} />
 
             {outlineMode ? null : (
               <StampResizeEdges
