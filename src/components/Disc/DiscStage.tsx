@@ -1,14 +1,16 @@
+import { useDialKit } from "dialkit";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useDiscEditor } from "../../hooks/useDiscEditor";
 import { useStampEditor } from "../../hooks/useStampEditor";
+import { discBack } from "../../utils/discBack";
 import { discArtUrl, NOISE_OPACITY } from "../../utils/discExport";
 import { discGeometry } from "../../utils/discText";
 import { ShaderLayer } from "../Canvas/ShaderLayer";
 import { ShaderOriginGizmo } from "../Canvas/ShaderOriginGizmo";
-import { Button } from "../UI/Button";
 import { RollingNumber } from "../UI/RollingNumber";
 import { CropStep } from "../Upload/CropStep";
+import { DESK_BG, DiscPreviewBar } from "./DiscPreviewBar";
 import { DiscResizeRing } from "./DiscResizeRing";
 import { DiscText } from "./DiscText";
 
@@ -24,8 +26,6 @@ const IDLE_SPIN = 20; // per s
 const DRAG_RATE = 0.4; // per px
 const FRICTION = 2.5;
 const RIM = 2.4; // px
-const BACK =
-  "repeating-radial-gradient(circle, rgb(255 255 255 / 0.1) 0 2px, transparent 2px 10px), conic-gradient(#dcdde1, #a9abb2, #f1f2f4, #b4b6bc, #dcdde1)";
 
 /** the disc in the middle of the desk, shown in place of the stamp canvas */
 export function DiscStage() {
@@ -99,8 +99,49 @@ export function DiscStage() {
 
   const [view3d, setView3d] = useState(false);
   const tiltRef = useRef<HTMLDivElement>(null);
-  const sheenRef = useRef<HTMLDivElement>(null);
+  const shadowRef = useRef<HTMLDivElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const playingRef = useRef(playing);
+  useEffect(() => {
+    playingRef.current = playing;
+  }, [playing]);
+  const [background, setBackground] = useState(DESK_BG);
+  const shadow = useDialKit(
+    "Disc 3d",
+    { shadow: [0.44, 0, 1, 0.01], blur: [19, 0, 48, 1] },
+    { id: "disc-3d", persist: true },
+  );
+  const back = useDialKit(
+    "Disc back",
+    {
+      spread: [48, 10, 90, 1],
+      contrast: [0.3, 0, 1, 0.01],
+      rainbow: [0.18, 0, 1, 0.01],
+      grooves: [0.05, 0, 0.3, 0.01],
+    },
+    { id: "disc-back", persist: true },
+  );
   const spin3d = previewing && view3d;
+
+  // 2d spin, keeps its angle
+  useEffect(() => {
+    const el = tiltRef.current;
+    if (!el) return;
+    if (!previewing || view3d) {
+      el.style.removeProperty("rotate");
+      return;
+    }
+    if (!playing) return;
+    const from = parseFloat(el.style.rotate) || 0;
+    const anim = el.animate(
+      [{ rotate: `${from}deg` }, { rotate: `${from + 360}deg` }],
+      { duration: (360 / IDLE_SPIN) * 1000, iterations: Infinity },
+    );
+    return () => {
+      anim.commitStyles();
+      anim.cancel();
+    };
+  }, [previewing, view3d, playing]);
   useEffect(() => {
     const el = tiltRef.current;
     const stage = stageRef.current;
@@ -108,9 +149,11 @@ export function DiscStage() {
     let rx = 0;
     let ry = 0;
     let vx = 0;
-    let vy = IDLE_SPIN;
+    // intro turn
+    let vy = 90;
     let drag: { x: number; y: number; t: number } | null = null;
     const onDown = (e: PointerEvent) => {
+      if ((e.target as Element).closest("[data-preview-bar]")) return;
       drag = { x: e.clientX, y: e.clientY, t: performance.now() };
       vx = vy = 0;
       stage.setPointerCapture(e.pointerId);
@@ -140,7 +183,8 @@ export function DiscStage() {
       last = now;
       if (!drag) {
         const f = Math.exp(-dt * FRICTION);
-        vy = IDLE_SPIN + (vy - IDLE_SPIN) * f;
+        const idle = playingRef.current ? IDLE_SPIN : 0;
+        vy = idle + (vy - idle) * f;
         vx *= f;
         rx += vx * dt;
         ry += vy * dt;
@@ -149,7 +193,13 @@ export function DiscStage() {
         rx += (upright - rx) * (1 - Math.exp(-dt * 1.2));
       }
       el.style.transform = `perspective(1400px) rotateX(${rx}deg) rotateY(${ry}deg)`;
-      sheenRef.current?.style.setProperty("--sheen", `${ry * 2 + rx}deg`);
+      el.style.setProperty("--sheen", `${ry * 2 + rx}deg`);
+      // narrower edge-on
+      const wide = Math.abs(Math.cos((ry * Math.PI) / 180));
+      shadowRef.current?.style.setProperty(
+        "scale",
+        `${Math.max(0.15, wide)} 1`,
+      );
       raf = requestAnimationFrame(tick);
     };
     el.style.transition = "none";
@@ -166,6 +216,7 @@ export function DiscStage() {
       window.removeEventListener("pointercancel", onUp);
       el.style.transition = "transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1)";
       el.style.transform = "";
+      el.style.removeProperty("--sheen");
     };
   }, [spin3d]);
 
@@ -220,190 +271,194 @@ export function DiscStage() {
       style={{ containerType: "size" }}
       onPointerDown={() => setSelectedId(null)}
     >
-      <div
-        ref={tiltRef}
-        inert={previewing}
-        // off the face plane, hidden from behind
-        className={`relative ${
-          spin3d
-            ? "[&>svg]:[backface-visibility:hidden] [&>svg]:[transform:translateZ(0.5px)]"
-            : ""
-        }`}
-        style={{
-          width: `min(${size}px, 100cqw - ${RING_ROOM}px, 100cqh - ${READOUT_ROOM}px)`,
-          transformStyle: spin3d ? "preserve-3d" : undefined,
-        }}
-      >
-        {/* rim layers, then the silver back */}
-        {spin3d
-          ? [1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                aria-hidden
-                className="absolute inset-0 rounded-full"
-                style={{
-                  transform:
-                    i === 4
-                      ? `rotateY(180deg) translateZ(${RIM}px)`
-                      : `translateZ(${(-i * RIM) / 4}px)`,
-                  backfaceVisibility: i === 4 ? "hidden" : undefined,
-                  background:
-                    i === 4 ? BACK : "linear-gradient(135deg, #f4f4f6, #8e8e96)",
-                  mask: `radial-gradient(circle closest-side, transparent ${holeStop}, #000 calc(${holeStop} + 0.5px))`,
-                }}
-              />
-            ))
-          : null}
+      {previewing ? (
         <div
-          ref={discRef}
-          className={`aspect-square ${
-            outlineMode || spin3d
-              ? ""
-              : "drop-shadow-[0_10px_24px_rgb(0_0_0/0.18)]"
+          aria-hidden
+          className="fixed inset-0 -z-10"
+          style={{ background }}
+        />
+      ) : null}
+      <div className="relative">
+        <div
+          ref={tiltRef}
+          inert={previewing}
+          // off the face plane, hidden from behind
+          className={`relative ${
+            spin3d
+              ? "[&>svg]:[backface-visibility:hidden] [&>svg]:[transform:translateZ(0.5px)]"
+              : ""
           }`}
-          style={{ backfaceVisibility: spin3d ? "hidden" : undefined }}
+          style={{
+            width: `min(${size}px, 100cqw - ${RING_ROOM}px, 100cqh - ${READOUT_ROOM}px)`,
+            transformStyle: spin3d ? "preserve-3d" : undefined,
+          }}
         >
+          {/* rim layers, then the silver back */}
+          {spin3d
+            ? [1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  aria-hidden
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    transform:
+                      i === 4
+                        ? `rotateY(180deg) translateZ(${RIM}px)`
+                        : `translateZ(${(-i * RIM) / 4}px)`,
+                    backfaceVisibility: i === 4 ? "hidden" : undefined,
+                    background:
+                      i === 4
+                        ? discBack(hole, back)
+                        : "linear-gradient(135deg, #f4f4f6, #8e8e96)",
+                    mask: `radial-gradient(circle closest-side, transparent ${holeStop}, #000 calc(${holeStop} + 0.5px))`,
+                  }}
+                />
+              ))
+            : null}
           <div
-            ref={previewRef}
-            aria-label="Disc preview"
-            className="relative h-full w-full overflow-hidden rounded-full"
-            style={{
-              // closest-side makes 100% the disc radius, so hole% is a diameter ratio
-              mask: `radial-gradient(circle closest-side, transparent ${holeStop}, #000 calc(${holeStop} + 0.5px))`,
-            }}
+            ref={discRef}
+            className={`aspect-square ${
+              outlineMode || spin3d
+                ? ""
+                : "drop-shadow-[0_10px_24px_rgb(0_0_0/0.18)]"
+            }`}
+            style={{ backfaceVisibility: spin3d ? "hidden" : undefined }}
           >
             <div
-              className={`absolute inset-0 bg-cover bg-center ${
-                outlineMode ? "opacity-0" : ""
-              }`}
+              ref={previewRef}
+              aria-label="Disc preview"
+              className="relative h-full w-full overflow-hidden rounded-full"
               style={{
-                backgroundColor: color,
-                backgroundImage: art ? `url(${art})` : undefined,
+                // closest-side makes 100% the disc radius, so hole% is a diameter ratio
+                mask: `radial-gradient(circle closest-side, transparent ${holeStop}, #000 calc(${holeStop} + 0.5px))`,
               }}
-            />
-            <ShaderLayer
-              rect={{ left: 0, top: 0, width: discPx, height: discPx }}
-              imageSrc={art ?? ""}
-              stampColor={color}
-              activeShader={activeShader}
-              shaderParams={shaderParams}
-              // stays mounted in outline mode so export can still read it
-              opacity={outlineMode ? 0 : noise ? NOISE_OPACITY : 1}
-            />
-            {spin3d ? (
+            >
               <div
-                ref={sheenRef}
-                aria-hidden
-                className="pointer-events-none absolute inset-0 z-30 opacity-40 mix-blend-overlay"
+                className={`absolute inset-0 bg-cover bg-center ${
+                  outlineMode ? "opacity-0" : ""
+                }`}
                 style={{
-                  background:
-                    "conic-gradient(from var(--sheen, 0deg), #ff8a8a, #ffe58a, #8affb0, #8ad8ff, #c58aff, #ff8a8a)",
+                  backgroundColor: color,
+                  backgroundImage: art ? `url(${art})` : undefined,
                 }}
               />
-            ) : null}
-            <svg
-              aria-hidden
-              viewBox="0 0 100 100"
-              className="pointer-events-none absolute inset-0 z-40 h-full w-full"
-            >
-              {outlineMode ? (
-                <g fill="none" stroke={OUTLINE} strokeWidth={1}>
-                  <circle
-                    cx={50}
-                    cy={50}
-                    r={49.9}
-                    vectorEffect="non-scaling-stroke"
-                  />
-                  <circle
-                    cx={50}
-                    cy={50}
-                    r={hole / 2}
-                    vectorEffect="non-scaling-stroke"
-                  />
-                  {ringRadii.map((r) => (
+              <ShaderLayer
+                rect={{ left: 0, top: 0, width: discPx, height: discPx }}
+                imageSrc={art ?? ""}
+                stampColor={color}
+                activeShader={activeShader}
+                shaderParams={shaderParams}
+                // stays mounted in outline mode so export can still read it
+                opacity={outlineMode ? 0 : noise ? NOISE_OPACITY : 1}
+              />
+              <svg
+                aria-hidden
+                viewBox="0 0 100 100"
+                className="pointer-events-none absolute inset-0 z-40 h-full w-full"
+              >
+                {outlineMode ? (
+                  <g fill="none" stroke={OUTLINE} strokeWidth={1}>
                     <circle
-                      key={r}
+                      cx={50}
+                      cy={50}
+                      r={49.9}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <circle
+                      cx={50}
+                      cy={50}
+                      r={hole / 2}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    {ringRadii.map((r) => (
+                      <circle
+                        key={r}
+                        cx={50}
+                        cy={50}
+                        r={r}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    ))}
+                  </g>
+                ) : null}
+                {(outlineMode ? [] : ringRadii).map((r) => (
+                  <g key={r} fill="none">
+                    {/* a dark groove with a faint lit edge just outside it */}
+                    <circle
                       cx={50}
                       cy={50}
                       r={r}
+                      stroke="rgb(0 0 0 / 0.35)"
+                      strokeWidth={1}
                       vectorEffect="non-scaling-stroke"
                     />
-                  ))}
-                </g>
-              ) : null}
-              {(outlineMode ? [] : ringRadii).map((r) => (
-                <g key={r} fill="none">
-                  {/* a dark groove with a faint lit edge just outside it */}
-                  <circle
-                    cx={50}
-                    cy={50}
-                    r={r}
-                    stroke="rgb(0 0 0 / 0.35)"
-                    strokeWidth={1}
-                    vectorEffect="non-scaling-stroke"
-                  />
-                  <circle
-                    cx={50}
-                    cy={50}
-                    r={r + 0.25}
-                    stroke="rgb(255 255 255 / 0.12)"
-                    strokeWidth={1}
-                    vectorEffect="non-scaling-stroke"
-                  />
-                </g>
-              ))}
-            </svg>
+                    <circle
+                      cx={50}
+                      cy={50}
+                      r={r + 0.25}
+                      stroke="rgb(255 255 255 / 0.12)"
+                      strokeWidth={1}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </g>
+                ))}
+              </svg>
+            </div>
           </div>
+          {previewing ? null : (
+            <>
+              <DiscResizeRing
+                diameter={discPx}
+                min={MIN_SIZE}
+                max={maxPx}
+                onResize={setSize}
+              />
+              <ShaderOriginGizmo round />
+            </>
+          )}
+          {/* outside the disc's mask, so handles past the rim stay grabbable. it clips its own art */}
+          <DiscText
+            items={texts}
+            onItemsChange={setTexts}
+            frames={frames}
+            onFramesChange={setFrames}
+            onRecropFrame={recropFrame}
+            unitsPerPx={discPx ? 100 / discPx : 0.25}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            geometry={discGeometry(hole, rings, spread)}
+            outline={outlineMode ? OUTLINE : null}
+            ghost={shaded && !outlineMode}
+          />
         </div>
-        {previewing ? null : (
-          <>
-            <DiscResizeRing
-              diameter={discPx}
-              min={MIN_SIZE}
-              max={maxPx}
-              onResize={setSize}
-            />
-            <ShaderOriginGizmo round />
-          </>
-        )}
-        {/* outside the disc's mask, so handles past the rim stay grabbable. it clips its own art */}
-        <DiscText
-          items={texts}
-          onItemsChange={setTexts}
-          frames={frames}
-          onFramesChange={setFrames}
-          onRecropFrame={recropFrame}
-          unitsPerPx={discPx ? 100 / discPx : 0.25}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          geometry={discGeometry(hole, rings, spread)}
-          outline={outlineMode ? OUTLINE : null}
-          ghost={shaded && !outlineMode}
-        />
+        {spin3d ? (
+          <div
+            ref={shadowRef}
+            aria-hidden
+            className="pointer-events-none absolute left-[10%] top-full mt-6 h-6 w-4/5 rounded-full bg-[radial-gradient(closest-side,#000,transparent)]"
+            style={{ opacity: shadow.shadow, filter: `blur(${shadow.blur}px)` }}
+          />
+        ) : null}
       </div>
 
       {previewing ? (
-        // bottom nav spot
-        <div className="desk-card fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 gap-1 p-1">
-          <Button
-            variant={view3d ? "primaryBlue" : "ghost"}
-            aria-pressed={view3d}
-            onClick={() => setView3d((on) => !on)}
-          >
-            3D
-          </Button>
-          <Button variant="ghost" onClick={() => setPreviewing(false)}>
-            Done
-          </Button>
-        </div>
-      ) : (
-        <p
-          className="text-sm tabular-nums text-ink-soft"
-          aria-label="Disc diameter in pixels"
-        >
-          Ø <RollingNumber value={discPx} />
-        </p>
-      )}
+        <DiscPreviewBar
+          view3d={view3d}
+          onView3d={setView3d}
+          playing={playing}
+          onPlaying={setPlaying}
+          background={background}
+          onBackground={setBackground}
+          onDone={() => setPreviewing(false)}
+        />
+      ) : null}
+      {/* hidden, not removed, so the disc stays put */}
+      <p
+        className={`text-sm tabular-nums text-ink-soft ${previewing ? "invisible" : ""}`}
+        aria-label="Disc diameter in pixels"
+      >
+        Ø <RollingNumber value={discPx} />
+      </p>
 
       {crop ? (
         <CropStep

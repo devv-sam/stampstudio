@@ -1,5 +1,4 @@
 import {
-  Fragment,
   useCallback,
   useEffect,
   useRef,
@@ -26,7 +25,7 @@ import { useDiscEditor } from "../../hooks/useDiscEditor";
 import { useDiscUpload } from "../../hooks/useDiscUpload";
 import { useImageUploadFlow } from "../../hooks/useImageUploadFlow";
 import { useStampEditor } from "../../hooks/useStampEditor";
-import { useDeskMotion } from "../../utils/deskMotion";
+import { tuck, useDeskMotion } from "../../utils/deskMotion";
 import { Button } from "../UI/Button";
 import { DeskDrawer } from "../Desk/DeskDrawer";
 
@@ -80,7 +79,7 @@ type NavTool = {
   onClick?: () => void;
 };
 
-export function CanvasFloatBar() {
+export function CanvasFloatBar({ shown = true }: { shown?: boolean }) {
   const {
     textPlacementActive,
     setTextPlacementActive,
@@ -411,8 +410,9 @@ export function CanvasFloatBar() {
 
   return (
     <>
-      <div
+      <motion.div
         ref={floatRootRef}
+        {...tuck(shown, { y: "160%" })}
         className="pointer-events-auto absolute left-1/2 z-40 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-col items-center gap-2"
         style={{ bottom: nav.bottomOffset }}
       >
@@ -538,7 +538,9 @@ export function CanvasFloatBar() {
           ) : null}
         </AnimatePresence>
 
-        <div
+        <motion.div
+          layout
+          transition={springy}
           className="desk-card relative flex items-center"
           style={{
             gap: nav.gap,
@@ -581,48 +583,59 @@ export function CanvasFloatBar() {
             ) : null}
           </AnimatePresence>
 
-          {groups.map((group, g) => (
-            <Fragment key={group[0]!.label}>
-              {g > 0 ? (
-                <span
-                  aria-hidden
-                  className="w-px bg-zinc-700"
-                  style={{
-                    height: nav.dividerHeight,
-                    marginInline: nav.dividerSpacing,
-                  }}
-                />
-              ) : null}
-              {group.map(({ label, icon: Icon, tint, on, active, disabled, onClick }) => (
-                <motion.button
-                  key={label}
-                  type="button"
-                  {...(disabled ? {} : press)}
-                  aria-label={label}
-                  aria-disabled={disabled}
-                  onClick={onClick}
-                  onPointerEnter={(e) => showTip(label, e.currentTarget)}
-                  onFocus={(e) => showTip(label, e.currentTarget)}
-                  className={`flex shrink-0 items-center justify-center transition-colors duration-150 ${tint} ${
-                    disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
-                  } ${active ? on : "text-ink"}`}
-                  style={{
-                    width: nav.buttonSize,
-                    height: nav.buttonSize,
-                    borderRadius: nav.buttonRadius,
-                  }}
-                >
-                  <Icon
-                    size={nav.iconSize}
-                    strokeWidth={nav.iconStroke}
-                    aria-hidden
-                  />
-                </motion.button>
-              ))}
-            </Fragment>
-          ))}
-        </div>
-      </div>
+          {/* animates mode swaps */}
+          <AnimatePresence mode="popLayout" initial={false}>
+            {groups.flatMap((group, g) => [
+              ...(g > 0
+                ? [
+                    <motion.span
+                      key={`divider-${group[0]!.label}`}
+                      layout="position"
+                      {...blurPop}
+                      aria-hidden
+                      className="w-px bg-zinc-700"
+                      style={{
+                        height: nav.dividerHeight,
+                        marginInline: nav.dividerSpacing,
+                      }}
+                    />,
+                  ]
+                : []),
+              ...group.map(
+                ({ label, icon: Icon, tint, on, active, disabled, onClick }) => (
+                  <motion.button
+                    key={label}
+                    layout="position"
+                    {...(disabled ? {} : press)}
+                    // last, so blur tweens
+                    {...blurPop}
+                    type="button"
+                    aria-label={label}
+                    aria-disabled={disabled}
+                    onClick={onClick}
+                    onPointerEnter={(e) => showTip(label, e.currentTarget)}
+                    onFocus={(e) => showTip(label, e.currentTarget)}
+                    className={`flex shrink-0 items-center justify-center transition-colors duration-150 ${tint} ${
+                      disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
+                    } ${active ? on : "text-ink"}`}
+                    style={{
+                      width: nav.buttonSize,
+                      height: nav.buttonSize,
+                      borderRadius: nav.buttonRadius,
+                    }}
+                  >
+                    <Icon
+                      size={nav.iconSize}
+                      strokeWidth={nav.iconStroke}
+                      aria-hidden
+                    />
+                  </motion.button>
+                ),
+              ),
+            ])}
+          </AnimatePresence>
+        </motion.div>
+      </motion.div>
 
       {exportBanner ? (
         <div

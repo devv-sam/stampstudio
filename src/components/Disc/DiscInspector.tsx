@@ -33,7 +33,7 @@ const ALIGNS: { id: TextAlign; label: string; icon: typeof AlignLeft }[] = [
   { id: "right", label: "Align right", icon: AlignRight },
 ];
 
-const IMAGE_SWATCH =
+export const IMAGE_SWATCH =
   "conic-gradient(#ff271f, #ffe122, #00cc55, #3b84ee, #ff31c6, #ff271f)";
 
 /** right-hand panel in disc mode: disc controls, or only the text's when one is selected */

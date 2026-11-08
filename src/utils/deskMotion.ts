@@ -35,3 +35,18 @@ const DESK_MOTION = {
 
 export const useDeskMotion = () => DESK_MOTION
 
+/** slide chrome away, blur back in */
+export const tuck = (shown: boolean, away: { x?: string; y?: string }) => ({
+  initial: false,
+  animate: shown
+    ? { x: 0, y: 0, opacity: 1, filter: 'blur(0px)' }
+    : { ...away, opacity: 0, filter: 'blur(6px)' },
+  transition: {
+    ...springy,
+    visualDuration: 0.35,
+    opacity: { duration: 0.22 },
+    filter: { duration: 0.3, ease: 'easeOut' as const },
+  },
+  inert: !shown,
+})
+
