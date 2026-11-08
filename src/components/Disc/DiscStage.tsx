@@ -114,10 +114,10 @@ export function DiscStage() {
   const back = useDialKit(
     "Disc back",
     {
-      spread: [48, 10, 90, 1],
+      spread: [88, 10, 90, 1],
       contrast: [0.3, 0, 1, 0.01],
-      rainbow: [0.18, 0, 1, 0.01],
-      grooves: [0.05, 0, 0.3, 0.01],
+      rainbow: [0.1, 0, 1, 0.01],
+      grooves: [0.04, 0, 0.3, 0.01],
     },
     { id: "disc-back", persist: true },
   );
