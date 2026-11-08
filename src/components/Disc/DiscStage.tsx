@@ -6,6 +6,7 @@ import { discArtUrl, NOISE_OPACITY } from "../../utils/discExport";
 import { discGeometry } from "../../utils/discText";
 import { ShaderLayer } from "../Canvas/ShaderLayer";
 import { ShaderOriginGizmo } from "../Canvas/ShaderOriginGizmo";
+import { Button } from "../UI/Button";
 import { RollingNumber } from "../UI/RollingNumber";
 import { CropStep } from "../Upload/CropStep";
 import { DiscResizeRing } from "./DiscResizeRing";
@@ -18,6 +19,13 @@ const RING_ROOM = 24;
 const READOUT_ROOM = 56;
 // flattened art size for the shader
 const ART_SIZE = 1024;
+// 3d view, angles in deg
+const IDLE_SPIN = 20; // per s
+const DRAG_RATE = 0.4; // per px
+const FRICTION = 2.5;
+const RIM = 2.4; // px
+const BACK =
+  "repeating-radial-gradient(circle, rgb(255 255 255 / 0.1) 0 2px, transparent 2px 10px), conic-gradient(#dcdde1, #a9abb2, #f1f2f4, #b4b6bc, #dcdde1)";
 
 /** the disc in the middle of the desk, shown in place of the stamp canvas */
 export function DiscStage() {
@@ -41,6 +49,8 @@ export function DiscStage() {
     selectedId,
     setSelectedId,
     removeSelected,
+    previewing,
+    setPreviewing,
   } = useDiscEditor();
   // the left shader rail drives the disc too
   const { activeShader, shaderParams, outlineMode } = useStampEditor();
@@ -77,6 +87,87 @@ export function DiscStage() {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (!previewing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreviewing(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [previewing, setPreviewing]);
+
+  const [view3d, setView3d] = useState(false);
+  const tiltRef = useRef<HTMLDivElement>(null);
+  const sheenRef = useRef<HTMLDivElement>(null);
+  const spin3d = previewing && view3d;
+  useEffect(() => {
+    const el = tiltRef.current;
+    const stage = stageRef.current;
+    if (!spin3d || !el || !stage) return;
+    let rx = 0;
+    let ry = 0;
+    let vx = 0;
+    let vy = IDLE_SPIN;
+    let drag: { x: number; y: number; t: number } | null = null;
+    const onDown = (e: PointerEvent) => {
+      drag = { x: e.clientX, y: e.clientY, t: performance.now() };
+      vx = vy = 0;
+      stage.setPointerCapture(e.pointerId);
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!drag) return;
+      const now = performance.now();
+      const dx = (e.clientX - drag.x) * DRAG_RATE;
+      const dy = (e.clientY - drag.y) * -DRAG_RATE;
+      const dt = Math.max(0.008, (now - drag.t) / 1000);
+      ry += dx;
+      rx += dy;
+      // smoothed fling speed
+      vy = vy * 0.5 + (dx / dt) * 0.5;
+      vx = vx * 0.5 + (dy / dt) * 0.5;
+      drag = { x: e.clientX, y: e.clientY, t: now };
+    };
+    const onUp = () => {
+      // held still, no fling
+      if (drag && performance.now() - drag.t > 80) vx = vy = 0;
+      drag = null;
+    };
+    let last = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const dt = Math.min(0.064, (now - last) / 1000);
+      last = now;
+      if (!drag) {
+        const f = Math.exp(-dt * FRICTION);
+        vy = IDLE_SPIN + (vy - IDLE_SPIN) * f;
+        vx *= f;
+        rx += vx * dt;
+        ry += vy * dt;
+        // settle upright
+        const upright = Math.round(rx / 360) * 360;
+        rx += (upright - rx) * (1 - Math.exp(-dt * 1.2));
+      }
+      el.style.transform = `perspective(1400px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+      sheenRef.current?.style.setProperty("--sheen", `${ry * 2 + rx}deg`);
+      raf = requestAnimationFrame(tick);
+    };
+    el.style.transition = "none";
+    raf = requestAnimationFrame(tick);
+    stage.addEventListener("pointerdown", onDown);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      cancelAnimationFrame(raf);
+      stage.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      el.style.transition = "transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1)";
+      el.style.transform = "";
+    };
+  }, [spin3d]);
 
   // delete or backspace removes the selected text, unless you're typing
   useEffect(() => {
@@ -123,21 +214,54 @@ export function DiscStage() {
     // isolate keeps the resize ring's z-index inside, so panel popovers stay on top
     <div
       ref={stageRef}
-      className="desk-stage isolate flex flex-col items-center justify-center gap-4 max-md:!bottom-[28rem]"
+      className={`desk-stage isolate flex flex-col items-center justify-center gap-4 ${
+        previewing ? "max-md:!bottom-[5.5rem]" : "max-md:!bottom-[28rem]"
+      } ${spin3d ? "cursor-grab touch-none active:cursor-grabbing" : ""}`}
       style={{ containerType: "size" }}
       onPointerDown={() => setSelectedId(null)}
     >
       <div
-        className="relative"
+        ref={tiltRef}
+        inert={previewing}
+        // off the face plane, hidden from behind
+        className={`relative ${
+          spin3d
+            ? "[&>svg]:[backface-visibility:hidden] [&>svg]:[transform:translateZ(0.5px)]"
+            : ""
+        }`}
         style={{
           width: `min(${size}px, 100cqw - ${RING_ROOM}px, 100cqh - ${READOUT_ROOM}px)`,
+          transformStyle: spin3d ? "preserve-3d" : undefined,
         }}
       >
+        {/* rim layers, then the silver back */}
+        {spin3d
+          ? [1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                aria-hidden
+                className="absolute inset-0 rounded-full"
+                style={{
+                  transform:
+                    i === 4
+                      ? `rotateY(180deg) translateZ(${RIM}px)`
+                      : `translateZ(${(-i * RIM) / 4}px)`,
+                  backfaceVisibility: i === 4 ? "hidden" : undefined,
+                  background:
+                    i === 4 ? BACK : "linear-gradient(135deg, #f4f4f6, #8e8e96)",
+                  mask: `radial-gradient(circle closest-side, transparent ${holeStop}, #000 calc(${holeStop} + 0.5px))`,
+                }}
+              />
+            ))
+          : null}
         <div
           ref={discRef}
           className={`aspect-square ${
-            outlineMode ? "" : "drop-shadow-[0_10px_24px_rgb(0_0_0/0.18)]"
+            outlineMode || spin3d
+              ? ""
+              : "drop-shadow-[0_10px_24px_rgb(0_0_0/0.18)]"
           }`}
+          style={{ backfaceVisibility: spin3d ? "hidden" : undefined }}
         >
           <div
             ref={previewRef}
@@ -166,6 +290,17 @@ export function DiscStage() {
               // stays mounted in outline mode so export can still read it
               opacity={outlineMode ? 0 : noise ? NOISE_OPACITY : 1}
             />
+            {spin3d ? (
+              <div
+                ref={sheenRef}
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-30 opacity-40 mix-blend-overlay"
+                style={{
+                  background:
+                    "conic-gradient(from var(--sheen, 0deg), #ff8a8a, #ffe58a, #8affb0, #8ad8ff, #c58aff, #ff8a8a)",
+                }}
+              />
+            ) : null}
             <svg
               aria-hidden
               viewBox="0 0 100 100"
@@ -220,13 +355,17 @@ export function DiscStage() {
             </svg>
           </div>
         </div>
-        <DiscResizeRing
-          diameter={discPx}
-          min={MIN_SIZE}
-          max={maxPx}
-          onResize={setSize}
-        />
-        <ShaderOriginGizmo round />
+        {previewing ? null : (
+          <>
+            <DiscResizeRing
+              diameter={discPx}
+              min={MIN_SIZE}
+              max={maxPx}
+              onResize={setSize}
+            />
+            <ShaderOriginGizmo round />
+          </>
+        )}
         {/* outside the disc's mask, so handles past the rim stay grabbable. it clips its own art */}
         <DiscText
           items={texts}
@@ -243,12 +382,28 @@ export function DiscStage() {
         />
       </div>
 
-      <p
-        className="text-sm tabular-nums text-ink-soft"
-        aria-label="Disc diameter in pixels"
-      >
-        Ø <RollingNumber value={discPx} />
-      </p>
+      {previewing ? (
+        // bottom nav spot
+        <div className="desk-card fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 gap-1 p-1">
+          <Button
+            variant={view3d ? "primaryBlue" : "ghost"}
+            aria-pressed={view3d}
+            onClick={() => setView3d((on) => !on)}
+          >
+            3D
+          </Button>
+          <Button variant="ghost" onClick={() => setPreviewing(false)}>
+            Done
+          </Button>
+        </div>
+      ) : (
+        <p
+          className="text-sm tabular-nums text-ink-soft"
+          aria-label="Disc diameter in pixels"
+        >
+          Ø <RollingNumber value={discPx} />
+        </p>
+      )}
 
       {crop ? (
         <CropStep

@@ -11,6 +11,9 @@ export interface DiscEditorContextValue {
   /** true while the desk shows the disc instead of the stamp */
   discMode: boolean
   setDiscMode: (on: boolean) => void
+  /** chrome hidden, just the disc */
+  previewing: boolean
+  setPreviewing: (on: boolean) => void
 
   size: number
   setSize: (px: number) => void

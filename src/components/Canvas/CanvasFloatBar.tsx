@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDownToLine,
   Check,
+  Disc3,
   Eye,
   Frame,
   Image as ImageIcon,
@@ -342,6 +343,17 @@ export function CanvasFloatBar() {
             },
           ]
         : []),
+    ],
+    [
+      {
+        label: "Preview",
+        icon: Disc3,
+        tint: "hover:text-cornflower focus-visible:text-cornflower",
+        onClick: () => {
+          disc.setSelectedId(null);
+          disc.setPreviewing(true);
+        },
+      },
     ],
     ...sharedGroups,
   ];

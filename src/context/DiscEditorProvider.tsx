@@ -22,6 +22,7 @@ const SVG_BODY_SIZE = 2048
 /** Owns the CD designer. Shares the shader and the image library with the stamp editor. */
 export function DiscEditorProvider({ children }: { children: ReactNode }) {
   const [discMode, setDiscMode] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
   const [size, setSize] = useState(420)
   const [hole, setHole] = useState(20)
   const [rings, setRings] = useState(3)
@@ -188,6 +189,8 @@ export function DiscEditorProvider({ children }: { children: ReactNode }) {
     () => ({
       discMode,
       setDiscMode,
+      previewing,
+      setPreviewing,
       size,
       setSize,
       hole,
@@ -223,6 +226,7 @@ export function DiscEditorProvider({ children }: { children: ReactNode }) {
     }),
     [
       discMode,
+      previewing,
       size,
       hole,
       rings,
