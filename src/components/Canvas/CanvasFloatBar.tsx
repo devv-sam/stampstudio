@@ -21,6 +21,7 @@ import {
   Type,
 } from "lucide-react";
 
+import { useExperiments } from "../../hooks/useExperiments";
 import { useImageUploadFlow } from "../../hooks/useImageUploadFlow";
 import { useStampEditor } from "../../hooks/useStampEditor";
 import { useDeskMotion } from "../../utils/deskMotion";
@@ -92,6 +93,7 @@ export function CanvasFloatBar() {
   } = useStampEditor();
 
   const { blurPop, press, springy } = useDeskMotion();
+  const { launch } = useExperiments();
   const nav = useDialKit(
     "Bottom nav",
     {
@@ -320,10 +322,10 @@ export function CanvasFloatBar() {
         },
       },
       {
-        label: "Experiments (Coming soon)",
+        label: "CD designer",
         icon: FlaskConical,
-        tint: "",
-        disabled: true,
+        tint: "hover:text-cornflower focus-visible:text-cornflower",
+        onClick: () => launch("cd"),
       },
     ],
     [

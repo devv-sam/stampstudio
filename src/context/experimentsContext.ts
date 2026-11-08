@@ -1,7 +1,7 @@
 import { createContext } from 'react'
 
-/** The set of experiments. Only `stampsheet` is live today. */
-export type ExperimentId = 'stampsheet'
+/** The set of experiments. `cd` is the disc designer. */
+export type ExperimentId = 'stampsheet' | 'cd'
 
 export interface ExperimentsContextValue {
   /** The experiment currently expanded full-screen (null = none). */

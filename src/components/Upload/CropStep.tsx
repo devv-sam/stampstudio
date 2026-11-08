@@ -38,6 +38,7 @@ export function CropStep({
   onConfirm,
   confirmDisabled = false,
   confirmLabel = "Continue",
+  round = false,
 }: {
   src: string;
   onCancel: () => void;
@@ -45,6 +46,8 @@ export function CropStep({
   /** Combined with cropping state — e.g. while parent persists the asset */
   confirmDisabled?: boolean;
   confirmLabel?: string;
+  /** circular 1:1 frame, used by the disc designer */
+  round?: boolean;
 }) {
   const { springy } = useDeskMotion();
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -92,8 +95,11 @@ export function CropStep({
             crop={crop}
             zoom={zoom}
             maxZoom={MAX_ZOOM}
+            cropShape={round ? "round" : "rect"}
             aspect={
-              aspect.id === "stamp"
+              round
+                ? 1
+                : aspect.id === "stamp"
                 ? stampDimensions.width / stampDimensions.height
                 : aspect.value
             }
@@ -104,7 +110,7 @@ export function CropStep({
             }}
             onCropComplete={onCropComplete}
             objectFit="contain"
-            showGrid
+            showGrid={!round}
             style={{
               cropAreaStyle: {
                 color: "rgb(241 241 241 / 0.82)",
@@ -114,43 +120,45 @@ export function CropStep({
           />
         </div>
 
-        <div
-          role="radiogroup"
-          aria-label="Aspect ratio"
-          className="flex flex-wrap gap-0.5 rounded-xl bg-zinc-900 p-0.5"
-        >
-          {ASPECT_CHOICES.map((choice) => {
-            const active = aspect.id === choice.id;
-            return (
-              <button
-                key={choice.id}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setAspect(choice)}
-                className="relative flex h-10 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg text-sm whitespace-nowrap"
-              >
-                {active ? (
+        {round ? null : (
+          <div
+            role="radiogroup"
+            aria-label="Aspect ratio"
+            className="flex flex-wrap gap-0.5 rounded-xl bg-zinc-900 p-0.5"
+          >
+            {ASPECT_CHOICES.map((choice) => {
+              const active = aspect.id === choice.id;
+              return (
+                <button
+                  key={choice.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setAspect(choice)}
+                  className="relative flex h-10 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg text-sm whitespace-nowrap"
+                >
+                  {active ? (
+                    <motion.span
+                      layoutId="crop-aspect-pill"
+                      transition={springy}
+                      className="absolute inset-0 rounded-lg bg-card shadow-sm"
+                    />
+                  ) : null}
                   <motion.span
-                    layoutId="crop-aspect-pill"
+                    aria-hidden
+                    initial={false}
+                    animate={ratioBox(choice.value)}
                     transition={springy}
-                    className="absolute inset-0 rounded-lg bg-card shadow-sm"
+                    className={`relative rounded-[3px] border-[1.5px] ${
+                      active ? "border-cornflower" : "border-zinc-500"
+                    } ${choice.value ? "" : "border-dashed"}`}
                   />
-                ) : null}
-                <motion.span
-                  aria-hidden
-                  initial={false}
-                  animate={ratioBox(choice.value)}
-                  transition={springy}
-                  className={`relative rounded-[3px] border-[1.5px] ${
-                    active ? "border-cornflower" : "border-zinc-500"
-                  } ${choice.value ? "" : "border-dashed"}`}
-                />
-                <span className="relative">{choice.label}</span>
-              </button>
-            );
-          })}
-        </div>
+                  <span className="relative">{choice.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <PerforationSlider
           key={zoomSyncKey}

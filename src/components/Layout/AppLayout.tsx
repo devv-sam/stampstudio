@@ -7,6 +7,7 @@ import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
 import { LogoMorph } from "../Brand/LogoMorph";
 import { StampInspector } from "../Desk/StampInspector";
 import { ShaderRail } from "../Desk/ShaderRail";
+import { CdExperiment } from "../Experiments/CdExperiment";
 import { StampSheetExperiment } from "../Experiments/StampSheetExperiment";
 import { getLatestVersion } from "../../data/changelog";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -104,6 +105,7 @@ export function AppLayout({ header }: { header?: ReactNode }) {
 
       <AnimatePresence>
         {active === "stampsheet" ? <StampSheetExperiment /> : null}
+        {active === "cd" ? <CdExperiment /> : null}
       </AnimatePresence>
     </>
   );

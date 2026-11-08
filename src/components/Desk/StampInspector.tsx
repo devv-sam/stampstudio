@@ -72,7 +72,7 @@ function CommitInput({
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-1.5">
       <h2 className="px-1 pt-1 text-sm text-ink-soft max-md:hidden">{title}</h2>
@@ -81,7 +81,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function ColorRow({
+export function ColorRow({
   color,
   swatch = color,
   open,
