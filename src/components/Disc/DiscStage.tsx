@@ -265,8 +265,9 @@ export function DiscStage() {
     // isolate keeps the resize ring's z-index inside, so panel popovers stay on top
     <div
       ref={stageRef}
-      className={`desk-stage isolate flex flex-col items-center justify-center gap-4 ${
-        previewing ? "max-md:!bottom-[5.5rem]" : "max-md:!bottom-[28rem]"
+      // eased on phones, so preview grows the disc smoothly
+      className={`desk-stage isolate flex flex-col items-center justify-center gap-4 max-md:transition-[bottom] max-md:duration-500 max-md:ease-out ${
+        previewing ? "max-md:!bottom-[5.5rem]" : "max-md:!bottom-[25.5rem]"
       } ${spin3d ? "cursor-grab touch-none active:cursor-grabbing" : ""}`}
       style={{ containerType: "size" }}
       onPointerDown={() => setSelectedId(null)}

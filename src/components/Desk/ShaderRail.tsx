@@ -7,6 +7,7 @@ import {
   DEFAULT_SHADER_PARAMS,
   defaultStampUrl,
 } from "../../data/editorDefaults";
+import { useDiscEditor } from "../../hooks/useDiscEditor";
 import { useStampEditor } from "../../hooks/useStampEditor";
 import { ShaderLayer } from "../Canvas/ShaderLayer";
 import { ColorPickerPortal } from "../UI/ColorPickerPortal";
@@ -64,6 +65,9 @@ export function ShaderRail() {
     shaderMenuOpen: settingsOpen,
     setShaderMenuOpen: setSettingsOpen,
   } = useStampEditor();
+  const disc = useDiscEditor();
+  const discText =
+    disc.discMode && disc.texts.some((t) => t.id === disc.selectedId);
   const rail = useDialKit(
     "Shader rail",
     {
@@ -134,7 +138,7 @@ export function ShaderRail() {
     <div
       ref={rootRef}
       className={`pointer-events-auto relative ${
-        selectedTextId ? "max-md:hidden" : ""
+        selectedTextId || discText ? "max-md:hidden" : ""
       }`}
     >
       <div
