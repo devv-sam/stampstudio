@@ -5,6 +5,7 @@ import { useStampEditor } from "../../hooks/useStampEditor";
 import { NOISE_OPACITY } from "../../utils/discExport";
 import { discGeometry } from "../../utils/discText";
 import { ShaderLayer } from "../Canvas/ShaderLayer";
+import { ShaderOriginGizmo } from "../Canvas/ShaderOriginGizmo";
 import { RollingNumber } from "../UI/RollingNumber";
 import { CropStep } from "../Upload/CropStep";
 import { DiscResizeRing } from "./DiscResizeRing";
@@ -212,6 +213,7 @@ export function DiscStage() {
           max={maxPx}
           onResize={setSize}
         />
+        <ShaderOriginGizmo round />
       </div>
 
       <p

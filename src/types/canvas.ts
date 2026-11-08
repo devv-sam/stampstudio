@@ -83,6 +83,13 @@ export type ShaderParamsMap = {
   'paper-texture': { folds: number; crumples: number; roughness: number }
   water: { size: number; waves: number; caustic: number }
   engraving: { size: number; angle: number }
-  intaglio: { size: number; contrast: number; ink: string }
+  /** origin is where the ripple starts, 0-1 across the layer, y down */
+  intaglio: {
+    size: number
+    contrast: number
+    ink: string
+    originX: number
+    originY: number
+  }
   riso: { size: number; offset: number }
 }

@@ -460,7 +460,7 @@ export function CanvasFloatBar() {
 
               <div className="flex gap-1.5 p-1.5 pt-0">
                 <Button
-                  variant="primary"
+                  variant={disc.discMode ? "primaryBlue" : "primary"}
                   disabled={exportBusy}
                   onClick={() => runExportAction("download")}
                   className="flex-1"
@@ -472,7 +472,9 @@ export function CanvasFloatBar() {
                   onClick={() => runExportAction("copy")}
                   className={`flex-1 ${
                     copyState === "copied"
-                      ? "!bg-clover"
+                      ? disc.discMode
+                        ? "!bg-cornflower !text-[#fff]"
+                        : "!bg-clover"
                       : copyState === "failed"
                         ? "!bg-poppy !text-[#fff]"
                         : ""

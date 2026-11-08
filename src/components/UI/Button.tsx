@@ -1,10 +1,13 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
-type Variant = 'primary' | 'secondary' | 'ghost'
+type Variant = 'primary' | 'primaryBlue' | 'secondary' | 'ghost'
 
 const variantClass: Record<Variant, string> = {
   primary:
     'border border-[#5bcd8a] bg-[linear-gradient(180deg,#00cc55_0%,#07602c_100%)] text-[#fff]',
+  // the same treatment in cornflower, for disc mode
+  primaryBlue:
+    'border border-[#7aaaf3] bg-[linear-gradient(180deg,#3b84ee_0%,#1b3f73_100%)] text-[#fff]',
   secondary: 'border border-transparent bg-zinc-800 text-ink hover:bg-zinc-700',
   ghost: 'border border-transparent text-ink hover:bg-zinc-800',
 }

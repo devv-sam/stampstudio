@@ -27,9 +27,11 @@ export const INTAGLIO_SHADER = `${HEADER}
 uniform vec2 u_resolution;
 uniform vec4 u_ink;
 uniform float u_contrast;
+// where the ripple starts, 0-1 across the layer with y up
+uniform vec2 u_origin;
 void main() {
   float tone = smoothstep(.5 - u_contrast, .5 + u_contrast, luma(texture(u_image, v_imageUV).rgb));
-  vec2 p = (gl_FragCoord.xy - u_resolution * vec2(.5, .55)) / u_resolution.x;
+  vec2 p = (gl_FragCoord.xy - u_resolution * u_origin) / u_resolution.x;
   float cells = 300. / u_size;
   float r = length(p) + .004 * sin(atan(p.y, p.x) * 14.) * smoothstep(.04, .3, length(p));
   float band = abs(fract(r * cells) - .5) * 2.;

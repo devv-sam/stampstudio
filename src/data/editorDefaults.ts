@@ -20,6 +20,7 @@ export const DEFAULT_SHADER_PARAMS: ShaderParamsMap = {
   'paper-texture': { folds: 0.65, crumples: 0.3, roughness: 0.4 },
   water: { size: 1, waves: 0.3, caustic: 0.1 },
   engraving: { size: 5, angle: 35 },
-  intaglio: { size: 2.5, contrast: 0.3, ink: '#1b1b1f' },
+  // origin sits just above center, where the ripple always started before it moved
+  intaglio: { size: 2.5, contrast: 0.3, ink: '#1b1b1f', originX: 0.5, originY: 0.45 },
   riso: { size: 1.5, offset: 0.006 },
 }

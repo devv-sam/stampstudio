@@ -307,6 +307,11 @@ export function ShaderLayer({
             u_size: shaderParams.intaglio.size,
             u_contrast: shaderParams.intaglio.contrast,
             u_ink: getShaderColorFromString(shaderParams.intaglio.ink),
+            // the shader counts y from the bottom
+            u_origin: [
+              shaderParams.intaglio.originX,
+              1 - shaderParams.intaglio.originY,
+            ],
           }}
         />
       ) : null}
