@@ -247,3 +247,59 @@ export function trackLines(t: DiscTextItem, radius: number) {
     r: radius + flip * (((lines.length - 1) / 2 - i) * lh),
   }));
 }
+
+// ── frames: images placed freely, drawn under the text ──
+
+export type DiscFrameItem = {
+  id: string;
+  /** the cropped image */
+  src: string;
+  /** the upload before cropping, for recropping */
+  originalSrc: string;
+  /** center, in svg units */
+  x: number;
+  y: number;
+  /** longer side, in % of the disc diameter */
+  size: number;
+  /** degrees, clockwise */
+  rotation: number;
+  /** width / height of the image */
+  aspect: number;
+};
+
+export const FRAME_DEFAULT_SIZE = 34;
+export const FRAME_MIN_SIZE = 4;
+export const FRAME_MAX_SIZE = 140;
+/** how close, in svg units, a frame's center gets before it snaps */
+export const FRAME_SNAP = 2.5;
+/** rotation snaps to quarter turns within this many degrees, like the stamp */
+export const ROTATION_SNAP = 4;
+
+/** points a dragged frame pulls toward: the center, then the text spots */
+export function frameSnapPoints(geo: DiscGeometry) {
+  return [
+    { id: "center", x: 50, y: 50 },
+    ...STRAIGHT.map((slot) => ({ id: slot, ...geo.anchors[slot] })),
+  ];
+}
+
+/** the nearest snap point within reach, or the spot as given */
+export function snapFramePoint(geo: DiscGeometry, x: number, y: number) {
+  const near = frameSnapPoints(geo).find(
+    (p) => Math.hypot(p.x - x, p.y - y) <= FRAME_SNAP,
+  );
+  return near ? { x: near.x, y: near.y, snapped: near.id } : { x, y, snapped: null };
+}
+
+export function snapRotation(deg: number) {
+  const wrapped = ((deg % 360) + 360) % 360;
+  const quarter = Math.round(wrapped / 90) * 90;
+  return Math.abs(wrapped - quarter) <= ROTATION_SNAP ? quarter % 360 : wrapped;
+}
+
+/** the frame's box before rotation, centered on its position */
+export function frameBox(f: DiscFrameItem) {
+  const w = f.aspect >= 1 ? f.size : f.size * f.aspect;
+  const h = f.aspect >= 1 ? f.size / f.aspect : f.size;
+  return { cx: f.x, cy: f.y, x: f.x - w / 2, y: f.y - h / 2, w, h };
+}

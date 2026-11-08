@@ -96,6 +96,7 @@ export function CanvasFloatBar() {
   const { blurPop, press, springy } = useDeskMotion();
   const disc = useDiscEditor();
   const discUpload = useDiscUpload();
+  const discFrameUpload = useDiscUpload("frame");
   const nav = useDialKit(
     "Bottom nav",
     {
@@ -324,6 +325,12 @@ export function CanvasFloatBar() {
         icon: ImageIcon,
         tint: "hover:text-clover focus-visible:text-clover",
         onClick: discUpload.open,
+      },
+      {
+        label: "Upload frame",
+        icon: Frame,
+        tint: "hover:text-marigold focus-visible:text-marigold",
+        onClick: discFrameUpload.open,
       },
       ...(disc.image
         ? [
@@ -629,6 +636,7 @@ export function CanvasFloatBar() {
       {frameUpload.fileInputElement}
       {frameUpload.overlayElement}
       {discUpload.inputElement}
+      {discFrameUpload.inputElement}
       {bgUpload.fileInputElement}
       {bgUpload.overlayElement}
 

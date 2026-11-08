@@ -27,12 +27,15 @@ export function DiscStage() {
     spread,
     color,
     image,
-    applyCroppedImage,
+    applyCrop,
     previewRef,
-    cropSrc,
+    crop,
     closeCrop,
+    recropFrame,
     texts,
     setTexts,
+    frames,
+    setFrames,
     selectedId,
     setSelectedId,
     removeSelected,
@@ -197,14 +200,6 @@ export function DiscStage() {
                 </g>
               ))}
             </svg>
-            <DiscText
-              items={texts}
-              onItemsChange={setTexts}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              geometry={discGeometry(hole, rings, spread)}
-              outline={outlineMode ? OUTLINE : null}
-            />
           </div>
         </div>
         <DiscResizeRing
@@ -214,6 +209,19 @@ export function DiscStage() {
           onResize={setSize}
         />
         <ShaderOriginGizmo round />
+        {/* outside the disc's mask, so handles past the rim stay grabbable. it clips its own art */}
+        <DiscText
+          items={texts}
+          onItemsChange={setTexts}
+          frames={frames}
+          onFramesChange={setFrames}
+          onRecropFrame={recropFrame}
+          unitsPerPx={discPx ? 100 / discPx : 0.25}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          geometry={discGeometry(hole, rings, spread)}
+          outline={outlineMode ? OUTLINE : null}
+        />
       </div>
 
       <p
@@ -223,14 +231,17 @@ export function DiscStage() {
         Ø <RollingNumber value={discPx} />
       </p>
 
-      {cropSrc ? (
+      {crop ? (
         <CropStep
-          round
-          src={cropSrc}
-          confirmLabel="Use image"
+          // a remount per crop, so a recrop starts fresh
+          key={crop.kind === "frame" ? (crop.frameId ?? "new-frame") : "image"}
+          round={crop.kind === "image"}
+          freeform={crop.kind === "frame"}
+          src={crop.src}
+          confirmLabel={crop.kind === "image" ? "Use image" : "Use frame"}
           onCancel={closeCrop}
           onConfirm={(dataUrl, width, height) => {
-            applyCroppedImage(dataUrl, width, height);
+            applyCrop(dataUrl, width, height);
             closeCrop();
           }}
         />

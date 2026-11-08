@@ -39,6 +39,7 @@ export function CropStep({
   confirmDisabled = false,
   confirmLabel = "Continue",
   round = false,
+  freeform = false,
 }: {
   src: string;
   onCancel: () => void;
@@ -48,16 +49,25 @@ export function CropStep({
   confirmLabel?: string;
   /** circular 1:1 frame, used by the disc designer */
   round?: boolean;
+  /** starts free and drops "Match stamp", for images that aren't sized to the stamp */
+  freeform?: boolean;
 }) {
   const { springy } = useDeskMotion();
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   // remounts the uncontrolled slider when scroll or pinch zooms the cropper
   const [zoomSyncKey, setZoomSyncKey] = useState(0);
-  const [aspect, setAspect] = useState<AspectChoice>(ASPECT_CHOICES[1]);
+  const choices = freeform
+    ? ASPECT_CHOICES.filter((c) => c.id !== "stamp")
+    : ASPECT_CHOICES;
+  const [aspect, setAspect] = useState<AspectChoice>(
+    freeform ? ASPECT_CHOICES[0]! : ASPECT_CHOICES[1]!,
+  );
   const { stampDimensions } = useStampEditor();
   const cropperRef = useRef<Cropper>(null);
   const [pixelArea, setPixelArea] = useState<Area | null>(null);
+  // free means the image's own ratio to start, the cropper would default to 4:3
+  const [mediaAspect, setMediaAspect] = useState<number | undefined>(undefined);
   const [isCropping, setIsCropping] = useState(false);
 
   const onCropComplete = useCallback((_: Area, areaPixels: Area) => {
@@ -101,7 +111,10 @@ export function CropStep({
                 ? 1
                 : aspect.id === "stamp"
                 ? stampDimensions.width / stampDimensions.height
-                : aspect.value
+                : (aspect.value ?? mediaAspect)
+            }
+            onMediaLoaded={({ naturalWidth, naturalHeight }) =>
+              setMediaAspect(naturalWidth / naturalHeight)
             }
             onCropChange={setCrop}
             onZoomChange={(next) => {
@@ -126,7 +139,7 @@ export function CropStep({
             aria-label="Aspect ratio"
             className="flex flex-wrap gap-0.5 rounded-xl bg-zinc-900 p-0.5"
           >
-            {ASPECT_CHOICES.map((choice) => {
+            {choices.map((choice) => {
               const active = aspect.id === choice.id;
               return (
                 <button

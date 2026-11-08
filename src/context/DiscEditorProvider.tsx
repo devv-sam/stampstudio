@@ -2,9 +2,19 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { useStampEditor } from '../hooks/useStampEditor'
 import { discSvg, NOISE_OPACITY, renderDisc } from '../utils/discExport'
-import { SLOT_DEFAULTS, SLOT_ORDER, type DiscTextItem } from '../utils/discText'
+import {
+  FRAME_DEFAULT_SIZE,
+  SLOT_DEFAULTS,
+  SLOT_ORDER,
+  type DiscFrameItem,
+  type DiscTextItem,
+} from '../utils/discText'
 import { downloadDataUrl, downloadTextFile } from '../utils/exportHelpers'
-import { DiscEditorContext, type DiscEditorContextValue } from './discEditorContext'
+import {
+  DiscEditorContext,
+  type DiscCrop,
+  type DiscEditorContextValue,
+} from './discEditorContext'
 
 // svg wraps a raster body, this keeps it sharp without a huge file
 const SVG_BODY_SIZE = 2048
@@ -18,7 +28,7 @@ export function DiscEditorProvider({ children }: { children: ReactNode }) {
   const [spread, setSpread] = useState(3)
   const [color, setColor] = useState('#3b84ee')
   const [image, setImage] = useState<string | null>(null)
-  const [cropSrc, setCropSrc] = useState<string | null>(null)
+  const [crop, setCrop] = useState<DiscCrop | null>(null)
   const [texts, setTexts] = useState<DiscTextItem[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const previewRef = useRef<HTMLDivElement | null>(null)
@@ -35,24 +45,62 @@ export function DiscEditorProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const startCrop = useCallback(
-    (file: File) => setCropSrc(URL.createObjectURL(file)),
+    (file: File) => setCrop({ kind: 'image', src: URL.createObjectURL(file) }),
     [],
   )
 
+  // frames keep the original as a data url, so they can be recropped later
+  const startFrameCrop = useCallback(async (file: File) => {
+    const src = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(file)
+    })
+    setCrop({ kind: 'frame', src, frameId: null })
+  }, [])
+
   const closeCrop = useCallback(() => {
-    setCropSrc((src) => {
-      if (src) URL.revokeObjectURL(src)
+    setCrop((c) => {
+      if (c?.src.startsWith('blob:')) URL.revokeObjectURL(c.src)
       return null
     })
   }, [])
 
-  const applyCroppedImage = useCallback(
+  const [frames, setFrames] = useState<DiscFrameItem[]>([])
+
+  const recropFrame = useCallback(
+    (id: string) => {
+      const frame = frames.find((f) => f.id === id)
+      if (frame) setCrop({ kind: 'frame', src: frame.originalSrc, frameId: id })
+    },
+    [frames],
+  )
+
+  const applyCrop = useCallback(
     (src: string, width: number, height: number) => {
-      setImage(src)
+      if (!crop) return
+      const aspect = width / height
+      if (crop.kind === 'image') {
+        setImage(src)
+      } else if (crop.frameId) {
+        const id = crop.frameId
+        setFrames((all) => all.map((f) => (f.id === id ? { ...f, src, aspect } : f)))
+        return
+      } else {
+        const id = crypto.randomUUID()
+        const originalSrc = crop.src
+        // lands on the center, where a label usually goes. it moves freely from there
+        setFrames((all) => [
+          ...all,
+          { id, src, originalSrc, x: 50, y: 50, size: FRAME_DEFAULT_SIZE, rotation: 0, aspect },
+        ])
+        setSelectedId(id)
+      }
       // library only, so it never replaces the stamp's background
       void addImageAsset({ src, width, height, role: 'unused' })
     },
-    [addImageAsset],
+    [crop, addImageAsset],
   )
 
   const renderPng = useCallback(
@@ -61,12 +109,12 @@ export function DiscEditorProvider({ children }: { children: ReactNode }) {
       if (!preview) throw new Error('Open the disc to export it')
       const canvas = await renderDisc(
         preview,
-        { hole, rings, spread, color, image, texts, shaderOpacity },
+        { hole, rings, spread, color, image, texts, frames, shaderOpacity },
         size,
       )
       return canvas.toDataURL('image/png')
     },
-    [hole, rings, spread, color, image, texts, shaderOpacity],
+    [hole, rings, spread, color, image, texts, frames, shaderOpacity],
   )
 
   const exportPng = useCallback(
@@ -132,6 +180,7 @@ export function DiscEditorProvider({ children }: { children: ReactNode }) {
 
   const removeSelected = useCallback(() => {
     setTexts((all) => all.filter((t) => t.id !== selectedId))
+    setFrames((all) => all.filter((f) => f.id !== selectedId))
     setSelectedId(null)
   }, [selectedId])
 
@@ -151,10 +200,12 @@ export function DiscEditorProvider({ children }: { children: ReactNode }) {
       image,
       pickColor,
       setImage,
-      cropSrc,
+      crop,
       startCrop,
+      startFrameCrop,
+      recropFrame,
       closeCrop,
-      applyCroppedImage,
+      applyCrop,
       texts,
       setTexts,
       selectedId,
@@ -162,6 +213,8 @@ export function DiscEditorProvider({ children }: { children: ReactNode }) {
       addText,
       updateSelected,
       removeSelected,
+      frames,
+      setFrames,
       previewRef,
       exportPng,
       copyPng,
@@ -177,15 +230,18 @@ export function DiscEditorProvider({ children }: { children: ReactNode }) {
       color,
       image,
       pickColor,
-      cropSrc,
+      crop,
       startCrop,
+      startFrameCrop,
+      recropFrame,
       closeCrop,
-      applyCroppedImage,
+      applyCrop,
       texts,
       selectedId,
       addText,
       updateSelected,
       removeSelected,
+      frames,
       exportPng,
       copyPng,
       exportSvg,

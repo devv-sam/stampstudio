@@ -1,6 +1,11 @@
 import { createContext, type RefObject } from 'react'
 
-import type { DiscTextItem } from '../utils/discText'
+import type { DiscFrameItem, DiscTextItem } from '../utils/discText'
+
+/** what the crop step is open for: the disc's image, a new frame, or recropping one */
+export type DiscCrop =
+  | { kind: 'image'; src: string }
+  | { kind: 'frame'; src: string; frameId: string | null }
 
 export interface DiscEditorContextValue {
   /** true while the desk shows the disc instead of the stamp */
@@ -23,12 +28,17 @@ export interface DiscEditorContextValue {
   image: string | null
   pickColor: (hex: string) => void
   setImage: (src: string | null) => void
-  /** the raw upload waiting in the crop step */
-  cropSrc: string | null
+  /** the upload waiting in the crop step */
+  crop: DiscCrop | null
+  /** an upload for the disc's background image */
   startCrop: (file: File) => void
+  /** an upload for a new frame */
+  startFrameCrop: (file: File) => Promise<void>
+  /** reopens the crop step on a frame's original upload */
+  recropFrame: (id: string) => void
   closeCrop: () => void
-  /** puts the cropped image on the disc and in the shared library */
-  applyCroppedImage: (src: string, width: number, height: number) => void
+  /** places the crop: the disc image, a new frame, or a recropped one. new images also go to the library */
+  applyCrop: (src: string, width: number, height: number) => void
 
   texts: DiscTextItem[]
   setTexts: (texts: DiscTextItem[]) => void
@@ -36,7 +46,12 @@ export interface DiscEditorContextValue {
   setSelectedId: (id: string | null) => void
   addText: () => void
   updateSelected: (patch: Partial<DiscTextItem>) => void
+  /** removes the selected text or frame */
   removeSelected: () => void
+
+  /** images placed freely, drawn under the text. selection is shared with text */
+  frames: DiscFrameItem[]
+  setFrames: (frames: DiscFrameItem[]) => void
 
   /** the on-screen disc, export re-renders its shader from here */
   previewRef: RefObject<HTMLDivElement | null>

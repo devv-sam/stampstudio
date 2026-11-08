@@ -55,7 +55,6 @@ export function DiscInspector() {
   } = useDiscEditor();
   const { blurPop, springy } = useDeskMotion();
   const current = texts.find((t) => t.id === selectedId) ?? null;
-
   // keeps the text field filled while the card crossfades away after a deselect
   const [lastText, setLastText] = useState(current);
   if (current && current !== lastText) setLastText(current);
@@ -105,7 +104,9 @@ export function DiscInspector() {
                       MAX_ROWS,
                       shownText.content.split("\n").length,
                     )}
-                    onChange={(e) => updateSelected({ content: e.target.value })}
+                    onChange={(e) =>
+                      updateSelected({ content: e.target.value })
+                    }
                     placeholder="One line per row"
                     className={FIELD}
                   />
@@ -140,13 +141,20 @@ export function DiscInspector() {
                                 className="absolute inset-0 rounded-lg bg-card shadow-sm"
                               />
                             ) : null}
-                            <Icon size={16} strokeWidth={1.75} className="relative" aria-hidden />
+                            <Icon
+                              size={16}
+                              strokeWidth={1.75}
+                              className="relative"
+                              aria-hidden
+                            />
                           </button>
                         );
                       })}
                     </div>
                   ) : null}
-                  {shownText && fitSize !== null && fitSize < shownText.fontSize ? (
+                  {shownText &&
+                  fitSize !== null &&
+                  fitSize < shownText.fontSize ? (
                     <p role="status" className="px-1 text-sm text-ink-soft">
                       Shrunk to {fitSize} to fit
                     </p>

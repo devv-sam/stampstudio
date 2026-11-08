@@ -2,9 +2,11 @@ import {
   DISC_TEXT_SCALE,
   discGeometry,
   fitted,
+  frameBox,
   isStraight,
   straightLines,
   trackLines,
+  type DiscFrameItem,
   type DiscTextItem,
 } from './discText'
 
@@ -24,6 +26,7 @@ export type DiscExportState = {
   color: string
   image: string | null
   texts: DiscTextItem[]
+  frames: DiscFrameItem[]
   /** shader layer opacity, the noise preset runs below 1 */
   shaderOpacity: number
 }
@@ -121,6 +124,7 @@ export async function renderDisc(
 
   // everything async happens first, the webgl buffer can clear after a frame ends
   const img = state.image ? await loadImage(state.image) : null
+  const frameImages = await Promise.all(state.frames.map((f) => loadImage(f.src)))
   await document.fonts.ready
 
   ctx.save()
@@ -165,6 +169,16 @@ export async function renderDisc(
     ctx.arc(50 * k, 50 * k, (r + 0.25) * k, 0, Math.PI * 2)
     ctx.stroke()
   }
+
+  // frames sit between the rings and the text, like on screen
+  state.frames.forEach((f, i) => {
+    const b = frameBox(f)
+    ctx.save()
+    ctx.translate(b.cx * k, b.cy * k)
+    ctx.rotate((f.rotation * Math.PI) / 180)
+    ctx.drawImage(frameImages[i]!, (-b.w / 2) * k, (-b.h / 2) * k, b.w * k, b.h * k)
+    ctx.restore()
+  })
 
   for (const t of state.texts) drawText(ctx, t, geo, k)
   ctx.restore()
