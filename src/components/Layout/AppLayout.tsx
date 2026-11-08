@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { StampCanvas } from "../Canvas/StampCanvas";
 import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
-import { LogoMorph } from "../Brand/LogoMorph";
 import { StampInspector } from "../Desk/StampInspector";
 import { ShaderRail } from "../Desk/ShaderRail";
 import { DiscInspector } from "../Disc/DiscInspector";
@@ -42,18 +41,14 @@ export function AppLayout({ header }: { header?: ReactNode }) {
     <>
       <div className="relative h-full min-h-0 overflow-hidden bg-desk text-ink">
         <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-4 px-5 py-4">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2.5">
-              <LogoMorph />
-              <h1 className="sr-only">
-                stampstudio — online postage stamp maker and designer
-              </h1>
-            </div>
-          </div>
+          <h1 className="sr-only">
+            stampstudio — online postage stamp maker and designer
+          </h1>
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-md:top-[calc(100%+0.25rem)] max-md:translate-y-0">
             <ModeToggle />
           </div>
-          <div className="flex items-center gap-4">
+          {/* ml-auto, the heading beside it is sr-only so it takes no space */}
+          <div className="ml-auto flex items-center gap-4">
             <button
               type="button"
               onClick={() => setUpdatesOpen(true)}

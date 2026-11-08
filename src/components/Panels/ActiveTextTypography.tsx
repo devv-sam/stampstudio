@@ -13,7 +13,11 @@ import {
 } from "react";
 
 import { useStampEditor } from "../../hooks/useStampEditor";
-import { STAMP_FONTS, STAMP_FONT_SIZES } from "../../types/text";
+import {
+  STAMP_FONTS,
+  STAMP_FONT_SIZES,
+  type TextLayer,
+} from "../../types/text";
 
 let fontsWarmed = false;
 
@@ -68,15 +72,15 @@ function weightLabel(weight: number): string {
 const FONT_SIZE_MIN = 6;
 const FONT_SIZE_MAX = 200;
 
-function clampFontSizePx(n: number): number {
-  if (Number.isNaN(n)) return FONT_SIZE_MIN;
-  return Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, Math.round(n)));
+function clampFontSizePx(n: number, min: number, max: number): number {
+  if (Number.isNaN(n)) return min;
+  return Math.min(max, Math.max(min, Math.round(n)));
 }
 
-function parseSizeInput(raw: string): number | null {
+function parseSizeInput(raw: string, min: number, max: number): number | null {
   const digits = raw.replace(/\D/g, "");
   if (digits === "") return null;
-  return clampFontSizePx(parseInt(digits, 10));
+  return clampFontSizePx(parseInt(digits, 10), min, max);
 }
 
 /** CSS `font-family` value — multi-word names must be quoted or the browser treats them as separate families (falls back to Times). */
@@ -85,19 +89,54 @@ function quotedFontFamily(name: string): string {
   return `'${escaped}'`;
 }
 
-/** Sidebar typography controls — only mounts when text is selected (caller may skip during placement mode). */
+/** the text style fields a typography panel edits */
+export type TypographyLayer = Pick<
+  TextLayer,
+  "id" | "fontFamily" | "fontWeight" | "fontSize" | "color"
+>;
+
+/** Sidebar typography controls for the stamp's selected text layer. */
 export function ActiveTextTypography({
   renderColor,
 }: {
   renderColor: (color: string, setColor: (color: string) => void) => ReactNode;
 }) {
-  const {
-    textLayers,
-    selectedTextId,
-    updateTextLayer,
-    removeTextLayer,
-  } = useStampEditor();
+  const { textLayers, selectedTextId, updateTextLayer, removeTextLayer } =
+    useStampEditor();
+  const layer = textLayers.find((t) => t.id === selectedTextId) ?? null;
 
+  return (
+    <TypographyPanel
+      layer={layer}
+      onChange={(patch) => layer && updateTextLayer(layer.id, patch)}
+      onRemove={() => layer && removeTextLayer(layer.id)}
+      renderColor={renderColor}
+    />
+  );
+}
+
+/** Font, weight, size and color for one text layer. Shared by the stamp and the disc. */
+export function TypographyPanel({
+  layer: current,
+  onChange,
+  onRemove,
+  renderColor,
+  sizes = STAMP_FONT_SIZES,
+  minSize = FONT_SIZE_MIN,
+  maxSize = FONT_SIZE_MAX,
+  extra,
+}: {
+  layer: TypographyLayer | null;
+  onChange: (patch: Partial<TypographyLayer>) => void;
+  onRemove: () => void;
+  renderColor: (color: string, setColor: (color: string) => void) => ReactNode;
+  /** presets in the size dropdown */
+  sizes?: readonly number[];
+  minSize?: number;
+  maxSize?: number;
+  /** rendered under the header, the disc puts its text field here */
+  extra?: ReactNode;
+}) {
   const [fontDropdownOpen, setFontDropdownOpen] = useState(false);
   const [weightDropdownOpen, setWeightDropdownOpen] = useState(false);
   const [sizeDropdownOpen, setSizeDropdownOpen] = useState(false);
@@ -127,11 +166,6 @@ export function ActiveTextTypography({
   const sizeTrayRef = useDismissOnOutside<HTMLDivElement>(
     sizeDropdownOpen,
     closeSizeDropdown,
-  );
-
-  const current = useMemo(
-    () => textLayers.find((t) => t.id === selectedTextId) ?? null,
-    [textLayers, selectedTextId],
   );
 
   // keeps showing the last layer while the sidebar crossfades away after a deselect
@@ -177,14 +211,14 @@ export function ActiveTextTypography({
 
   const commitSizeDraft = useCallback(() => {
     if (!selected) return;
-    const parsed = parseSizeInput(sizeDraft);
+    const parsed = parseSizeInput(sizeDraft, minSize, maxSize);
     if (parsed === null) {
       setSizeDraft(String(selected.fontSize));
       return;
     }
-    updateTextLayer(selected.id, { fontSize: parsed });
+    onChange({ fontSize: parsed });
     setSizeDraft(String(parsed));
-  }, [selected, sizeDraft, updateTextLayer]);
+  }, [selected, sizeDraft, onChange, minSize, maxSize]);
 
   const toggleFontDropdown = () => {
     setSizeDropdownOpen(false);
@@ -219,7 +253,7 @@ export function ActiveTextTypography({
         <h2 className="px-1 pt-1 text-sm text-ink-soft">Typography</h2>
         <button
           type="button"
-          onClick={() => removeTextLayer(selected.id)}
+          onClick={onRemove}
           className="flex h-7 w-7 shrink-0 items-center cursor-pointer justify-center rounded-xl text-ink-soft transition-colors hover:bg-red-950/45 hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
           title="Remove text layer"
           aria-label="Remove text layer"
@@ -227,6 +261,8 @@ export function ActiveTextTypography({
           <TrashIcon className="h-4 w-4" />
         </button>
       </div>
+
+      {extra}
 
       <div className="space-y-1.5">
         <div ref={fontTrayRef} className="relative">
@@ -281,7 +317,7 @@ export function ActiveTextTypography({
                         aria-selected={isActive}
                         tabIndex={-1}
                         onClick={() => {
-                          updateTextLayer(selected.id, {
+                          onChange({
                             fontFamily: f.family,
                             fontWeight: f.weights.includes(selected.fontWeight)
                               ? selected.fontWeight
@@ -352,7 +388,7 @@ export function ActiveTextTypography({
                         role="option"
                         aria-selected={isActive}
                         onClick={() => {
-                          updateTextLayer(selected.id, { fontWeight: w });
+                          onChange({ fontWeight: w });
                           closeWeightDropdown();
                         }}
                         className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-[12px] transition-colors ${
@@ -421,14 +457,14 @@ export function ActiveTextTypography({
                 role="listbox"
                 className={`${dropdownBelow} font-mono text-[11px]`}
               >
-                {STAMP_FONT_SIZES.map((px) => (
+                {sizes.map((px) => (
                   <li key={px} role="none">
                     <button
                       type="button"
                       role="option"
                       aria-selected={selected.fontSize === px}
                       onClick={() => {
-                        updateTextLayer(selected.id, { fontSize: px });
+                        onChange({ fontSize: px });
                         setSizeDraft(String(px));
                         closeSizeDropdown();
                       }}
@@ -458,9 +494,7 @@ export function ActiveTextTypography({
       <section className="space-y-1.5">
         <div className="space-y-1.5">
           <h2 className="px-1 pt-1 text-sm text-ink-soft">Color</h2>
-          {renderColor(selected.color, (color) =>
-            updateTextLayer(selected.id, { color }),
-          )}
+          {renderColor(selected.color, (color) => onChange({ color }))}
         </div>
       </section>
     </div>

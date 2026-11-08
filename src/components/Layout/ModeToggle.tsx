@@ -1,14 +1,16 @@
 import { motion } from "framer-motion";
-import { Disc, Stamp, type LucideIcon } from "lucide-react";
+import { Disc3 } from "lucide-react";
+import type { ComponentType } from "react";
 
 import { useDiscEditor } from "../../hooks/useDiscEditor";
 import { useStampEditor } from "../../hooks/useStampEditor";
 import { useDeskMotion } from "../../utils/deskMotion";
+import { LogoMark } from "../Brand/LogoMark";
 
 type Mode = {
   id: "stamp" | "disc";
   label: string;
-  icon: LucideIcon;
+  icon: ComponentType<{ className?: string }>;
   /** the pill takes this brand color while the mode is on */
   color: string;
   /** a little move the icon does when its mode turns on */
@@ -19,7 +21,8 @@ const MODES: Mode[] = [
   {
     id: "stamp",
     label: "Stamp",
-    icon: Stamp,
+    // the brand mark, a perforated stamp outline
+    icon: LogoMark,
     color: "#00cc55", // clover, as hex so the pill can tween between modes
     // a press: down onto the paper and back up
     flourish: { y: [0, 3, 0], scale: [1, 0.86, 1] },
@@ -27,7 +30,8 @@ const MODES: Mode[] = [
   {
     id: "disc",
     label: "Disc",
-    icon: Disc,
+    // disc-3 has grooves, so the spin reads
+    icon: Disc3,
     color: "#3b84ee", // cornflower
     flourish: { rotate: [0, 360] },
   },
@@ -81,7 +85,7 @@ export function ModeToggle() {
               animate={on ? flourish : undefined}
               transition={{ duration: id === "disc" ? 0.6 : 0.3, ease: "easeOut" }}
             >
-              <Icon size={16} strokeWidth={1.75} aria-hidden />
+              <Icon className="h-4 w-4" aria-hidden />
             </motion.span>
             <span className="relative">{label}</span>
           </button>

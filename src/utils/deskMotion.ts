@@ -1,10 +1,5 @@
 import type { TransitionConfig } from 'dialkit'
-import {
-  useTransform,
-  useVelocity,
-  type MotionValue,
-  type ValueAnimationTransition,
-} from 'framer-motion'
+import type { ValueAnimationTransition } from 'framer-motion'
 
 export const DESK_BOUNCE = 0.15
 
@@ -40,15 +35,3 @@ const DESK_MOTION = {
 
 export const useDeskMotion = () => DESK_MOTION
 
-export function useVelocityBlur(
-  a: MotionValue<number>,
-  b: MotionValue<number>,
-  maxPx = 4,
-) {
-  const va = useVelocity(a)
-  const vb = useVelocity(b)
-  return useTransform([va, vb], ([x, y]: number[]) => {
-    const px = Math.min(maxPx, Math.hypot(x!, y!) / 300)
-    return px < 0.2 ? 'none' : `blur(${px.toFixed(2)}px)`
-  })
-}

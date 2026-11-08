@@ -12,9 +12,13 @@ export type DiscTextItem = {
   angle: number;
   fontFamily: string;
   fontWeight: number;
+  /** px on a 400px disc, so sizes read like the stamp's. svg units are this / DISC_TEXT_SCALE */
   fontSize: number;
   color: string;
 };
+
+export const DISC_TEXT_SCALE = 4;
+export const DISC_TEXT_SIZES = [6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40] as const;
 
 export const STRAIGHT: StraightSlot[] = ["top", "bottom", "left", "right"];
 export const SLOT_ORDER: DiscSlot[] = [...STRAIGHT, "rim", "inner"];
@@ -26,16 +30,16 @@ export const SLOT_DEFAULTS: Record<
   DiscSlot,
   { content: string; fontSize: number; angle: number }
 > = {
-  top: { content: "Untitled", fontSize: 5, angle: 0 },
-  bottom: { content: "© 2026", fontSize: 2.8, angle: 0 },
-  left: { content: "SIDE A", fontSize: 2.8, angle: 0 },
-  right: { content: "STEREO", fontSize: 2.8, angle: 0 },
+  top: { content: "Untitled", fontSize: 20, angle: 0 },
+  bottom: { content: "© 2026", fontSize: 11, angle: 0 },
+  left: { content: "SIDE A", fontSize: 11, angle: 0 },
+  right: { content: "STEREO", fontSize: 11, angle: 0 },
   rim: {
     content: "ALL RIGHTS RESERVED · UNAUTHORIZED COPYING PROHIBITED",
-    fontSize: 2.2,
+    fontSize: 9,
     angle: 180,
   },
-  inner: { content: "CAT 001", fontSize: 2.2, angle: 180 },
+  inner: { content: "CAT 001", fontSize: 9, angle: 180 },
 };
 
 export type DiscGeometry = {

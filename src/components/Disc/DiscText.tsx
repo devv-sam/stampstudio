@@ -11,6 +11,7 @@ import {
 
 import {
   arcPath,
+  DISC_TEXT_SCALE,
   isStraight,
   moveItem,
   nearestSlot,
@@ -61,12 +62,15 @@ export function DiscText({
   selectedId,
   onSelect,
   geometry,
+  outline = null,
 }: {
   items: DiscTextItem[];
   onItemsChange: (items: DiscTextItem[]) => void;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   geometry: DiscGeometry;
+  /** outline mode: letters drawn as strokes in this color */
+  outline?: string | null;
 }) {
   const uid = useId();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -197,15 +201,15 @@ export function DiscText({
       {shown.map((t) => {
         const selected = t.id === selectedId && !dragging;
         const common = {
-          fill: t.color,
+          fill: outline ? "transparent" : t.color,
           fontFamily: `'${t.fontFamily}'`,
           fontWeight: t.fontWeight,
-          fontSize: t.fontSize,
+          fontSize: t.fontSize / DISC_TEXT_SCALE,
           textAnchor: "middle" as const,
           dominantBaseline: "central" as const,
           // invisible stroke widens the grab area
-          stroke: "transparent",
-          strokeWidth: 2,
+          stroke: outline ?? "transparent",
+          strokeWidth: outline ? 0.12 : 2,
           ref: selected ? selectedRef : undefined,
           className: `pointer-events-auto select-none ${
             drag?.id === t.id ? "cursor-grabbing" : "cursor-grab"

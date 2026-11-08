@@ -1,16 +1,18 @@
 import { useCallback, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Trash2 } from "lucide-react";
 
 import { useDiscEditor } from "../../hooks/useDiscEditor";
-import { STAMP_FONTS } from "../../types/text";
 import { colorResultToHex } from "../../utils/colorResultToHex";
 import { useDeskMotion } from "../../utils/deskMotion";
+import { DISC_TEXT_SIZES } from "../../utils/discText";
+import { SidebarMorph } from "../Desk/SidebarMorph";
 import { ColorRow, Section } from "../Desk/StampInspector";
 import { StampColorPicker } from "../Desk/StampColorPicker";
-import { useDismissOnOutside } from "../Panels/ActiveTextTypography";
+import {
+  TypographyPanel,
+  useDismissOnOutside,
+} from "../Panels/ActiveTextTypography";
 import { PerforationSlider } from "../UI/PerforationSlider";
-import { Select } from "../UI/Select";
 
 const FIELD =
   "h-10 w-full rounded-xl bg-zinc-900 px-3 text-sm outline-none transition-colors focus:bg-zinc-800";
@@ -18,16 +20,9 @@ const FIELD =
 const IMAGE_SWATCH =
   "conic-gradient(#ff271f, #ffe122, #00cc55, #3b84ee, #ff31c6, #ff271f)";
 
-const nearestWeight = (weights: number[], target: number) =>
-  weights.reduce((a, b) =>
-    Math.abs(b - target) < Math.abs(a - target) ? b : a,
-  );
-
-/** right-hand panel in disc mode */
+/** right-hand panel in disc mode: disc controls, or only the text's when one is selected */
 export function DiscInspector() {
   const {
-    size,
-    setSize,
     hole,
     setHole,
     rings,
@@ -43,13 +38,25 @@ export function DiscInspector() {
     removeSelected,
   } = useDiscEditor();
   const { blurPop } = useDeskMotion();
-  const selected = texts.find((t) => t.id === selectedId) ?? null;
+  const current = texts.find((t) => t.id === selectedId) ?? null;
+
+  // keeps the text field filled while the card crossfades away after a deselect
+  const [lastText, setLastText] = useState(current);
+  if (current && current !== lastText) setLastText(current);
+  const shownText = current ?? lastText;
 
   const [pickerOpen, setPickerOpen] = useState(false);
   // which color the shared picker edits
   const [pickerFor, setPickerFor] = useState<"disc" | "text">("disc");
   const closePicker = useCallback(() => setPickerOpen(false), []);
   const rootRef = useDismissOnOutside<HTMLDivElement>(pickerOpen, closePicker);
+
+  // the card swaps views, so a picker left open would point at the wrong color
+  const [pickerView, setPickerView] = useState(!!current);
+  if (pickerView !== !!current) {
+    setPickerView(!!current);
+    setPickerOpen(false);
+  }
 
   const togglePicker = (target: "disc" | "text") => {
     setPickerOpen((o) => !(o && pickerFor === target));
@@ -58,79 +65,40 @@ export function DiscInspector() {
 
   return (
     <div ref={rootRef} className="pointer-events-auto relative">
-      <div className="desk-card w-[212px] space-y-3 p-1.5 max-md:w-auto">
-        {selected ? (
-          <Section title="Text">
-            <div className="space-y-1.5">
-              <div className="flex gap-1.5">
+      <SidebarMorph
+        showAlt={!!current}
+        mainClassName="space-y-3 max-md:space-y-1.5"
+        alt={
+          <TypographyPanel
+            layer={current}
+            onChange={updateSelected}
+            onRemove={removeSelected}
+            sizes={DISC_TEXT_SIZES}
+            minSize={4}
+            maxSize={48}
+            extra={
+              shownText ? (
                 <input
                   aria-label="Text"
-                  value={selected.content}
+                  value={shownText.content}
                   onChange={(e) => updateSelected({ content: e.target.value })}
                   className={FIELD}
                 />
-                <button
-                  type="button"
-                  onClick={removeSelected}
-                  title="Remove text"
-                  aria-label="Remove text"
-                  className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-zinc-900 hover:text-poppy"
-                >
-                  <Trash2 size={16} aria-hidden />
-                </button>
-              </div>
-              <Select
-                aria-label="Font"
-                value={selected.fontFamily}
-                onChange={(e) => {
-                  const font = STAMP_FONTS.find(
-                    (f) => f.family === e.target.value,
-                  );
-                  if (!font) return;
-                  updateSelected({
-                    fontFamily: font.family,
-                    fontWeight: nearestWeight(font.weights, selected.fontWeight),
-                  });
-                }}
-                className="!h-10 w-full !rounded-xl !border-0 !bg-zinc-900 !font-normal"
-              >
-                {STAMP_FONTS.map((f) => (
-                  <option key={f.family} value={f.family}>
-                    {f.label}
-                  </option>
-                ))}
-              </Select>
-              <PerforationSlider
-                key={selected.id}
-                label="Size"
-                defaultValue={selected.fontSize}
-                minValue={1.5}
-                maxValue={10}
-                step={0.1}
-                onInput={(fontSize) => updateSelected({ fontSize })}
-                format={(v) => v.toFixed(1)}
-              />
+              ) : null
+            }
+            renderColor={(textColor, setTextColor) => (
               <ColorRow
-                color={selected.color}
+                color={textColor}
                 open={pickerOpen && pickerFor === "text"}
                 onToggle={() => togglePicker("text")}
-                onChange={(c) => updateSelected({ color: c })}
+                onChange={setTextColor}
               />
-            </div>
-          </Section>
-        ) : null}
-
+            )}
+          />
+        }
+      >
         <Section title="Disc">
           <div className="space-y-1.5">
-            <PerforationSlider
-              label="Size"
-              defaultValue={size}
-              minValue={200}
-              maxValue={560}
-              step={4}
-              onInput={setSize}
-              format={(v) => `${v}px`}
-            />
             <PerforationSlider
               label="Cutout"
               defaultValue={hole}
@@ -172,10 +140,10 @@ export function DiscInspector() {
             onChange={pickColor}
           />
         </Section>
-      </div>
+      </SidebarMorph>
 
       <AnimatePresence>
-        {pickerOpen && (pickerFor === "disc" || selected) ? (
+        {pickerOpen && (pickerFor === "disc" || current) ? (
           <motion.div
             key={pickerFor}
             role="dialog"
@@ -184,7 +152,7 @@ export function DiscInspector() {
             className="desk-card absolute top-0 z-30 w-60 p-1.5 max-md:bottom-full max-md:right-0 max-md:top-auto max-md:mb-2 md:right-full md:mr-2"
           >
             <StampColorPicker
-              color={pickerFor === "text" && selected ? selected.color : color}
+              color={pickerFor === "text" && current ? current.color : color}
               onChange={(result) => {
                 const hex = colorResultToHex(result);
                 if (pickerFor === "text") updateSelected({ color: hex });

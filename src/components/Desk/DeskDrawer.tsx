@@ -6,10 +6,45 @@ import type { ImageAsset } from "../../types/assets";
 
 export function DeskDrawer({
   onRecrop,
+  onPick,
+  pickedSrc,
 }: {
   onRecrop: (asset: ImageAsset) => void;
+  /** pick mode, used by the disc: a tap hands the image over instead of opening the role menu */
+  onPick?: (src: string) => void;
+  pickedSrc?: string | null;
 }) {
   const { imageAssets, setAssetRole, removeAsset } = useStampEditor();
+
+  if (onPick && imageAssets.length > 0) {
+    return (
+      <div className="space-y-2">
+        <p className="text-base">Library ({imageAssets.length})</p>
+        <div className="grid grid-cols-4 gap-2">
+          {imageAssets.map((asset) => (
+            <button
+              key={asset.id}
+              type="button"
+              onClick={() => onPick(asset.src)}
+              aria-pressed={asset.src === pickedSrc}
+              className={`relative aspect-square w-full cursor-pointer overflow-hidden rounded-lg border-2 bg-zinc-900 transition-colors ${
+                asset.src === pickedSrc
+                  ? "border-cornflower"
+                  : "border-transparent hover:border-zinc-600"
+              }`}
+              title="Use on the disc"
+            >
+              <img
+                src={asset.src}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

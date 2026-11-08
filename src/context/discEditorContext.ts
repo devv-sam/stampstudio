@@ -1,4 +1,4 @@
-import { createContext } from 'react'
+import { createContext, type RefObject } from 'react'
 
 import type { DiscTextItem } from '../utils/discText'
 
@@ -27,6 +27,8 @@ export interface DiscEditorContextValue {
   cropSrc: string | null
   startCrop: (file: File) => void
   closeCrop: () => void
+  /** puts the cropped image on the disc and in the shared library */
+  applyCroppedImage: (src: string, width: number, height: number) => void
 
   texts: DiscTextItem[]
   setTexts: (texts: DiscTextItem[]) => void
@@ -35,6 +37,14 @@ export interface DiscEditorContextValue {
   addText: () => void
   updateSelected: (patch: Partial<DiscTextItem>) => void
   removeSelected: () => void
+
+  /** the on-screen disc, export re-renders its shader from here */
+  previewRef: RefObject<HTMLDivElement | null>
+  /** size is the exported square in px */
+  exportPng: (size: number) => Promise<void>
+  copyPng: (size: number) => Promise<void>
+  exportSvg: () => Promise<void>
+  copySvg: () => Promise<void>
 }
 
 export const DiscEditorContext = createContext<DiscEditorContextValue | null>(

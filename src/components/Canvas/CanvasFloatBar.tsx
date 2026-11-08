@@ -11,12 +11,12 @@ import {
 import { useDialKit } from "dialkit";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ArrowDownToLine,
   Check,
   Eye,
   Frame,
   Image as ImageIcon,
   Library,
-  Stamp,
   Type,
   X,
 } from "lucide-react";
@@ -26,17 +26,17 @@ import { useDiscUpload } from "../../hooks/useDiscUpload";
 import { useImageUploadFlow } from "../../hooks/useImageUploadFlow";
 import { useStampEditor } from "../../hooks/useStampEditor";
 import { useDeskMotion } from "../../utils/deskMotion";
-import { playThunk } from "../../utils/playThunk";
 import { Button } from "../UI/Button";
 import { DeskDrawer } from "../Desk/DeskDrawer";
-import {
-  PRESS_DROP_SECONDS,
-  StampPress,
-  type PressPhase,
-} from "../Desk/StampPress";
 
 type ExportFormatChip = "png" | "svg";
 type ResolutionChip = "1080p" | "4k" | "6k";
+
+const RESOLUTION_PX: Record<ResolutionChip, number> = {
+  "1080p": 1080,
+  "4k": 3840,
+  "6k": 6144,
+};
 
 function resolutionToMultiplier(
   preset: ResolutionChip,
@@ -44,7 +44,7 @@ function resolutionToMultiplier(
   stampH: number,
 ): number {
   const longEdge = Math.max(1, stampW, stampH);
-  const target = preset === "1080p" ? 1080 : preset === "4k" ? 3840 : 6144;
+  const target = RESOLUTION_PX[preset];
   const m = target / longEdge;
   return Math.min(32, Math.max(1, Math.round(m * 1000) / 1000));
 }
@@ -124,7 +124,6 @@ export function CanvasFloatBar() {
     visible: false,
     snap: true,
   });
-  const [pressPhase, setPressPhase] = useState<PressPhase>("idle");
   const [exportFormat, setExportFormat] = useState<ExportFormatChip>("png");
   const [resolution, setResolution] = useState<ResolutionChip>("4k");
   const [exportBusy, setExportBusy] = useState(false);
@@ -159,36 +158,29 @@ export function CanvasFloatBar() {
   const runExportAction = async (mode: "download" | "copy") => {
     setExportBusy(true);
     showBanner(null);
-    let pressed = false;
     try {
-      // copy skips the press, a delayed clipboard write can lose user activation
-      if (mode === "download") {
-        pressed = true;
-        setExportPopoverOpen(false);
-        setPressPhase("down");
-        playThunk(PRESS_DROP_SECONDS);
-        await new Promise((r) =>
-          window.setTimeout(r, PRESS_DROP_SECONDS * 1000 + 40),
-        );
-      }
+      if (mode === "download") setExportPopoverOpen(false);
+      // the disc exports a square at the chosen resolution, the stamp scales by multiplier
+      const discSize = RESOLUTION_PX[resolution];
       if (exportFormat === "png") {
-        if (mode === "download") await exportPng(multiplier);
+        if (disc.discMode) {
+          if (mode === "download") await disc.exportPng(discSize);
+          else await disc.copyPng(discSize);
+        } else if (mode === "download") await exportPng(multiplier);
         else await copyPng(multiplier);
+      } else if (disc.discMode) {
+        if (mode === "download") await disc.exportSvg();
+        else await disc.copySvg();
       } else {
         if (mode === "download") await exportSvg();
         else await copySvg();
       }
       if (mode === "copy") flashCopy("copied");
-      if (pressed) {
-        setPressPhase("mark");
-        window.setTimeout(() => setPressPhase("idle"), 900);
-      }
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Export failed — try again";
       if (mode === "copy") flashCopy("failed");
       else showBanner(msg);
-      setPressPhase("idle");
     } finally {
       setExportBusy(false);
     }
@@ -280,6 +272,45 @@ export function CanvasFloatBar() {
     { id: "6k", label: "6K" },
   ];
 
+  // outline, library and export work in both modes
+  const sharedGroups: NavTool[][] = [
+    [
+      {
+        label: "Outline",
+        icon: outlineMode ? Eye : EyeDashed,
+        tint: "hover:text-clover focus-visible:text-clover",
+        on: "text-clover",
+        active: outlineMode,
+        onClick: toggleOutlineMode,
+      },
+      {
+        label: "Library",
+        icon: Library,
+        tint: "hover:text-peony focus-visible:text-peony",
+        on: "text-peony",
+        active: drawerOpen,
+        onClick: () => {
+          setExportPopoverOpen(false);
+          setDrawerOpen((o) => !o);
+        },
+      },
+    ],
+    [
+      {
+        label: "Export",
+        icon: ArrowDownToLine,
+        tint: "",
+        // matches the mode toggle: clover for stamp, cornflower for disc
+        on: disc.discMode ? "text-cornflower" : "text-clover",
+        active: true,
+        onClick: () => {
+          setDrawerOpen(false);
+          setExportPopoverOpen((o) => !o);
+        },
+      },
+    ],
+  ];
+
   const discGroups: NavTool[][] = [
     [
       {
@@ -305,6 +336,7 @@ export function CanvasFloatBar() {
           ]
         : []),
     ],
+    ...sharedGroups,
   ];
 
   const stampGroups: NavTool[][] = [
@@ -330,45 +362,12 @@ export function CanvasFloatBar() {
         onClick: () => frameUpload.open(),
       },
     ],
-    [
-      {
-        label: "Outline",
-        icon: outlineMode ? Eye : EyeDashed,
-        tint: "hover:text-clover focus-visible:text-clover",
-        on: "text-clover",
-        active: outlineMode,
-        onClick: toggleOutlineMode,
-      },
-      {
-        label: "Library",
-        icon: Library,
-        tint: "hover:text-peony focus-visible:text-peony",
-        on: "text-peony",
-        active: drawerOpen,
-        onClick: () => {
-          setExportPopoverOpen(false);
-          setDrawerOpen((o) => !o);
-        },
-      },
-    ],
-    [
-      {
-        label: "Export",
-        icon: Stamp,
-        tint: "",
-        on: "text-clover",
-        active: true,
-        onClick: () => {
-          setDrawerOpen(false);
-          setExportPopoverOpen((o) => !o);
-        },
-      },
-    ],
+    ...sharedGroups,
   ];
 
   const groups = disc.discMode ? discGroups : stampGroups;
 
-  // popovers belong to stamp mode, so the top toggle closes them on the way out
+  // popovers show the other mode's content, so the top toggle closes them on the way across
   const [wasDiscMode, setWasDiscMode] = useState(disc.discMode);
   if (wasDiscMode !== disc.discMode) {
     setWasDiscMode(disc.discMode);
@@ -402,7 +401,7 @@ export function CanvasFloatBar() {
           {exportPopoverOpen ? (
             <motion.div
               role="dialog"
-              aria-label="Export stamp"
+              aria-label={disc.discMode ? "Export disc" : "Export stamp"}
               {...blurPop}
               className="desk-card w-[min(22rem,calc(100vw-2rem))] overflow-hidden"
             >
@@ -508,7 +507,12 @@ export function CanvasFloatBar() {
               {...blurPop}
               className="desk-card w-[min(20rem,calc(100vw-2rem))] p-4"
             >
-              <DeskDrawer onRecrop={(asset) => bgUpload.openRecrop(asset)} />
+              <DeskDrawer
+                onRecrop={(asset) => bgUpload.openRecrop(asset)}
+                {...(disc.discMode
+                  ? { onPick: disc.setImage, pickedSrc: disc.image }
+                  : {})}
+              />
             </motion.div>
           ) : null}
         </AnimatePresence>
@@ -626,7 +630,6 @@ export function CanvasFloatBar() {
       {bgUpload.fileInputElement}
       {bgUpload.overlayElement}
 
-      <StampPress phase={pressPhase} />
     </>
   );
 }

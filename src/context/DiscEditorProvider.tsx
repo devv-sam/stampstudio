@@ -1,9 +1,15 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 
+import { useStampEditor } from '../hooks/useStampEditor'
+import { discSvg, NOISE_OPACITY, renderDisc } from '../utils/discExport'
 import { SLOT_DEFAULTS, SLOT_ORDER, type DiscTextItem } from '../utils/discText'
+import { downloadDataUrl, downloadTextFile } from '../utils/exportHelpers'
 import { DiscEditorContext, type DiscEditorContextValue } from './discEditorContext'
 
-/** Owns the CD designer. Kept apart from the stamp editor so neither knows about the other. */
+// svg wraps a raster body, this keeps it sharp without a huge file
+const SVG_BODY_SIZE = 2048
+
+/** Owns the CD designer. Shares the shader and the image library with the stamp editor. */
 export function DiscEditorProvider({ children }: { children: ReactNode }) {
   const [discMode, setDiscMode] = useState(false)
   const [size, setSize] = useState(420)
@@ -15,6 +21,13 @@ export function DiscEditorProvider({ children }: { children: ReactNode }) {
   const [cropSrc, setCropSrc] = useState<string | null>(null)
   const [texts, setTexts] = useState<DiscTextItem[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const previewRef = useRef<HTMLDivElement | null>(null)
+  const { activeShader, shaderParams, addImageAsset } = useStampEditor()
+  const shaderOpacity =
+    activeShader === 'image-dithering' &&
+    shaderParams['image-dithering'].preset === 'noise'
+      ? NOISE_OPACITY
+      : 1
 
   const pickColor = useCallback((hex: string) => {
     setImage(null)
@@ -32,6 +45,58 @@ export function DiscEditorProvider({ children }: { children: ReactNode }) {
       return null
     })
   }, [])
+
+  const applyCroppedImage = useCallback(
+    (src: string, width: number, height: number) => {
+      setImage(src)
+      // library only, so it never replaces the stamp's background
+      void addImageAsset({ src, width, height, role: 'unused' })
+    },
+    [addImageAsset],
+  )
+
+  const renderPng = useCallback(
+    async (size: number) => {
+      const preview = previewRef.current
+      if (!preview) throw new Error('Open the disc to export it')
+      const canvas = await renderDisc(
+        preview,
+        { hole, rings, spread, color, image, texts, shaderOpacity },
+        size,
+      )
+      return canvas.toDataURL('image/png')
+    },
+    [hole, rings, spread, color, image, texts, shaderOpacity],
+  )
+
+  const exportPng = useCallback(
+    async (size: number) => downloadDataUrl(await renderPng(size), 'disc.png'),
+    [renderPng],
+  )
+
+  const copyPng = useCallback(
+    async (size: number) => {
+      const blob = await (await fetch(await renderPng(size))).blob()
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+    },
+    [renderPng],
+  )
+
+  const produceSvg = useCallback(
+    async () => discSvg(await renderPng(SVG_BODY_SIZE), SVG_BODY_SIZE, hole),
+    [renderPng, hole],
+  )
+
+  const exportSvg = useCallback(
+    async () =>
+      downloadTextFile(await produceSvg(), 'disc.svg', 'image/svg+xml;charset=utf-8'),
+    [produceSvg],
+  )
+
+  const copySvg = useCallback(
+    async () => navigator.clipboard.writeText(await produceSvg()),
+    [produceSvg],
+  )
 
   // straight slots fill first, then extras stack on the rim
   const addText = useCallback(() => {
@@ -89,6 +154,7 @@ export function DiscEditorProvider({ children }: { children: ReactNode }) {
       cropSrc,
       startCrop,
       closeCrop,
+      applyCroppedImage,
       texts,
       setTexts,
       selectedId,
@@ -96,6 +162,11 @@ export function DiscEditorProvider({ children }: { children: ReactNode }) {
       addText,
       updateSelected,
       removeSelected,
+      previewRef,
+      exportPng,
+      copyPng,
+      exportSvg,
+      copySvg,
     }),
     [
       discMode,
@@ -109,11 +180,16 @@ export function DiscEditorProvider({ children }: { children: ReactNode }) {
       cropSrc,
       startCrop,
       closeCrop,
+      applyCroppedImage,
       texts,
       selectedId,
       addText,
       updateSelected,
       removeSelected,
+      exportPng,
+      copyPng,
+      exportSvg,
+      copySvg,
     ],
   )
 

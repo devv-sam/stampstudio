@@ -6,7 +6,7 @@ import type {
   ShaderName,
   ShaderParamsMap,
 } from '../types/canvas'
-import type { ImageAsset } from '../types/assets'
+import type { ImageAsset, ImageAssetRole } from '../types/assets'
 import type { TextLayer } from '../types/text'
 
 export type StampDimensions = { width: number; height: number }
@@ -43,7 +43,7 @@ export type StampEditorContextValue = {
     src: string
     width: number
     height: number
-    role: 'background' | 'frame'
+    role: ImageAssetRole
     fileName?: string
     originalSrc?: string
   }) => Promise<void>
