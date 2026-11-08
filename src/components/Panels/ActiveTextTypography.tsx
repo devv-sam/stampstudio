@@ -254,7 +254,7 @@ export function TypographyPanel({
         <button
           type="button"
           onClick={onRemove}
-          className="flex h-7 w-7 shrink-0 items-center cursor-pointer justify-center rounded-xl text-ink-soft transition-colors hover:bg-red-950/45 hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+          className="flex h-7 w-7 shrink-0 items-center cursor-pointer justify-center rounded-xl text-ink-soft transition-colors hover:bg-zinc-900 hover:text-poppy"
           title="Remove text layer"
           aria-label="Remove text layer"
         >

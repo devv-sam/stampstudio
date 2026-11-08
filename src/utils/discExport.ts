@@ -1,7 +1,10 @@
 import {
   DISC_TEXT_SCALE,
   discGeometry,
+  fitted,
   isStraight,
+  straightLines,
+  trackLines,
   type DiscTextItem,
 } from './discText'
 
@@ -51,10 +54,11 @@ function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, size: n
 /** draws one text item the way DiscText lays it out, k = px per svg unit */
 function drawText(
   ctx: CanvasRenderingContext2D,
-  t: DiscTextItem,
+  item: DiscTextItem,
   geo: ReturnType<typeof discGeometry>,
   k: number,
 ) {
+  const t = fitted(item, geo)
   ctx.save()
   ctx.fillStyle = t.color
   const px = (t.fontSize / DISC_TEXT_SCALE) * k
@@ -63,34 +67,40 @@ function drawText(
   ctx.textBaseline = 'middle'
 
   if (isStraight(t.slot)) {
-    const a = geo.anchors[t.slot]
-    ctx.fillText(t.content, a.x * k, a.y * k)
+    for (const line of straightLines(t, geo.anchors[t.slot])) {
+      ctx.textAlign =
+        line.textAnchor === 'start' ? 'left' : line.textAnchor === 'end' ? 'right' : 'center'
+      ctx.fillText(line.text, line.x * k, line.y * k)
+    }
     ctx.restore()
     return
   }
 
-  // tracks: letter by letter along the arc, 0.06em apart like the on-screen textPath
+  // tracks: letter by letter along each line's arc, 0.06em apart like the on-screen textPath
   const c = 50 * k
-  const r = geo.tracks[t.slot] * k
   const gap = 0.06 * px
-  const chars = [...t.content]
-  const widths = chars.map((ch) => ctx.measureText(ch).width)
-  const total = widths.reduce((sum, w) => sum + w + gap, 0) - gap
   const center = (t.angle * Math.PI) / 180
   // the bottom half runs counter-clockwise so it reads upright
   const flip = Math.cos(center) < 0
   const dir = flip ? -1 : 1
-  let at = center - (dir * total) / 2 / r
 
-  chars.forEach((ch, i) => {
-    const mid = at + (dir * widths[i]! / 2) / r
-    ctx.save()
-    ctx.translate(c + r * Math.sin(mid), c - r * Math.cos(mid))
-    ctx.rotate(flip ? mid + Math.PI : mid)
-    ctx.fillText(ch, 0, 0)
-    ctx.restore()
-    at += (dir * (widths[i]! + gap)) / r
-  })
+  for (const line of trackLines(t, geo.tracks[t.slot])) {
+    const r = line.r * k
+    const chars = [...line.text]
+    const widths = chars.map((ch) => ctx.measureText(ch).width)
+    const total = widths.reduce((sum, w) => sum + w + gap, 0) - gap
+    let at = center - (dir * total) / 2 / r
+
+    chars.forEach((ch, i) => {
+      const mid = at + (dir * widths[i]! / 2) / r
+      ctx.save()
+      ctx.translate(c + r * Math.sin(mid), c - r * Math.cos(mid))
+      ctx.rotate(flip ? mid + Math.PI : mid)
+      ctx.fillText(ch, 0, 0)
+      ctx.restore()
+      at += (dir * (widths[i]! + gap)) / r
+    })
+  }
   ctx.restore()
 }
 

@@ -12,10 +12,13 @@ import {
 import {
   arcPath,
   DISC_TEXT_SCALE,
+  fitted,
   isStraight,
   moveItem,
   nearestSlot,
   STRAIGHT,
+  straightLines,
+  trackLines,
   type DiscGeometry,
   type DiscSlot,
   type DiscTextItem,
@@ -198,7 +201,9 @@ export function DiscText({
         />
       ) : null}
 
-      {shown.map((t) => {
+      {shown.map((item) => {
+        // drawn at the size that fits its spot, the user's size stays on the item
+        const t = fitted(item, geometry);
         const selected = t.id === selectedId && !dragging;
         const common = {
           fill: outline ? "transparent" : t.color,
@@ -230,26 +235,35 @@ export function DiscText({
         };
 
         if (isStraight(t.slot)) {
-          const a = geometry.anchors[t.slot];
           return (
-            <text key={t.id} x={a.x} y={a.y} {...common}>
-              {t.content}
+            <text key={t.id} {...common}>
+              {straightLines(t, geometry.anchors[t.slot]).map((line, i) => (
+                <tspan key={i} x={line.x} y={line.y} textAnchor={line.textAnchor}>
+                  {line.text}
+                </tspan>
+              ))}
             </text>
           );
         }
 
-        const pathId = `${uid}-${t.id}`;
+        // every line rides its own arc, all inside one text so it drags and selects as one
+        const lines = trackLines(t, geometry.tracks[t.slot]);
         return (
           <g key={t.id}>
-            <path
-              id={pathId}
-              d={arcPath(geometry.tracks[t.slot], t.angle)}
-              fill="none"
-            />
+            {lines.map((line, i) => (
+              <path
+                key={i}
+                id={`${uid}-${t.id}-${i}`}
+                d={arcPath(line.r, t.angle)}
+                fill="none"
+              />
+            ))}
             <text {...common} letterSpacing="0.06em">
-              <textPath href={`#${pathId}`} startOffset="50%">
-                {t.content}
-              </textPath>
+              {lines.map((line, i) => (
+                <textPath key={i} href={`#${uid}-${t.id}-${i}`} startOffset="50%">
+                  {line.text}
+                </textPath>
+              ))}
             </text>
           </g>
         );

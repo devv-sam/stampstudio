@@ -1,10 +1,17 @@
 import { useCallback, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 
 import { useDiscEditor } from "../../hooks/useDiscEditor";
 import { colorResultToHex } from "../../utils/colorResultToHex";
 import { useDeskMotion } from "../../utils/deskMotion";
-import { DISC_TEXT_SIZES } from "../../utils/discText";
+import {
+  DISC_TEXT_SIZES,
+  discGeometry,
+  fittedSize,
+  isStraight,
+  type TextAlign,
+} from "../../utils/discText";
 import { SidebarMorph } from "../Desk/SidebarMorph";
 import { ColorRow, Section } from "../Desk/StampInspector";
 import { StampColorPicker } from "../Desk/StampColorPicker";
@@ -15,7 +22,16 @@ import {
 import { PerforationSlider } from "../UI/PerforationSlider";
 
 const FIELD =
-  "h-10 w-full rounded-xl bg-zinc-900 px-3 text-sm outline-none transition-colors focus:bg-zinc-800";
+  "block w-full resize-none rounded-xl bg-zinc-900 px-3 py-2.5 text-sm leading-5 outline-none transition-colors focus:bg-zinc-800";
+
+// grows with the text, up to a short list before it scrolls
+const MAX_ROWS = 8;
+
+const ALIGNS: { id: TextAlign; label: string; icon: typeof AlignLeft }[] = [
+  { id: "left", label: "Align left", icon: AlignLeft },
+  { id: "center", label: "Align center", icon: AlignCenter },
+  { id: "right", label: "Align right", icon: AlignRight },
+];
 
 const IMAGE_SWATCH =
   "conic-gradient(#ff271f, #ffe122, #00cc55, #3b84ee, #ff31c6, #ff271f)";
@@ -37,13 +53,16 @@ export function DiscInspector() {
     updateSelected,
     removeSelected,
   } = useDiscEditor();
-  const { blurPop } = useDeskMotion();
+  const { blurPop, springy } = useDeskMotion();
   const current = texts.find((t) => t.id === selectedId) ?? null;
 
   // keeps the text field filled while the card crossfades away after a deselect
   const [lastText, setLastText] = useState(current);
   if (current && current !== lastText) setLastText(current);
   const shownText = current ?? lastText;
+  const fitSize = shownText
+    ? fittedSize(shownText, discGeometry(hole, rings, spread))
+    : null;
 
   const [pickerOpen, setPickerOpen] = useState(false);
   // which color the shared picker edits
@@ -78,12 +97,61 @@ export function DiscInspector() {
             maxSize={48}
             extra={
               shownText ? (
-                <input
-                  aria-label="Text"
-                  value={shownText.content}
-                  onChange={(e) => updateSelected({ content: e.target.value })}
-                  className={FIELD}
-                />
+                <div className="space-y-1.5">
+                  <textarea
+                    aria-label="Text"
+                    value={shownText.content}
+                    rows={Math.min(
+                      MAX_ROWS,
+                      shownText.content.split("\n").length,
+                    )}
+                    onChange={(e) => updateSelected({ content: e.target.value })}
+                    placeholder="One line per row"
+                    className={FIELD}
+                  />
+                  {/* arcs center each line on the angle, so alignment only means something on straight spots */}
+                  {isStraight(shownText.slot) ? (
+                    <div
+                      role="radiogroup"
+                      aria-label="Text alignment"
+                      className="flex gap-0.5 rounded-xl bg-zinc-900 p-0.5"
+                    >
+                      {ALIGNS.map(({ id, label, icon: Icon }) => {
+                        const on = (shownText.align ?? "center") === id;
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            role="radio"
+                            aria-checked={on}
+                            aria-label={label}
+                            title={label}
+                            onClick={() => updateSelected({ align: id })}
+                            className={`relative flex h-9 flex-1 cursor-pointer items-center justify-center rounded-lg transition-colors ${
+                              on ? "text-ink" : "text-ink-soft hover:text-ink"
+                            }`}
+                          >
+                            {on ? (
+                              <motion.span
+                                layoutId="disc-text-align"
+                                // only slide when the alignment changes, not when typing pushes the row down
+                                layoutDependency={shownText.align ?? "center"}
+                                transition={springy}
+                                className="absolute inset-0 rounded-lg bg-card shadow-sm"
+                              />
+                            ) : null}
+                            <Icon size={16} strokeWidth={1.75} className="relative" aria-hidden />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  {shownText && fitSize !== null && fitSize < shownText.fontSize ? (
+                    <p role="status" className="px-1 text-sm text-ink-soft">
+                      Shrunk to {fitSize} to fit
+                    </p>
+                  ) : null}
+                </div>
               ) : null
             }
             renderColor={(textColor, setTextColor) => (

@@ -46,20 +46,30 @@ export function SidebarMorph({
 
   const mainRef = useRef<HTMLDivElement>(null);
   const altRef = useRef<HTMLDivElement>(null);
-  const [measure, setMeasure] = useState({ height: 0, first: true });
+  // spring only marks a view swap. growth inside a view (a new line of text) snaps
+  const [measure, setMeasure] = useState({
+    height: 0,
+    first: true,
+    spring: false,
+  });
   const [morphing, setMorphing] = useState(false);
 
   // both views overlap while crossfading, so the card follows only the incoming one
   useLayoutEffect(() => {
     const el = (showAlt ? altRef : mainRef).current;
     if (!el) return;
-    const read = () =>
-      setMeasure((m) => ({
-        height: el.offsetHeight,
-        first: m.first && m.height === 0,
-      }));
-    read();
-    const observer = new ResizeObserver(read);
+    setMeasure((m) => ({
+      height: el.offsetHeight,
+      first: m.first && m.height === 0,
+      spring: true,
+    }));
+    const observer = new ResizeObserver(() =>
+      setMeasure((m) =>
+        m.height === el.offsetHeight
+          ? m
+          : { height: el.offsetHeight, first: false, spring: false },
+      ),
+    );
     observer.observe(el);
     return () => observer.disconnect();
   }, [showAlt]);
@@ -71,7 +81,11 @@ export function SidebarMorph({
       }`}
       initial={false}
       animate={{ height: measure.height }}
-      transition={measure.first ? { duration: 0 } : toTransition(morph.height)}
+      transition={
+        measure.first || !measure.spring
+          ? { duration: 0 }
+          : toTransition(morph.height)
+      }
       onAnimationStart={() => setMorphing(true)}
       onAnimationComplete={() => setMorphing(false)}
     >
