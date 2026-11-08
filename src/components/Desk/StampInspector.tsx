@@ -81,6 +81,60 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+function ColorRow({
+  color,
+  swatch = color,
+  open,
+  onToggle,
+  onChange,
+}: {
+  color: string;
+  swatch?: string;
+  open: boolean;
+  onToggle: () => void;
+  onChange: (color: string) => void;
+}) {
+  const { press } = useDeskMotion();
+  const { hex, opacity } = splitHexAlpha(color);
+
+  const commitHex = (raw: string) => {
+    const next = raw.replace("#", "");
+    if (/^[0-9a-f]{6}$/i.test(next)) onChange(joinHexAlpha(next, opacity));
+  };
+
+  const commitOpacity = (raw: string) => {
+    const n = parseInt(raw, 10);
+    if (Number.isNaN(n)) return;
+    onChange(joinHexAlpha(hex, Math.min(100, Math.max(0, n))));
+  };
+
+  return (
+    <div className="flex gap-1.5">
+      <motion.button
+        type="button"
+        {...press}
+        aria-label="Open color picker"
+        aria-expanded={open}
+        onClick={onToggle}
+        className="h-10 w-10 shrink-0 cursor-pointer rounded-xl shadow-[inset_0_0_0_1px_rgb(0_0_0/0.08)]"
+        style={{ background: swatch }}
+      />
+      <div className={`${field} flex-1`}>
+        <CommitInput label="Hex color" value={hex} onCommit={commitHex} />
+        <span aria-hidden className="h-5 w-px shrink-0 bg-zinc-700" />
+        <label className="flex w-12 shrink-0 items-center gap-1">
+          <CommitInput
+            label="Opacity"
+            value={String(opacity)}
+            onCommit={commitOpacity}
+          />
+          <span className="text-ink-soft">%</span>
+        </label>
+      </div>
+    </div>
+  );
+}
+
 function BlendSelect() {
   const { activeShader, blendMode, setBlendMode } = useStampEditor();
   const [open, setOpen] = useState(false);
@@ -151,8 +205,10 @@ export function StampInspector() {
     backgroundAsset,
     selectedTextId,
     textPlacementActive,
+    textLayers,
+    updateTextLayer,
   } = useStampEditor();
-  const { blurPop, press } = useDeskMotion();
+  const { blurPop } = useDeskMotion();
   const textActive = !!selectedTextId && !textPlacementActive;
 
   const morph = useDialKit(
@@ -219,7 +275,21 @@ export function StampInspector() {
     };
   }, [pickerOpen]);
 
-  const { hex, opacity } = splitHexAlpha(stampColor);
+  // the picker edits whichever view is showing
+  const textLayer = textActive
+    ? textLayers.find((t) => t.id === selectedTextId)
+    : undefined;
+  const pickerColor = textLayer?.color ?? stampColor;
+  const setPickerColor = (color: string) =>
+    textLayer
+      ? updateTextLayer(textLayer.id, { color })
+      : void pickSolidStampColor(color);
+
+  const [pickerFor, setPickerFor] = useState(textActive);
+  if (pickerFor !== textActive) {
+    setPickerFor(textActive);
+    setPickerOpen(false);
+  }
 
   const commitSize = (raw: string, axis: "width" | "height") => {
     const n = parseInt(raw, 10);
@@ -229,20 +299,6 @@ export function StampInspector() {
       axis === "height" ? n : stampDimensions.height,
     );
     setSizeLimit(next && next[axis] < n ? next[axis] : null);
-  };
-
-  const commitHex = (raw: string) => {
-    const next = raw.replace("#", "");
-    if (/^[0-9a-f]{6}$/i.test(next)) {
-      void pickSolidStampColor(joinHexAlpha(next, opacity));
-    }
-  };
-
-  const commitOpacity = (raw: string) => {
-    const n = parseInt(raw, 10);
-    if (Number.isNaN(n)) return;
-    const next = Math.min(100, Math.max(0, n));
-    void pickSolidStampColor(joinHexAlpha(hex, next));
   };
 
   return (
@@ -270,7 +326,16 @@ export function StampInspector() {
                 {...fade}
                 className="absolute inset-x-0 top-0"
               >
-                <ActiveTextTypography />
+                <ActiveTextTypography
+                  renderColor={(color, setColor) => (
+                    <ColorRow
+                      color={color}
+                      open={pickerOpen}
+                      onToggle={() => setPickerOpen((o) => !o)}
+                      onChange={setColor}
+                    />
+                  )}
+                />
               </motion.div>
             ) : (
               <motion.div
@@ -318,33 +383,17 @@ export function StampInspector() {
         </Section>
 
         <Section title="Color">
-          <div className="flex gap-1.5">
-            <motion.button
-              type="button"
-              {...press}
-              aria-label="Open color picker"
-              aria-expanded={pickerOpen}
-              onClick={() => setPickerOpen((o) => !o)}
-              className="h-10 w-10 shrink-0 cursor-pointer rounded-xl shadow-[inset_0_0_0_1px_rgb(0_0_0/0.08)]"
-              style={{
-                background: backgroundAsset
-                  ? "conic-gradient(#ff271f, #ffe122, #00cc55, #3b84ee, #ff31c6, #ff271f)"
-                  : stampColor,
-              }}
-            />
-            <div className={`${field} flex-1`}>
-              <CommitInput label="Hex color" value={hex} onCommit={commitHex} />
-              <span aria-hidden className="h-5 w-px shrink-0 bg-zinc-700" />
-              <label className="flex w-12 shrink-0 items-center gap-1">
-                <CommitInput
-                  label="Opacity"
-                  value={String(opacity)}
-                  onCommit={commitOpacity}
-                />
-                <span className="text-ink-soft">%</span>
-              </label>
-            </div>
-          </div>
+          <ColorRow
+            color={stampColor}
+            swatch={
+              backgroundAsset
+                ? "conic-gradient(#ff271f, #ffe122, #00cc55, #3b84ee, #ff31c6, #ff271f)"
+                : stampColor
+            }
+            open={pickerOpen}
+            onToggle={() => setPickerOpen((o) => !o)}
+            onChange={(color) => void pickSolidStampColor(color)}
+          />
         </Section>
               </motion.div>
             )}
@@ -356,15 +405,13 @@ export function StampInspector() {
         {pickerOpen ? (
           <motion.div
             role="dialog"
-            aria-label="Stamp color"
+            aria-label={textLayer ? "Text color" : "Stamp color"}
             {...blurPop}
             className="desk-card absolute top-0 z-30 w-60 p-1.5 max-md:bottom-full max-md:right-0 max-md:top-auto max-md:mb-2 md:right-full md:mr-2"
           >
             <StampColorPicker
-              color={stampColor}
-              onChange={(result) =>
-                void pickSolidStampColor(colorResultToHex(result))
-              }
+              color={pickerColor}
+              onChange={(result) => setPickerColor(colorResultToHex(result))}
             />
           </motion.div>
         ) : null}

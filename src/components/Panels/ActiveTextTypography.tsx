@@ -6,13 +6,11 @@ import {
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
-import { ChromePicker } from "react-color";
-import { createPortal } from "react-dom";
 
 import { useStampEditor } from "../../hooks/useStampEditor";
 import { STAMP_FONTS, STAMP_FONT_SIZES } from "../../types/text";
@@ -87,123 +85,19 @@ function quotedFontFamily(name: string): string {
   return `'${escaped}'`;
 }
 
-/** Typography neutrals — last slot is true black to match default `#000000` text. */
-const TEXT_COLOR_PRESETS = [
-  "#ffffff",
-  "#f5f5f5",
-  "#e5e5e5",
-  "#d4d4d4",
-  "#a3a3a3",
-  "#737373",
-  "#262626",
-  "#404040",
-  "#000000",
-] as const;
-
-const TEXT_PRESET_HEX = new Set(TEXT_COLOR_PRESETS.map((c) => c.toLowerCase()));
-
-const TEXT_LIGHT_SWATCH = new Set([
-  "#ffffff",
-  "#f5f5f5",
-  "#e5e5e5",
-  "#d4d4d4",
-  "#a3a3a3",
-  "#fbfaf5",
-  "#fbfaf4",
-]);
-
-function ColorPickerPortal({
-  anchorEl,
-  colorHex,
-  onPick,
-  onClose,
-}: {
-  anchorEl: HTMLElement;
-  colorHex: string;
-  onPick: (hex: string) => void;
-  onClose: () => void;
-}) {
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
-
-  useLayoutEffect(() => {
-    const reposition = () => {
-      const popover = popoverRef.current;
-      const a = anchorEl.getBoundingClientRect();
-      const guessW = 276;
-      const guessH = 340;
-      const margin = 8;
-      if (!popover) {
-        const left = Math.min(innerWidth - margin - guessW, Math.max(margin, a.right - guessW));
-        let top = a.bottom + 6;
-        if (top + guessH > innerHeight - margin) top = Math.max(margin, a.top - guessH - 6);
-        setPosition({ left, top });
-        return;
-      }
-      const pw = popover.offsetWidth;
-      const ph = popover.offsetHeight;
-      let left = a.right - pw;
-      if (left < margin) left = Math.max(margin, a.left - (pw - a.width));
-      if (left + pw > innerWidth - margin) left = Math.max(margin, innerWidth - pw - margin);
-      let top = a.bottom + 6;
-      if (top + ph > innerHeight - margin) top = Math.max(margin, a.top - ph - 6);
-      setPosition({ left, top });
-    };
-    reposition();
-    const raf = requestAnimationFrame(() => requestAnimationFrame(reposition));
-    window.addEventListener("resize", reposition);
-    window.addEventListener("scroll", reposition, true);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", reposition);
-      window.removeEventListener("scroll", reposition, true);
-    };
-  }, [anchorEl]);
-
-  useEffect(() => {
-    const onPointer = (e: MouseEvent) => {
-      const popover = popoverRef.current;
-      if (!popover) return;
-      const t = e.target as Node | null;
-      if (!t || popover.contains(t) || anchorEl.contains(t)) return;
-      onClose();
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("mousedown", onPointer);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onPointer);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [anchorEl, onClose]);
-
-  return createPortal(
-    <div
-      ref={popoverRef}
-      className="fixed z-[100]"
-      style={{ left: position?.left ?? -9999, top: position?.top ?? -9999, visibility: position ? "visible" : "hidden" }}
-      onMouseDown={(e) => e.stopPropagation()}
-    >
-      <div className="overflow-hidden rounded-2xl bg-card shadow-chunky">
-        <ChromePicker color={colorHex} onChange={(c) => onPick(c.hex)} disableAlpha />
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
 /** Sidebar typography controls — only mounts when text is selected (caller may skip during placement mode). */
-export function ActiveTextTypography() {
+export function ActiveTextTypography({
+  renderColor,
+}: {
+  renderColor: (color: string, setColor: (color: string) => void) => ReactNode;
+}) {
   const {
     textLayers,
     selectedTextId,
-    textPlacementActive,
     updateTextLayer,
     removeTextLayer,
   } = useStampEditor();
 
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const pickerBtnRef = useRef<HTMLButtonElement>(null);
   const [fontDropdownOpen, setFontDropdownOpen] = useState(false);
   const [weightDropdownOpen, setWeightDropdownOpen] = useState(false);
   const [sizeDropdownOpen, setSizeDropdownOpen] = useState(false);
@@ -245,8 +139,6 @@ export function ActiveTextTypography() {
   if (current && current !== lastLayer) setLastLayer(current);
   const selected = current ?? lastLayer;
 
-  const visible = !!current && !textPlacementActive;
-
   const fontDef = useMemo(
     () => STAMP_FONTS.find((f) => f.family === selected?.fontFamily),
     [selected?.fontFamily],
@@ -270,10 +162,6 @@ export function ActiveTextTypography() {
     if (canonLayerId === undefined || canonFontSize === undefined) return;
     queueMicrotask(() => setSizeDraft(String(canonFontSize)));
   }, [canonLayerId, canonFontSize]);
-
-  useEffect(() => {
-    if (!visible) setPickerOpen(false);
-  }, [visible]);
 
   // Warm up the browser's FontFaceSet for every stamp font so dropdown
   // previews render in the correct typeface instead of falling back to serif.
@@ -570,62 +458,9 @@ export function ActiveTextTypography() {
       <section className="space-y-1.5">
         <div className="space-y-1.5">
           <h2 className="px-1 pt-1 text-sm text-ink-soft">Color</h2>
-          <div className="flex flex-wrap items-center gap-2">
-            {TEXT_COLOR_PRESETS.map((color) => {
-              const hex = color.toLowerCase();
-              return (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => {
-                    updateTextLayer(selected.id, { color });
-                    setPickerOpen(false);
-                  }}
-                  title={color}
-                  className="h-7 w-7 cursor-pointer rounded-full transition-transform hover:scale-110 focus:outline-none"
-                  style={{
-                    background: color,
-                    outline:
-                      selected.color.toLowerCase() === hex
-                        ? "2px solid var(--color-ink)"
-                        : "2px solid transparent",
-                    outlineOffset: "1px",
-                    boxShadow: TEXT_LIGHT_SWATCH.has(hex)
-                      ? "inset 0 0 0 1px rgba(0,0,0,0.15)"
-                      : undefined,
-                  }}
-                />
-              );
-            })}
-
-            <div className="relative shrink-0">
-              <button
-                ref={pickerBtnRef}
-                type="button"
-                onClick={() => setPickerOpen((o) => !o)}
-                title="Custom color"
-                className="h-7 w-7 cursor-pointer rounded-full transition-transform hover:scale-110 focus:outline-none"
-                style={{
-                  background:
-                    "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)",
-                  outline:
-                    !TEXT_PRESET_HEX.has(selected.color.toLowerCase()) &&
-                    pickerOpen
-                      ? "2px solid var(--color-ink)"
-                      : "2px solid transparent",
-                  outlineOffset: "1px",
-                }}
-              />
-              {pickerOpen && pickerBtnRef.current ? (
-                <ColorPickerPortal
-                  anchorEl={pickerBtnRef.current}
-                  colorHex={selected.color}
-                  onPick={(hex) => updateTextLayer(selected.id, { color: hex })}
-                  onClose={() => setPickerOpen(false)}
-                />
-              ) : null}
-            </div>
-          </div>
+          {renderColor(selected.color, (color) =>
+            updateTextLayer(selected.id, { color }),
+          )}
         </div>
       </section>
     </div>
