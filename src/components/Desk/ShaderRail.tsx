@@ -57,7 +57,13 @@ const SHADERS: readonly { name: ShaderName; label: string }[] = [
 
 export function ShaderRail() {
   const { blurPop, press, springy } = useDeskMotion();
-  const { activeShader, setActiveShader, selectedTextId } = useStampEditor();
+  const {
+    activeShader,
+    setActiveShader,
+    selectedTextId,
+    shaderMenuOpen: settingsOpen,
+    setShaderMenuOpen: setSettingsOpen,
+  } = useStampEditor();
   const rail = useDialKit(
     "Shader rail",
     {
@@ -71,7 +77,6 @@ export function ShaderRail() {
     },
     { id: "shader-rail-v3", persist: true },
   );
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [tip, setTip] = useState({
     name: null as ShaderName | null,
     label: "",
@@ -85,8 +90,8 @@ export function ShaderRail() {
     if (!settingsOpen) return;
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target as Element;
-      // ink color pickers portal to body but still belong to this menu
-      if (rootRef.current?.contains(target) || target.closest(".chrome-picker")) {
+      // pickers and the gizmo count as inside
+      if (rootRef.current?.contains(target) || target.closest(".chrome-picker, [data-shader-gizmo]")) {
         return;
       }
       setSettingsOpen(false);
@@ -100,7 +105,7 @@ export function ShaderRail() {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [settingsOpen]);
+  }, [settingsOpen, setSettingsOpen]);
 
   const showTip = (name: ShaderName, label: string, el: HTMLElement) => {
     setTip((t) => ({

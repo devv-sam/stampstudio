@@ -195,6 +195,7 @@ export function DiscText({
   geometry,
   unitsPerPx,
   outline = null,
+  ghost = false,
 }: {
   items: DiscTextItem[];
   onItemsChange: (items: DiscTextItem[]) => void;
@@ -209,6 +210,8 @@ export function DiscText({
   unitsPerPx: number;
   /** outline mode: letters drawn as strokes in this color */
   outline?: string | null;
+  /** shader draws the art, keep grab areas only */
+  ghost?: boolean;
 }) {
   const uid = useId();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -498,6 +501,7 @@ export function DiscText({
                   width={b.w}
                   height={b.h}
                   preserveAspectRatio="none"
+                  opacity={ghost && movingFrame?.id !== f.id ? 0 : 1}
                   className="pointer-events-auto cursor-move select-none"
                   onPointerDown={(e) => startFrameDrag(e, f, "move")}
                   onDoubleClick={() => onRecropFrame(f.id)}
@@ -537,7 +541,10 @@ export function DiscText({
           const t = fitted(item, geometry);
           const selected = t.id === selectedId && !dragging;
           const common = {
-            fill: outline ? "transparent" : t.color,
+            fill:
+              outline || (ghost && dragging?.id !== t.id)
+                ? "transparent"
+                : t.color,
             fontFamily: `'${t.fontFamily}'`,
             fontWeight: t.fontWeight,
             fontSize: t.fontSize / DISC_TEXT_SCALE,

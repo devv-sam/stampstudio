@@ -19,12 +19,17 @@ export function ShaderOriginGizmo({
   scale?: number;
   round?: boolean;
 }) {
-  const { activeShader, shaderParams, updateShaderParam, outlineMode } =
-    useStampEditor();
+  const {
+    activeShader,
+    shaderMenuOpen,
+    shaderParams,
+    updateShaderParam,
+    outlineMode,
+  } = useStampEditor();
   const rootRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
 
-  if (activeShader !== "intaglio" || outlineMode) return null;
+  if (activeShader !== "intaglio" || !shaderMenuOpen || outlineMode) return null;
 
   const { originX: x, originY: y, ink } = shaderParams.intaglio;
 
@@ -60,7 +65,7 @@ export function ShaderOriginGizmo({
   ];
 
   return (
-    <div ref={rootRef} className="pointer-events-none absolute inset-0 z-[21]">
+    <div ref={rootRef} data-shader-gizmo className="pointer-events-none absolute inset-0 z-[21]">
       <svg
         aria-hidden
         className="absolute inset-0 h-full w-full"

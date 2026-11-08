@@ -107,6 +107,45 @@ function drawText(
   ctx.restore()
 }
 
+function drawArt(
+  ctx: CanvasRenderingContext2D,
+  state: Pick<DiscExportState, 'hole' | 'rings' | 'spread' | 'texts' | 'frames'>,
+  frameImages: HTMLImageElement[],
+  size: number,
+) {
+  const k = size / 100
+  state.frames.forEach((f, i) => {
+    const b = frameBox(f)
+    ctx.save()
+    ctx.translate(b.cx * k, b.cy * k)
+    ctx.rotate((f.rotation * Math.PI) / 180)
+    ctx.drawImage(frameImages[i]!, (-b.w / 2) * k, (-b.h / 2) * k, b.w * k, b.h * k)
+    ctx.restore()
+  })
+  const geo = discGeometry(state.hole, state.rings, state.spread)
+  for (const t of state.texts) drawText(ctx, t, geo, k)
+}
+
+/** flattened disc art for the shader */
+export async function discArtUrl(
+  state: Omit<DiscExportState, 'shaderOpacity'>,
+  size: number,
+) {
+  const out = document.createElement('canvas')
+  out.width = size
+  out.height = size
+  const ctx = out.getContext('2d')
+  if (!ctx) throw new Error('Canvas is not available')
+  const img = state.image ? await loadImage(state.image) : null
+  const frameImages = await Promise.all(state.frames.map((f) => loadImage(f.src)))
+  await document.fonts.ready
+  ctx.fillStyle = state.color
+  ctx.fillRect(0, 0, size, size)
+  if (img) drawCover(ctx, img, size)
+  drawArt(ctx, state, frameImages, size)
+  return out.toDataURL('image/png')
+}
+
 /**
  * paints the disc at `size` px square. `preview` is the on-screen disc,
  * its shader canvas gets re-rendered at export size and multiplied in.
@@ -138,7 +177,9 @@ export async function renderDisc(
   const shader = preview.querySelector('canvas')
   const mount = (shader?.parentElement as (HTMLElement & { paperShaderMount?: ShaderRenderer }) | null)
     ?.paperShaderMount
-  if (shader && mount && shader.width > 0) {
+  const shaded = shader && mount && shader.width > 0
+  if (shaded) {
+    drawArt(ctx, state, frameImages, size)
     // the on-screen shader is sized for the screen, so render it again at the export size
     mount.setMaxPixelCount(size * size)
     mount.setMinPixelRatio(size / preview.clientWidth)
@@ -152,7 +193,6 @@ export async function renderDisc(
   }
 
   const k = size / 100
-  const geo = discGeometry(state.hole, state.rings, state.spread)
 
   // rings: a dark groove with a faint lit edge, 1 screen px scaled up
   const line = Math.max(1, size / preview.clientWidth)
@@ -170,17 +210,8 @@ export async function renderDisc(
     ctx.stroke()
   }
 
-  // frames sit between the rings and the text, like on screen
-  state.frames.forEach((f, i) => {
-    const b = frameBox(f)
-    ctx.save()
-    ctx.translate(b.cx * k, b.cy * k)
-    ctx.rotate((f.rotation * Math.PI) / 180)
-    ctx.drawImage(frameImages[i]!, (-b.w / 2) * k, (-b.h / 2) * k, b.w * k, b.h * k)
-    ctx.restore()
-  })
-
-  for (const t of state.texts) drawText(ctx, t, geo, k)
+  // shaded art already drew these
+  if (!shaded) drawArt(ctx, state, frameImages, size)
   ctx.restore()
 
   return out

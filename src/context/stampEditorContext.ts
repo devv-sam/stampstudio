@@ -106,6 +106,9 @@ export type StampEditorContextValue = {
   /** Shader applied on the stamp (`null` = normal fill only). Separate from accordion open state in the panel. */
   activeShader: ShaderName | null
   setActiveShader: (name: ShaderName | null) => void
+  /** shader settings card open */
+  shaderMenuOpen: boolean
+  setShaderMenuOpen: (open: boolean) => void
   shaderParams: ShaderParamsMap
   /** How the active shader blends with the stamp fill. */
   blendMode: BlendMode

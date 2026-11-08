@@ -321,7 +321,7 @@ export function CanvasFloatBar() {
         onClick: disc.addText,
       },
       {
-        label: "Upload image",
+        label: "Upload background",
         icon: ImageIcon,
         tint: "hover:text-clover focus-visible:text-clover",
         onClick: discUpload.open,
@@ -335,7 +335,7 @@ export function CanvasFloatBar() {
       ...(disc.image
         ? [
             {
-              label: "Remove image",
+              label: "Remove background",
               icon: X,
               tint: "hover:text-poppy focus-visible:text-poppy",
               onClick: () => disc.setImage(null),

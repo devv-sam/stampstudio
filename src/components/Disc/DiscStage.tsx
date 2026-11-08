@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useDiscEditor } from "../../hooks/useDiscEditor";
 import { useStampEditor } from "../../hooks/useStampEditor";
-import { NOISE_OPACITY } from "../../utils/discExport";
+import { discArtUrl, NOISE_OPACITY } from "../../utils/discExport";
 import { discGeometry } from "../../utils/discText";
 import { ShaderLayer } from "../Canvas/ShaderLayer";
 import { ShaderOriginGizmo } from "../Canvas/ShaderOriginGizmo";
@@ -16,6 +16,8 @@ const OUTLINE = "rgba(28, 28, 30, 0.72)";
 // room kept for the resize ring beside the disc and the size readout below it
 const RING_ROOM = 24;
 const READOUT_ROOM = 56;
+// flattened art size for the shader
+const ART_SIZE = 1024;
 
 /** the disc in the middle of the desk, shown in place of the stamp canvas */
 export function DiscStage() {
@@ -100,6 +102,22 @@ export function DiscStage() {
     activeShader === "image-dithering" &&
     shaderParams["image-dithering"].preset === "noise";
 
+  // shader reads one image, so flatten text and frames in
+  const shadeArt = !!activeShader && (texts.length > 0 || frames.length > 0);
+  const [artUrl, setArtUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!shadeArt) return;
+    let cancelled = false;
+    discArtUrl({ hole, rings, spread, color, image, texts, frames }, ART_SIZE)
+      .then((url) => !cancelled && setArtUrl(url))
+      .catch((err) => console.error("[stampstudio] disc art failed", err));
+    return () => {
+      cancelled = true;
+    };
+  }, [shadeArt, hole, rings, spread, color, image, texts, frames]);
+  const shaded = shadeArt && !!artUrl;
+  const art = shaded ? artUrl : image;
+
   return (
     // same stage box as the stamp canvas, so it clears the side panels. the disc panel runs taller on phones
     // isolate keeps the resize ring's z-index inside, so panel popovers stay on top
@@ -136,12 +154,12 @@ export function DiscStage() {
               }`}
               style={{
                 backgroundColor: color,
-                backgroundImage: image ? `url(${image})` : undefined,
+                backgroundImage: art ? `url(${art})` : undefined,
               }}
             />
             <ShaderLayer
               rect={{ left: 0, top: 0, width: discPx, height: discPx }}
-              imageSrc={image ?? ""}
+              imageSrc={art ?? ""}
               stampColor={color}
               activeShader={activeShader}
               shaderParams={shaderParams}
@@ -221,6 +239,7 @@ export function DiscStage() {
           onSelect={setSelectedId}
           geometry={discGeometry(hole, rings, spread)}
           outline={outlineMode ? OUTLINE : null}
+          ghost={shaded && !outlineMode}
         />
       </div>
 
