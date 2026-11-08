@@ -1,8 +1,16 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   Image as ImageIcon,
+  Trash2,
+  Type,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -10,6 +18,13 @@ import {
 import { DEFAULT_SHADER_PARAMS } from "../../data/editorDefaults";
 import { useExperiments } from "../../hooks/useExperiments";
 import type { DitheringPresetName } from "../../types/canvas";
+import { STAMP_FONTS } from "../../types/text";
+import {
+  discGeometry,
+  SLOT_DEFAULTS,
+  SLOT_ORDER,
+  type DiscTextItem,
+} from "../../utils/discText";
 import { colorResultToHex } from "../../utils/colorResultToHex";
 import { useDeskMotion } from "../../utils/deskMotion";
 import { ColorRow, Section } from "../Desk/StampInspector";
@@ -18,6 +33,14 @@ import { useDismissOnOutside } from "../Panels/ActiveTextTypography";
 import { ShaderLayer } from "../Canvas/ShaderLayer";
 import { CropStep } from "../Upload/CropStep";
 import { PerforationSlider } from "../UI/PerforationSlider";
+import { Select } from "../UI/Select";
+import { DiscText } from "./DiscText";
+
+const FIELD =
+  "h-10 w-full rounded-xl bg-zinc-900 px-3 text-sm outline-none transition-colors focus:bg-zinc-800";
+
+const nearestWeight = (weights: number[], target: number) =>
+  weights.reduce((a, b) => (Math.abs(b - target) < Math.abs(a - target) ? b : a));
 
 const IMAGE_SWATCH =
   "conic-gradient(#ff271f, #ffe122, #00cc55, #3b84ee, #ff31c6, #ff271f)";
@@ -68,6 +91,11 @@ export function CdExperiment() {
   // image or color, never both: picking a color drops the image
   const [image, setImage] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // which color the shared picker edits
+  const [pickerFor, setPickerFor] = useState<"disc" | "text">("disc");
+  const [texts, setTexts] = useState<DiscTextItem[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = texts.find((t) => t.id === selectedId) ?? null;
   // the raw upload waiting in the crop step
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [shader, setShader] = useState(SHADERS[0]!);
@@ -102,6 +130,59 @@ export function CdExperiment() {
     setColor(next);
   };
 
+  const updateSelected = (patch: Partial<DiscTextItem>) =>
+    setTexts((all) =>
+      all.map((t) => (t.id === selectedId ? { ...t, ...patch } : t)),
+    );
+
+  const removeSelected = () => {
+    setTexts((all) => all.filter((t) => t.id !== selectedId));
+    setSelectedId(null);
+  };
+
+  const togglePicker = (target: "disc" | "text") => {
+    setPickerOpen((o) => !(o && pickerFor === target));
+    setPickerFor(target);
+  };
+
+  // straight slots fill first, then extras stack on the rim
+  const addText = () => {
+    const taken = new Set(texts.map((t) => t.slot));
+    const slot = SLOT_ORDER.find((s) => !taken.has(s)) ?? "rim";
+    const defaults = SLOT_DEFAULTS[slot];
+    const id = crypto.randomUUID();
+    setTexts((all) => [
+      ...all,
+      {
+        id,
+        slot,
+        content: defaults.content,
+        angle: defaults.angle,
+        fontSize: defaults.fontSize,
+        fontFamily: "Inter",
+        fontWeight: slot === "top" ? 600 : 500,
+        color: "#ffffff",
+      },
+    ]);
+    setSelectedId(id);
+  };
+
+  // delete or backspace removes the selected text, unless you're typing
+  useEffect(() => {
+    if (!selectedId) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (el.closest("input, textarea, select")) return;
+      if (e.key === "Delete" || e.key === "Backspace") {
+        setTexts((all) => all.filter((t) => t.id !== selectedId));
+        setSelectedId(null);
+      }
+      if (e.key === "Escape") setSelectedId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedId]);
+
   const holeStop = `${hole}%`;
   // svg units are % of the diameter, so the hole radius is hole / 2
   const ringRadii = Array.from(
@@ -117,14 +198,16 @@ export function CdExperiment() {
       exit={{ opacity: 0, scale: 0.98 }}
       transition={{ duration: 0.2 }}
     >
-      <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center p-6">
+      <main
+        className="flex min-h-0 min-w-0 flex-1 items-center justify-center p-6"
+        onPointerDown={() => setSelectedId(null)}
+      >
         <div
           ref={discRef}
           className="aspect-square drop-shadow-[0_10px_24px_rgb(0_0_0/0.18)]"
           style={{ width: `min(${size}px, 70vmin)` }}
         >
           <div
-            role="img"
             aria-label="Disc preview"
             className="relative h-full w-full overflow-hidden rounded-full"
             style={{
@@ -179,6 +262,13 @@ export function CdExperiment() {
                 </g>
               ))}
             </svg>
+            <DiscText
+              items={texts}
+              onItemsChange={setTexts}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              geometry={discGeometry(hole, rings, spread)}
+            />
           </div>
         </div>
       </main>
@@ -188,6 +278,70 @@ export function CdExperiment() {
         className="relative z-10 self-center md:mr-6 max-md:mb-24 max-md:w-[calc(100%-1.5rem)]"
       >
         <div className="desk-card w-[212px] space-y-3 p-1.5 max-md:w-auto">
+          {selected ? (
+            <Section title="Text">
+              <div className="space-y-1.5">
+                <div className="flex gap-1.5">
+                  <input
+                    aria-label="Text"
+                    value={selected.content}
+                    onChange={(e) => updateSelected({ content: e.target.value })}
+                    className={FIELD}
+                  />
+                  <button
+                    type="button"
+                    onClick={removeSelected}
+                    title="Remove text"
+                    aria-label="Remove text"
+                    className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-zinc-900 hover:text-poppy"
+                  >
+                    <Trash2 size={16} aria-hidden />
+                  </button>
+                </div>
+                <Select
+                  aria-label="Font"
+                  value={selected.fontFamily}
+                  onChange={(e) => {
+                    const font = STAMP_FONTS.find(
+                      (f) => f.family === e.target.value,
+                    );
+                    if (!font) return;
+                    updateSelected({
+                      fontFamily: font.family,
+                      fontWeight: nearestWeight(
+                        font.weights,
+                        selected.fontWeight,
+                      ),
+                    });
+                  }}
+                  className="!h-10 w-full !rounded-xl !border-0 !bg-zinc-900 !font-normal"
+                >
+                  {STAMP_FONTS.map((f) => (
+                    <option key={f.family} value={f.family}>
+                      {f.label}
+                    </option>
+                  ))}
+                </Select>
+                <PerforationSlider
+                  key={selected.id}
+                  label="Size"
+                  defaultValue={selected.fontSize}
+                  minValue={1.5}
+                  maxValue={10}
+                  step={0.1}
+                  onInput={(fontSize) => updateSelected({ fontSize })}
+                  format={(v) => v.toFixed(1)}
+                />
+                <ColorRow
+                  color={selected.color}
+                  open={pickerOpen && pickerFor === "text"}
+                  onToggle={() => togglePicker("text")}
+                  onChange={(c) => updateSelected({ color: c })}
+                />
+              </div>
+            </Section>
+          ) : null}
+
           <Section title="Disc">
             <div className="space-y-1.5">
               <PerforationSlider
@@ -277,24 +431,29 @@ export function CdExperiment() {
             <ColorRow
               color={color}
               swatch={image ? IMAGE_SWATCH : color}
-              open={pickerOpen}
-              onToggle={() => setPickerOpen((o) => !o)}
+              open={pickerOpen && pickerFor === "disc"}
+              onToggle={() => togglePicker("disc")}
               onChange={pickColor}
             />
           </Section>
         </div>
 
         <AnimatePresence>
-          {pickerOpen ? (
+          {pickerOpen && (pickerFor === "disc" || selected) ? (
             <motion.div
+              key={pickerFor}
               role="dialog"
-              aria-label="Disc color"
+              aria-label={pickerFor === "text" ? "Text color" : "Disc color"}
               {...blurPop}
               className="desk-card absolute top-0 z-30 w-60 p-1.5 max-md:bottom-full max-md:right-0 max-md:top-auto max-md:mb-2 md:right-full md:mr-2"
             >
               <StampColorPicker
-                color={color}
-                onChange={(result) => pickColor(colorResultToHex(result))}
+                color={pickerFor === "text" && selected ? selected.color : color}
+                onChange={(result) => {
+                  const hex = colorResultToHex(result);
+                  if (pickerFor === "text") updateSelected({ color: hex });
+                  else pickColor(hex);
+                }}
               />
             </motion.div>
           ) : null}
@@ -303,6 +462,7 @@ export function CdExperiment() {
 
       <div className="desk-card absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-1 p-1.5">
         <BarButton label="Back to studio" icon={ArrowLeft} onClick={exit} />
+        <BarButton label="Add text" icon={Type} onClick={addText} />
         <BarButton label="Upload image" icon={ImageIcon} onClick={openFile} />
         {image ? (
           <BarButton
