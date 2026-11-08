@@ -1,17 +1,17 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
 
 import { StampCanvas } from "../Canvas/StampCanvas";
 import { CanvasFloatBar } from "../Canvas/CanvasFloatBar";
 import { LogoMorph } from "../Brand/LogoMorph";
 import { StampInspector } from "../Desk/StampInspector";
 import { ShaderRail } from "../Desk/ShaderRail";
-import { CdExperiment } from "../Experiments/CdExperiment";
-import { StampSheetExperiment } from "../Experiments/StampSheetExperiment";
+import { DiscInspector } from "../Disc/DiscInspector";
+import { DiscStage } from "../Disc/DiscStage";
+import { ModeToggle } from "./ModeToggle";
 import { getLatestVersion } from "../../data/changelog";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { useExperiments } from "../../hooks/useExperiments";
+import { useDiscEditor } from "../../hooks/useDiscEditor";
 import { HOME_TITLE } from "../../seo";
 import {
   hasUnseenChangelog,
@@ -21,7 +21,7 @@ import { UpdatesModal } from "../Updates/UpdatesModal";
 
 export function AppLayout({ header }: { header?: ReactNode }) {
   useDocumentTitle(HOME_TITLE);
-  const { active } = useExperiments();
+  const { discMode } = useDiscEditor();
   const location = useLocation();
   const navigate = useNavigate();
   const latest = getLatestVersion();
@@ -50,6 +50,9 @@ export function AppLayout({ header }: { header?: ReactNode }) {
               </h1>
             </div>
           </div>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-md:top-[calc(100%+0.25rem)] max-md:translate-y-0">
+            <ModeToggle />
+          </div>
           <div className="flex items-center gap-4">
             <button
               type="button"
@@ -76,7 +79,12 @@ export function AppLayout({ header }: { header?: ReactNode }) {
           </div>
         </header>
 
-        <main className="desk-stage flex min-h-0 min-w-0 flex-col">
+        {/* the stamp canvas stays mounted in disc mode so its work survives the switch.
+            opacity + inert, since canvas children force their own visibility and pointer events */}
+        <main
+          className={`desk-stage flex min-h-0 min-w-0 flex-col ${discMode ? "opacity-0" : ""}`}
+          inert={discMode}
+        >
           <p className="sr-only">
             Free online stamp maker to create custom postage stamps. Upload
             photos, add typography, adjust perforated edges, apply print-style
@@ -85,12 +93,14 @@ export function AppLayout({ header }: { header?: ReactNode }) {
           <StampCanvas />
         </main>
 
+        {discMode ? <DiscStage /> : null}
+
         <div className="pointer-events-none z-20 max-md:absolute max-md:inset-x-3 max-md:bottom-[5.5rem] max-md:flex max-md:flex-col-reverse max-md:gap-2">
           <div className="min-w-0 md:absolute md:left-5 md:top-1/2 md:-translate-y-1/2">
             <ShaderRail />
           </div>
           <div className="md:absolute md:right-6 md:top-1/2 md:-translate-y-1/2">
-            <StampInspector />
+            {discMode ? <DiscInspector /> : <StampInspector />}
           </div>
         </div>
 
@@ -103,10 +113,6 @@ export function AppLayout({ header }: { header?: ReactNode }) {
         onClose={() => setUpdatesOpen(false)}
       />
 
-      <AnimatePresence>
-        {active === "stampsheet" ? <StampSheetExperiment /> : null}
-        {active === "cd" ? <CdExperiment /> : null}
-      </AnimatePresence>
     </>
   );
 }

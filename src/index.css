@@ -64,7 +64,8 @@
 
 @media (max-width: 767px) {
   .desk-stage {
-    inset: 4rem 0.75rem 23.5rem;
+    /* top clears the stamp/disc toggle, which drops below the header on phones */
+    inset: 7rem 0.75rem 23.5rem;
   }
 }
 

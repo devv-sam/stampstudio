@@ -13,15 +13,16 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Check,
   Eye,
-  FlaskConical,
   Frame,
   Image as ImageIcon,
   Library,
   Stamp,
   Type,
+  X,
 } from "lucide-react";
 
-import { useExperiments } from "../../hooks/useExperiments";
+import { useDiscEditor } from "../../hooks/useDiscEditor";
+import { useDiscUpload } from "../../hooks/useDiscUpload";
 import { useImageUploadFlow } from "../../hooks/useImageUploadFlow";
 import { useStampEditor } from "../../hooks/useStampEditor";
 import { useDeskMotion } from "../../utils/deskMotion";
@@ -93,7 +94,8 @@ export function CanvasFloatBar() {
   } = useStampEditor();
 
   const { blurPop, press, springy } = useDeskMotion();
-  const { launch } = useExperiments();
+  const disc = useDiscEditor();
+  const discUpload = useDiscUpload();
   const nav = useDialKit(
     "Bottom nav",
     {
@@ -278,7 +280,34 @@ export function CanvasFloatBar() {
     { id: "6k", label: "6K" },
   ];
 
-  const groups: NavTool[][] = [
+  const discGroups: NavTool[][] = [
+    [
+      {
+        label: "Add text",
+        icon: Type,
+        tint: "hover:text-cornflower focus-visible:text-cornflower",
+        onClick: disc.addText,
+      },
+      {
+        label: "Upload image",
+        icon: ImageIcon,
+        tint: "hover:text-clover focus-visible:text-clover",
+        onClick: discUpload.open,
+      },
+      ...(disc.image
+        ? [
+            {
+              label: "Remove image",
+              icon: X,
+              tint: "hover:text-poppy focus-visible:text-poppy",
+              onClick: () => disc.setImage(null),
+            },
+          ]
+        : []),
+    ],
+  ];
+
+  const stampGroups: NavTool[][] = [
     [
       {
         label: "Add text",
@@ -321,12 +350,6 @@ export function CanvasFloatBar() {
           setDrawerOpen((o) => !o);
         },
       },
-      {
-        label: "CD designer",
-        icon: FlaskConical,
-        tint: "hover:text-cornflower focus-visible:text-cornflower",
-        onClick: () => launch("cd"),
-      },
     ],
     [
       {
@@ -342,6 +365,16 @@ export function CanvasFloatBar() {
       },
     ],
   ];
+
+  const groups = disc.discMode ? discGroups : stampGroups;
+
+  // popovers belong to stamp mode, so the top toggle closes them on the way out
+  const [wasDiscMode, setWasDiscMode] = useState(disc.discMode);
+  if (wasDiscMode !== disc.discMode) {
+    setWasDiscMode(disc.discMode);
+    setExportPopoverOpen(false);
+    setDrawerOpen(false);
+  }
 
   const showTip = (label: string, el: HTMLElement) => {
     if (textPlacementActive) return;
@@ -589,6 +622,7 @@ export function CanvasFloatBar() {
 
       {frameUpload.fileInputElement}
       {frameUpload.overlayElement}
+      {discUpload.inputElement}
       {bgUpload.fileInputElement}
       {bgUpload.overlayElement}
 
